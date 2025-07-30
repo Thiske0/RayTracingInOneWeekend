@@ -6,8 +6,10 @@ use indicatif::ProgressBar;
 use simple_ray_tracer::{
     Result,
     raytracer::{
+        hitable_list::HitableList,
         options::Options,
         ray::Ray,
+        sphere::Sphere,
         vec3::{Point3, Vec3},
     },
 };
@@ -21,6 +23,11 @@ fn main() -> Result<()> {
 
     // Open the output file
     let mut file = File::create(&options.render.file_name)?;
+
+    // World
+    let mut world = HitableList::new();
+    world.add(Sphere::new(Point3::new(0.0, 0.0, -1.0), 0.5));
+    world.add(Sphere::new(Point3::new(0.0, -100.5, -1.0), 100.0));
 
     // Camera setup
     let camera_origin = Point3::new(0.0, 0.0, 0.0);
@@ -53,7 +60,7 @@ fn main() -> Result<()> {
             let ray_direction = pixel_center - camera_origin;
             let ray = Ray::new(camera_origin, ray_direction);
 
-            let pixel_color = ray.color();
+            let pixel_color = ray.color(&world);
 
             writeln!(file, "{}", pixel_color)?;
             progress.inc(1);

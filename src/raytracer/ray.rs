@@ -1,6 +1,6 @@
 use crate::raytracer::{
     color::Color,
-    sphere::Sphere,
+    hitable::Hitable,
     vec3::{Point3, Vec3},
 };
 
@@ -26,11 +26,9 @@ impl Ray {
         self.origin + self.direction * t
     }
 
-    pub fn color(&self) -> Color {
-        let sphere = Sphere::new(Point3::new(0.0, 0.0, -1.0), 0.5);
-        if let Some(t) = sphere.hit(self) {
-            let normal = (self.at(t) - sphere.center).normalize();
-            return ((normal + 1.0) * 0.5).to_color();
+    pub fn color<T: Hitable>(&self, hitable: &T) -> Color {
+        if let Some(hit) = hitable.hit(self, 0.0, f32::INFINITY) {
+            return ((hit.normal + 1.0) * 0.5).to_color();
         }
 
         let unit_direction = self.direction.normalize();
