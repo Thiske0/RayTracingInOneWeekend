@@ -1,10 +1,10 @@
 use std::ops;
 
-use derive_more::{Add, Display, Mul, Sub};
+use derive_more::{Add, AddAssign, Display, Mul, Sub, SubAssign};
 
 use crate::raytracer::color::Color;
 
-#[derive(Debug, Clone, Copy, PartialEq, Add, Sub, Mul, Display)]
+#[derive(Debug, Clone, Copy, PartialEq, Add, AddAssign, Sub, SubAssign, Mul, Display)]
 #[display("({}, {}, {})", x, y, z)]
 pub struct Vec3 {
     pub x: f32,
@@ -18,6 +18,10 @@ pub type Point3 = Vec3;
 impl Vec3 {
     pub fn new(x: f32, y: f32, z: f32) -> Self {
         Vec3 { x, y, z }
+    }
+
+    pub fn zero() -> Self {
+        Vec3::new(0.0, 0.0, 0.0)
     }
 
     pub fn dot(self, other: Vec3) -> f32 {

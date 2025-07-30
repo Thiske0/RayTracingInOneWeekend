@@ -19,6 +19,10 @@ pub struct RenderOptions {
     #[arg(short = 'f', long = "focal-length", default_value_t = 1.0)]
     pub focal_length: f32,
 
+    /// Number of samples per pixel
+    #[arg(short = 's', long = "samples", default_value_t = 10)]
+    pub samples_per_pixel: usize,
+
     /// Output file name
     #[arg(short = 'o', long = "output", default_value = "image.ppm")]
     pub file_name: String,

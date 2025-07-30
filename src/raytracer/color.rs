@@ -1,10 +1,10 @@
 use core::fmt;
 
-use derive_more::{Add, Div, Mul, Sub};
+use derive_more::{Add, AddAssign, Div, Mul, Sub, SubAssign};
 
 use crate::raytracer::vec3::Vec3;
 
-#[derive(Debug, Clone, Copy, PartialEq, Add, Sub, Mul, Div)]
+#[derive(Debug, Clone, Copy, PartialEq, Add, AddAssign, Sub, SubAssign, Mul, Div)]
 pub struct Color(Vec3);
 
 impl Color {
@@ -19,6 +19,10 @@ impl Color {
 
     pub fn lerp(self, other: Color, t: f32) -> Self {
         self + (other - self) * t
+    }
+
+    pub fn black() -> Self {
+        Color(Vec3::zero())
     }
 }
 
