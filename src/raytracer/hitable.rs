@@ -1,10 +1,11 @@
 use crate::raytracer::{
+    interval::Interval,
     ray::Ray,
     vec3::{Point3, Vec3},
 };
 
 pub trait Hitable {
-    fn hit(&self, ray: &Ray, t_min: f32, t_max: f32) -> Option<HitRecord>;
+    fn hit(&self, ray: &Ray, interval: &Interval) -> Option<HitRecord>;
 }
 
 pub struct HitRecord {

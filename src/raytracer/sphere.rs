@@ -1,5 +1,6 @@
 use crate::raytracer::{
     hitable::{HitRecord, Hitable},
+    interval::Interval,
     ray::Ray,
     vec3::Point3,
 };
@@ -13,34 +14,23 @@ impl Sphere {
     pub fn new(center: Point3, radius: f32) -> Self {
         Sphere { center, radius }
     }
-
-    pub fn hit(&self, ray: &Ray) -> Option<f32> {
-        let co = ray.origin - self.center;
-        let a = ray.direction.dot(ray.direction);
-        let b = co.dot(ray.direction);
-        let c = co.dot(co) - self.radius * self.radius;
-        let discriminant = b * b - a * c;
-
-        if discriminant > 0.0 {
-            Some((-b - discriminant.sqrt()) / a)
-        } else {
-            None
-        }
-    }
 }
 
 impl Hitable for Sphere {
-    fn hit(&self, ray: &Ray, t_min: f32, t_max: f32) -> Option<HitRecord> {
-        let co = ray.origin - self.center;
+    fn hit(&self, ray: &Ray, interval: &Interval) -> Option<HitRecord> {
+        let oc = self.center - ray.origin;
         let a = ray.direction.dot(ray.direction);
-        let b = co.dot(ray.direction);
-        let c = co.dot(co) - self.radius * self.radius;
+        let b = oc.dot(ray.direction);
+        let c = oc.dot(oc) - self.radius * self.radius;
         let discriminant = b * b - a * c;
 
         if discriminant > 0.0 {
-            let t = (-b - discriminant.sqrt()) / a;
-            if t < t_min || t > t_max {
-                return None;
+            let mut t = (b - discriminant.sqrt()) / a;
+            if !interval.contains(t) {
+                t = (b + discriminant.sqrt()) / a;
+                if !interval.contains(t) {
+                    return None;
+                }
             }
             let p = ray.at(t);
             let normal = (p - self.center).normalize();

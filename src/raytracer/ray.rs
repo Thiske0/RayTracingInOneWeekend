@@ -1,6 +1,7 @@
 use crate::raytracer::{
     color::Color,
     hitable::Hitable,
+    interval::Interval,
     vec3::{Point3, Vec3},
 };
 
@@ -27,7 +28,7 @@ impl Ray {
     }
 
     pub fn color<T: Hitable>(&self, hitable: &T) -> Color {
-        if let Some(hit) = hitable.hit(self, 0.0, f32::INFINITY) {
+        if let Some(hit) = hitable.hit(self, &Interval::new(0.0, f32::INFINITY)) {
             return ((hit.normal + 1.0) * 0.5).to_color();
         }
 

@@ -1,5 +1,6 @@
 use crate::raytracer::{
     hitable::{HitRecord, Hitable},
+    interval::Interval,
     ray::Ray,
 };
 
@@ -20,13 +21,13 @@ impl<'a> HitableList<'a> {
 }
 
 impl<'a> Hitable for HitableList<'a> {
-    fn hit(&self, ray: &Ray, t_min: f32, t_max: f32) -> Option<HitRecord> {
+    fn hit(&self, ray: &Ray, interval: &Interval) -> Option<HitRecord> {
         let mut closest_hit: Option<HitRecord> = None;
-        let mut closest_t = t_max;
+        let mut closest_interval = interval.clone();
 
         for hitable in &self.hitables {
-            if let Some(hit_record) = hitable.hit(ray, t_min, closest_t) {
-                closest_t = hit_record.t;
+            if let Some(hit_record) = hitable.hit(ray, &closest_interval) {
+                closest_interval = Interval::new(closest_interval.min, hit_record.t);
                 closest_hit = Some(hit_record);
             }
         }
