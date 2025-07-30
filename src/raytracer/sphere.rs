@@ -11,14 +11,14 @@ impl Sphere {
     }
 
     pub fn hit(&self, ray: &Ray) -> Option<f32> {
-        let oc = self.center - ray.origin;
+        let co = ray.origin - self.center;
         let a = ray.direction.dot(ray.direction);
-        let b = -2.0 * oc.dot(ray.direction);
-        let c = oc.dot(oc) - self.radius * self.radius;
-        let discriminant = b * b - 4.0 * a * c;
+        let b = co.dot(ray.direction);
+        let c = co.dot(co) - self.radius * self.radius;
+        let discriminant = b * b - a * c;
 
         if discriminant > 0.0 {
-            Some((-b - discriminant.sqrt()) / (2.0 * a))
+            Some((-b - discriminant.sqrt()) / a)
         } else {
             None
         }
