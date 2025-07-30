@@ -1,6 +1,8 @@
-use std::ops::Div;
+use std::ops;
 
 use derive_more::{Add, Display, Mul, Sub};
+
+use crate::raytracer::color::Color;
 
 #[derive(Debug, Clone, Copy, PartialEq, Add, Sub, Mul, Display)]
 #[display("({}, {}, {})", x, y, z)]
@@ -42,9 +44,21 @@ impl Vec3 {
     pub fn map(self, f: fn(f32) -> f32) -> Self {
         Vec3::new(f(self.x), f(self.y), f(self.z))
     }
+
+    pub fn to_color(self) -> Color {
+        Color::new(self.x, self.y, self.z)
+    }
 }
 
-impl Div<f32> for Vec3 {
+impl ops::Add<f32> for Vec3 {
+    type Output = Self;
+
+    fn add(self, scalar: f32) -> Self::Output {
+        Vec3::new(self.x + scalar, self.y + scalar, self.z + scalar)
+    }
+}
+
+impl ops::Div<f32> for Vec3 {
     type Output = Self;
 
     fn div(self, scalar: f32) -> Self::Output {

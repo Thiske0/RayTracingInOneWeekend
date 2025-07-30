@@ -1,11 +1,12 @@
 use crate::raytracer::{
     color::Color,
+    sphere::Sphere,
     vec3::{Point3, Vec3},
 };
 
 pub struct Ray {
-    origin: Point3,
-    direction: Vec3,
+    pub origin: Point3,
+    pub direction: Vec3,
 }
 
 impl Ray {
@@ -26,6 +27,12 @@ impl Ray {
     }
 
     pub fn color(&self) -> Color {
+        let sphere = Sphere::new(Point3::new(0.0, 0.0, -1.0), 0.5);
+        if let Some(t) = sphere.hit(self) {
+            let normal = (self.at(t) - sphere.center).normalize();
+            return ((normal + 1.0) * 0.5).to_color();
+        }
+
         let unit_direction = self.direction.normalize();
         let blue = Color::new(0.5, 0.7, 1.0);
         let white = Color::new(1.0, 1.0, 1.0);
