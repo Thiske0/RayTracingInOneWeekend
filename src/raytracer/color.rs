@@ -16,6 +16,10 @@ impl Color {
         let v = (self * 255.999).0.map(|c| c.clamp(0.0, 255.0));
         (v.x as i32, v.y as i32, v.z as i32)
     }
+
+    pub fn lerp(self, other: Color, t: f32) -> Self {
+        self + (other - self) * t
+    }
 }
 
 impl fmt::Display for Color {

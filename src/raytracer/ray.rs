@@ -1,4 +1,7 @@
-use crate::raytracer::vec3::{Point3, Vec3};
+use crate::raytracer::{
+    color::Color,
+    vec3::{Point3, Vec3},
+};
 
 pub struct Ray {
     origin: Point3,
@@ -20,5 +23,13 @@ impl Ray {
 
     pub fn at(&self, t: f32) -> Point3 {
         self.origin + self.direction * t
+    }
+
+    pub fn color(&self) -> Color {
+        let unit_direction = self.direction.normalize();
+        let blue = Color::new(0.5, 0.7, 1.0);
+        let white = Color::new(1.0, 1.0, 1.0);
+        let t = 0.5 * (unit_direction.y + 1.0);
+        white.lerp(blue, t)
     }
 }
