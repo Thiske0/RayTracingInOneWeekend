@@ -1,0 +1,10 @@
+[package]
+name = "simple-ray-tracer"
+version = "0.1.0"
+edition = "2024"
+default-run = "render"
+
+[dependencies]
+clap = { version = "4.5.7", features = ["derive", "env"] }
+derive_more = { version = "2.0.1", features = ["full"] }
+indicatif = "0.18.0"
