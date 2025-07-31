@@ -28,7 +28,7 @@ impl<T: Material> Hitable for Sphere<T> {
         let oc = self.center - ray.origin;
         let a = ray.direction.dot(ray.direction);
         let b = oc.dot(ray.direction);
-        let c = oc.dot(oc) - self.radius * self.radius;
+        let c = oc.length_squared() - self.radius * self.radius;
         let discriminant = b * b - a * c;
 
         if discriminant > 0.0 {

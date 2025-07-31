@@ -38,8 +38,12 @@ impl Vec3 {
         self.x * other.x + self.y * other.y + self.z * other.z
     }
 
+    pub fn length_squared(self) -> Real {
+        self.dot(self)
+    }
+
     pub fn length(self) -> Real {
-        self.dot(self).sqrt()
+        self.length_squared().sqrt()
     }
 
     pub fn normalize(self) -> Self {
@@ -71,6 +75,13 @@ impl Vec3 {
     pub fn reflect(self, normal: Vec3) -> Self {
         self - normal * 2.0 * self.dot(normal)
     }
+
+    pub fn refract(self, normal: Vec3, etai_over_etat: Real) -> Self {
+        let cos_theta = Real::min(-self.dot(normal), 1.0);
+        let r_out_perp = (self + normal * cos_theta) * etai_over_etat;
+        let r_out_parallel = normal * -Real::abs(1.0 - r_out_perp.length_squared()).sqrt();
+        r_out_perp + r_out_parallel
+    }
 }
 
 impl Vec3 {
@@ -85,7 +96,7 @@ impl Vec3 {
         })
     }
 
-    fn random(interval: Range<Real>) -> Self {
+    pub fn random(interval: Range<Real>) -> Self {
         RNG.with(|rng| {
             // Safety: we only have one &mut to the RNG at a time.
             let rng = unsafe { &mut *rng.get() };
@@ -100,7 +111,7 @@ impl Vec3 {
     pub fn random_unit() -> Self {
         loop {
             let v = Vec3::random(-1.0..1.0);
-            let length_squared = v.dot(v);
+            let length_squared = v.length_squared();
             // Avoid division by zero by ensuring that the vector length is not too close to zero.
             if length_squared > 1e-15 && length_squared < 1.0 {
                 return v / length_squared.sqrt();

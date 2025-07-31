@@ -31,6 +31,10 @@ impl Color {
     pub fn black() -> Self {
         Color(Vec3::zero())
     }
+
+    pub fn white() -> Self {
+        Color(Vec3::new(1.0, 1.0, 1.0))
+    }
 }
 
 impl ops::Mul<Color> for Color {
