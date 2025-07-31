@@ -41,7 +41,9 @@ impl Material for Dielectric {
         let cos_theta = Real::min(-unit_direction.dot(normal), 1.0);
         let sin_theta = (1.0 - cos_theta * cos_theta).sqrt();
         let cannot_refract = ri * sin_theta > 1.0;
-        let direction = if cannot_refract {
+        let direction = if cannot_refract
+            || Dielectric::reflectance(cos_theta, ri) > Dielectric::random_real()
+        {
             // Reflect
             unit_direction.reflect(normal)
         } else {
