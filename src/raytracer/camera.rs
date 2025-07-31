@@ -14,16 +14,36 @@ use crate::{
 };
 
 pub struct Camera {
-    pub origin: Point3,
     pub render_options: RenderOptions,
 }
 
 impl Camera {
-    pub fn new(origin: Point3, render_options: RenderOptions) -> Self {
-        Camera {
-            origin,
-            render_options,
-        }
+    pub fn new(render_options: RenderOptions) -> Self {
+        Camera { render_options }
+    }
+
+    fn initilize(&self) -> (Point3, Vec3, Vec3, Vec3) {
+        let origin = self.render_options.lookfrom;
+
+        // Calculate the u,v,w unit basis vectors for the camera coordinate frame.
+        let w = (origin - self.render_options.lookat).normalize();
+        let u = self.render_options.vup.cross(w).normalize();
+        let v = w.cross(u);
+
+        // Calculate the location of the upper left pixel.
+        let viewport_u = u * self.render_options.viewport_width();
+        let viewport_v = v * -self.render_options.viewport_height();
+
+        // Calculate the horizontal and vertical delta vectors from pixel to pixel.
+        let pixel_delta_u = viewport_u / self.render_options.width as Real;
+        let pixel_delta_v = viewport_v / self.render_options.height as Real;
+
+        // Calculate the location of the upper left pixel.
+        let viewport_upper_left =
+            origin - w * self.render_options.focal_length - viewport_u / 2.0 - viewport_v / 2.0;
+        let pixel00_loc = viewport_upper_left + (pixel_delta_u + pixel_delta_v) * 0.5;
+
+        (origin, pixel00_loc, pixel_delta_u, pixel_delta_v)
     }
 
     pub fn render<T: Hitable>(&self, world: &T) -> Result<()> {
@@ -34,20 +54,8 @@ impl Camera {
         // Open the output file
         let mut file = File::create(&self.render_options.file_name)?;
 
-        // Calculate the location of the upper left pixel.
-        let viewport_u = Vec3::new(self.render_options.viewport_width(), 0.0, 0.0);
-        let viewport_v = Vec3::new(0.0, -self.render_options.viewport_height, 0.0);
-
-        // Calculate the horizontal and vertical delta vectors from pixel to pixel.
-        let pixel_delta_u = viewport_u / self.render_options.width as Real;
-        let pixel_delta_v = viewport_v / self.render_options.height as Real;
-
-        // Calculate the location of the upper left pixel.
-        let viewport_upper_left = self.origin
-            - Vec3::new(0.0, 0.0, self.render_options.focal_length)
-            - viewport_u / 2.0
-            - viewport_v / 2.0;
-        let pixel00_loc = viewport_upper_left + (pixel_delta_u + pixel_delta_v) * 0.5;
+        // Initialize camera parameters
+        let (origin, pixel00_loc, pixel_delta_u, pixel_delta_v) = self.initilize();
 
         // Render
         let image_width = self.render_options.width;
@@ -64,8 +72,8 @@ impl Camera {
                     let pixel_sample = pixel00_loc
                         + (pixel_delta_u * (i as Real + offset.x))
                         + (pixel_delta_v * (j as Real + offset.y));
-                    let ray_direction = pixel_sample - self.origin;
-                    let ray = Ray::new(self.origin, ray_direction);
+                    let ray_direction = pixel_sample - origin;
+                    let ray = Ray::new(origin, ray_direction);
 
                     pixel_color += ray.color(self.render_options.max_depth, world);
                 }

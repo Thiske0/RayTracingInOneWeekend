@@ -9,13 +9,13 @@ use simple_ray_tracer::{
         materials::{dielectric::Dielectric, lambertian::Lambertian, metal::Metal},
         options::Options,
         sphere::Sphere,
-        vec3::Point3,
+        vec3::{Point3, Vec3},
     },
 };
 
 fn main() -> Result<()> {
     // Parse command line options
-    let options = Options::parse();
+    let mut options = Options::parse();
 
     // Materials
     let material_ground = Lambertian::new(Color::new(0.8, 0.8, 0.0));
@@ -52,8 +52,13 @@ fn main() -> Result<()> {
         material_right,
     ));
 
+    options.render.lookfrom = Point3::new(-2.0, 2.0, 1.0);
+    options.render.lookat = Point3::new(0.0, 0.0, -1.0);
+    options.render.vup = Vec3::new(0.0, 1.0, 0.0);
+    options.render.vertical_fov = 20.0;
+
     // Camera setup
-    let camera = Camera::new(Point3::new(0.0, 0.0, 0.0), options.render);
+    let camera = Camera::new(options.render);
 
     camera.render(&world)?;
     Ok(())
