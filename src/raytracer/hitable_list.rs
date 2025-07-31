@@ -3,6 +3,7 @@ use std::ops::Range;
 use crate::raytracer::{
     hitable::{HitRecord, Hitable},
     ray::Ray,
+    vec3::Real,
 };
 
 pub struct HitableList<'a> {
@@ -22,7 +23,7 @@ impl<'a> HitableList<'a> {
 }
 
 impl<'a> Hitable for HitableList<'a> {
-    fn hit(&self, ray: &Ray, interval: &Range<f32>) -> Option<HitRecord> {
+    fn hit(&self, ray: &Ray, interval: &Range<Real>) -> Option<HitRecord> {
         let mut closest_hit: Option<HitRecord> = None;
         let mut closest_interval = interval.clone();
 
