@@ -8,12 +8,14 @@ use rand::Rng;
 
 use crate::raytracer::color::Color;
 
+pub type Real = f32;
+
 #[derive(Debug, Clone, Copy, PartialEq, Add, AddAssign, Sub, SubAssign, Mul, Display, Neg)]
 #[display("({}, {}, {})", x, y, z)]
 pub struct Vec3 {
-    pub x: f32,
-    pub y: f32,
-    pub z: f32,
+    pub x: Real,
+    pub y: Real,
+    pub z: Real,
 }
 
 thread_local! {
@@ -24,7 +26,7 @@ thread_local! {
 pub type Point3 = Vec3;
 
 impl Vec3 {
-    pub fn new(x: f32, y: f32, z: f32) -> Self {
+    pub fn new(x: Real, y: Real, z: Real) -> Self {
         Vec3 { x, y, z }
     }
 
@@ -32,11 +34,11 @@ impl Vec3 {
         Vec3::new(0.0, 0.0, 0.0)
     }
 
-    pub fn dot(self, other: Vec3) -> f32 {
+    pub fn dot(self, other: Vec3) -> Real {
         self.x * other.x + self.y * other.y + self.z * other.z
     }
 
-    pub fn length(self) -> f32 {
+    pub fn length(self) -> Real {
         self.dot(self).sqrt()
     }
 
@@ -53,7 +55,7 @@ impl Vec3 {
         )
     }
 
-    pub fn map(self, f: fn(f32) -> f32) -> Self {
+    pub fn map(self, f: fn(Real) -> Real) -> Self {
         Vec3::new(f(self.x), f(self.y), f(self.z))
     }
 
@@ -68,13 +70,13 @@ impl Vec3 {
         RNG.with(|rng| {
             // Safety: we only have one &mut to the RNG at a time.
             let rng = unsafe { &mut *rng.get() };
-            let x = rng.random::<f32>() - 0.5;
-            let y = rng.random::<f32>() - 0.5;
+            let x = rng.random::<Real>() - 0.5;
+            let y = rng.random::<Real>() - 0.5;
             Vec3::new(x, y, 0.0)
         })
     }
 
-    fn random(interval: Range<f32>) -> Self {
+    fn random(interval: Range<Real>) -> Self {
         RNG.with(|rng| {
             // Safety: we only have one &mut to the RNG at a time.
             let rng = unsafe { &mut *rng.get() };
@@ -108,18 +110,18 @@ impl Vec3 {
     }
 }
 
-impl ops::Add<f32> for Vec3 {
+impl ops::Add<Real> for Vec3 {
     type Output = Self;
 
-    fn add(self, scalar: f32) -> Self::Output {
+    fn add(self, scalar: Real) -> Self::Output {
         Vec3::new(self.x + scalar, self.y + scalar, self.z + scalar)
     }
 }
 
-impl ops::Div<f32> for Vec3 {
+impl ops::Div<Real> for Vec3 {
     type Output = Self;
 
-    fn div(self, scalar: f32) -> Self::Output {
+    fn div(self, scalar: Real) -> Self::Output {
         Vec3::new(self.x / scalar, self.y / scalar, self.z / scalar)
     }
 }

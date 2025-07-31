@@ -1,7 +1,7 @@
 use crate::raytracer::{
     color::Color,
     hitable::Hitable,
-    vec3::{Point3, Vec3},
+    vec3::{Point3, Real, Vec3},
 };
 
 pub struct Ray {
@@ -22,13 +22,20 @@ impl Ray {
         self.direction
     }
 
-    pub fn at(&self, t: f32) -> Point3 {
+    pub fn at(&self, t: Real) -> Point3 {
         self.origin + self.direction * t
     }
 
-    pub fn color<T: Hitable>(&self, hitable: &T) -> Color {
-        if let Some(hit) = hitable.hit(self, &(0.0..f32::INFINITY)) {
-            return ((hit.normal + 1.0) * 0.5).to_color();
+    pub fn color<T: Hitable>(&self, depth: usize, hitable: &T) -> Color {
+        // If we've exceeded the ray bounce limit, no more light is gathered.
+        if depth <= 0 {
+            return Color::black();
+        }
+
+        if let Some(hit) = hitable.hit(self, &(1e-12..Real::INFINITY)) {
+            let direction = hit.normal + Vec3::random_unit();
+            let new_ray = Ray::new(hit.p, direction);
+            return new_ray.color(depth - 1, hitable) * 0.5;
         }
 
         let unit_direction = self.direction.normalize();

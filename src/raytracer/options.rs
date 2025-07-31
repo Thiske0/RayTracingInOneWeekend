@@ -1,5 +1,7 @@
 use clap::{Args, Parser};
 
+use crate::raytracer::vec3::Real;
+
 /// Rendering options for the ray tracer.
 #[derive(Debug, Args)]
 pub struct RenderOptions {
@@ -13,15 +15,19 @@ pub struct RenderOptions {
 
     /// Height of the viewport
     #[arg(short = 'v', long = "viewport-height", default_value_t = 2.0)]
-    pub viewport_height: f32,
+    pub viewport_height: Real,
 
     /// Focal length of the camera
     #[arg(short = 'f', long = "focal-length", default_value_t = 1.0)]
-    pub focal_length: f32,
+    pub focal_length: Real,
 
     /// Number of samples per pixel
     #[arg(short = 's', long = "samples", default_value_t = 10)]
     pub samples_per_pixel: usize,
+
+    /// Maximum depth of ray bounces
+    #[arg(short = 'd', long = "max-depth", default_value_t = 10)]
+    pub max_depth: usize,
 
     /// Output file name
     #[arg(short = 'o', long = "output", default_value = "image.ppm")]
@@ -30,12 +36,12 @@ pub struct RenderOptions {
 
 impl RenderOptions {
     /// Returns the aspect ratio of the image
-    pub fn aspect_ratio(&self) -> f32 {
-        self.width as f32 / self.height as f32
+    pub fn aspect_ratio(&self) -> Real {
+        self.width as Real / self.height as Real
     }
 
     /// Returns the viewport width based on the aspect ratio and height
-    pub fn viewport_width(&self) -> f32 {
+    pub fn viewport_width(&self) -> Real {
         self.viewport_height * self.aspect_ratio()
     }
 }

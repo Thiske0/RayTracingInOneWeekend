@@ -3,22 +3,22 @@ use std::ops::Range;
 use crate::raytracer::{
     hitable::{HitRecord, Hitable},
     ray::Ray,
-    vec3::Point3,
+    vec3::{Point3, Real},
 };
 
 pub struct Sphere {
     pub center: Point3,
-    pub radius: f32,
+    pub radius: Real,
 }
 
 impl Sphere {
-    pub fn new(center: Point3, radius: f32) -> Self {
+    pub fn new(center: Point3, radius: Real) -> Self {
         Sphere { center, radius }
     }
 }
 
 impl Hitable for Sphere {
-    fn hit(&self, ray: &Ray, range: &Range<f32>) -> Option<HitRecord> {
+    fn hit(&self, ray: &Ray, range: &Range<Real>) -> Option<HitRecord> {
         let oc = self.center - ray.origin;
         let a = ray.direction.dot(ray.direction);
         let b = oc.dot(ray.direction);

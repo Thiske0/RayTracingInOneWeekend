@@ -9,7 +9,7 @@ use crate::{
         hitable::Hitable,
         options::RenderOptions,
         ray::Ray,
-        vec3::{Point3, Vec3},
+        vec3::{Point3, Real, Vec3},
     },
 };
 
@@ -39,8 +39,8 @@ impl Camera {
         let viewport_v = Vec3::new(0.0, -self.render_options.viewport_height, 0.0);
 
         // Calculate the horizontal and vertical delta vectors from pixel to pixel.
-        let pixel_delta_u = viewport_u / self.render_options.width as f32;
-        let pixel_delta_v = viewport_v / self.render_options.height as f32;
+        let pixel_delta_u = viewport_u / self.render_options.width as Real;
+        let pixel_delta_v = viewport_v / self.render_options.height as Real;
 
         // Calculate the location of the upper left pixel.
         let viewport_upper_left = self.origin
@@ -62,17 +62,17 @@ impl Camera {
                     // Calculate the pixel sample location.
                     let offset = Vec3::sample_square();
                     let pixel_sample = pixel00_loc
-                        + (pixel_delta_u * (i as f32 + offset.x))
-                        + (pixel_delta_v * (j as f32 + offset.y));
+                        + (pixel_delta_u * (i as Real + offset.x))
+                        + (pixel_delta_v * (j as Real + offset.y));
                     let ray_direction = pixel_sample - self.origin;
                     let ray = Ray::new(self.origin, ray_direction);
 
-                    pixel_color += ray.color(world);
+                    pixel_color += ray.color(self.render_options.max_depth, world);
                 }
                 writeln!(
                     file,
                     "{}",
-                    pixel_color / self.render_options.samples_per_pixel as f32
+                    pixel_color / self.render_options.samples_per_pixel as Real
                 )?;
                 progress.inc(1);
             }
