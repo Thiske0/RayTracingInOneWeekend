@@ -57,6 +57,9 @@ fn main() -> Result<()> {
     options.render.vup = Vec3::new(0.0, 1.0, 0.0);
     options.render.vertical_fov = 20.0;
 
+    options.render.defocus_angle = 1.0;
+    options.render.focus_distance = 3.4;
+
     // Camera setup
     let camera = Camera::new(options.render);
 

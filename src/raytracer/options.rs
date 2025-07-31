@@ -19,10 +19,6 @@ pub struct RenderOptions {
     #[arg(short = 'v', long = "vertical-fov", default_value_t = 70.0)]
     pub vertical_fov: Real,
 
-    /// Focal length of the camera
-    #[arg(short = 'f', long = "focal-length", default_value_t = 1.0)]
-    pub focal_length: Real,
-
     /// Number of samples per pixel
     #[arg(short = 's', long = "samples", default_value_t = 10)]
     pub samples_per_pixel: usize,
@@ -37,6 +33,12 @@ pub struct RenderOptions {
     pub lookat: Point3,
     #[arg(long = "vup", default_value = "0,1,0")]
     pub vup: Vec3,
+
+    /// depth of field
+    #[arg(short = 'f', long = "focus-distance", default_value_t = 10.0)]
+    pub focus_distance: Real,
+    #[arg(short = 'a', long = "defocus-angle", default_value_t = 0.0)]
+    pub defocus_angle: Real,
 
     /// Output file name
     #[arg(short = 'o', long = "output", default_value = "image.ppm")]
@@ -72,8 +74,8 @@ impl RenderOptions {
 
     /// Returns the viewport height based on the fov
     pub fn viewport_height(&self) -> Real {
-        let h = (self.vertical_fov.to_radians() / 2.0).tan() * self.focal_length;
-        2.0 * h * self.focal_length
+        let h = (self.vertical_fov.to_radians() / 2.0).tan();
+        2.0 * h * self.focus_distance
     }
 
     /// Returns the viewport width based on the aspect ratio and height

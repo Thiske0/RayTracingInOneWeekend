@@ -128,6 +128,18 @@ impl Vec3 {
             -on_unit_sphere
         }
     }
+
+    pub fn random_in_unit_disk() -> Vec3 {
+        loop {
+            let mut v = Vec3::random(-1.0..1.0);
+            v.z = 0.0; // Ensure it's in the disk
+            let length_squared = v.length_squared();
+            // Avoid division by zero by ensuring that the vector length is not too close to zero.
+            if length_squared > 1e-15 && length_squared < 1.0 {
+                return v / length_squared.sqrt();
+            }
+        }
+    }
 }
 
 impl ops::Add<Real> for Vec3 {
