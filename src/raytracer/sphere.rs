@@ -2,22 +2,28 @@ use std::ops::Range;
 
 use crate::raytracer::{
     hitable::{HitRecord, Hitable},
+    materials::Material,
     ray::Ray,
     vec3::{Point3, Real},
 };
 
-pub struct Sphere {
-    pub center: Point3,
-    pub radius: Real,
+pub struct Sphere<T: Material> {
+    center: Point3,
+    radius: Real,
+    mat: T,
 }
 
-impl Sphere {
-    pub fn new(center: Point3, radius: Real) -> Self {
-        Sphere { center, radius }
+impl<T: Material> Sphere<T> {
+    pub fn new(center: Point3, radius: Real, material: T) -> Self {
+        Sphere {
+            center,
+            radius,
+            mat: material,
+        }
     }
 }
 
-impl Hitable for Sphere {
+impl<T: Material> Hitable for Sphere<T> {
     fn hit(&self, ray: &Ray, range: &Range<Real>) -> Option<HitRecord> {
         let oc = self.center - ray.origin;
         let a = ray.direction.dot(ray.direction);
@@ -36,7 +42,7 @@ impl Hitable for Sphere {
             let p = ray.at(t);
             let normal = (p - self.center).normalize();
 
-            Some(HitRecord::new(p, normal, t))
+            Some(HitRecord::new(p, normal, t, &self.mat))
         } else {
             None
         }

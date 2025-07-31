@@ -33,9 +33,13 @@ impl Ray {
         }
 
         if let Some(hit) = hitable.hit(self, &(1e-12..Real::INFINITY)) {
-            let direction = hit.normal + Vec3::random_unit();
-            let new_ray = Ray::new(hit.p, direction);
-            return new_ray.color(depth - 1, hitable) * 0.5;
+            if let Some((scattered_ray, attenuation)) = hit.mat.scatter(self, &hit) {
+                // Recursively calculate the color of the scattered ray.
+                let new_color = scattered_ray.color(depth - 1, hitable);
+                return attenuation * new_color;
+            } else {
+                return Color::black(); // Ray was absorbed
+            }
         }
 
         let unit_direction = self.direction.normalize();

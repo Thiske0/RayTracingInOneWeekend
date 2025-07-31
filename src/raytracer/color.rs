@@ -1,11 +1,12 @@
 use core::fmt;
+use std::ops;
 
 use derive_more::{Add, AddAssign, Div, Mul, Sub, SubAssign};
 
 use crate::raytracer::vec3::{Real, Vec3};
 
 #[derive(Debug, Clone, Copy, PartialEq, Add, AddAssign, Sub, SubAssign, Mul, Div)]
-pub struct Color(Vec3);
+pub struct Color(pub(crate) Vec3);
 
 impl Color {
     pub fn new(r: Real, g: Real, b: Real) -> Self {
@@ -29,6 +30,18 @@ impl Color {
 
     pub fn black() -> Self {
         Color(Vec3::zero())
+    }
+}
+
+impl ops::Mul<Color> for Color {
+    type Output = Self;
+
+    fn mul(self, other: Color) -> Self::Output {
+        Color::new(
+            self.0.x * other.0.x,
+            self.0.y * other.0.y,
+            self.0.z * other.0.z,
+        )
     }
 }
 

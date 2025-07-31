@@ -62,6 +62,15 @@ impl Vec3 {
     pub fn to_color(self) -> Color {
         Color::new(self.x, self.y, self.z)
     }
+
+    pub fn near_zero(self) -> bool {
+        let s = 1e-8;
+        (self.x.abs() < s) && (self.y.abs() < s) && (self.z.abs() < s)
+    }
+
+    pub fn reflect(self, normal: Vec3) -> Self {
+        self - normal * 2.0 * self.dot(normal)
+    }
 }
 
 impl Vec3 {
