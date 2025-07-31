@@ -40,9 +40,14 @@ impl<T: Material> Hitable for Sphere<T> {
                 }
             }
             let p = ray.at(t);
-            let normal = (p - self.center).normalize();
+            let mut normal = (p - self.center).normalize();
 
-            Some(HitRecord::new(p, normal, t, &self.mat))
+            let is_front_face = normal.dot(ray.direction) < 0.0;
+            if !is_front_face {
+                normal = -normal;
+            };
+
+            Some(HitRecord::new(p, normal, t, is_front_face, &self.mat))
         } else {
             None
         }

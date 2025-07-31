@@ -8,11 +8,11 @@ use crate::raytracer::vec3::{Point3, Real, Vec3};
 #[derive(Debug, Args)]
 pub struct RenderOptions {
     /// Width of the image
-    #[arg(short = 'W', long = "width", default_value_t = 1920)]
+    #[arg(short = 'W', long = "width", default_value_t = 1920 / 4)]
     pub width: usize,
 
     /// Height of the image
-    #[arg(short = 'H', long = "height", default_value_t = 1080)]
+    #[arg(short = 'H', long = "height", default_value_t = 1080 / 4)]
     pub height: usize,
 
     /// Vertical field of view in degrees
@@ -20,7 +20,7 @@ pub struct RenderOptions {
     pub vertical_fov: Real,
 
     /// Number of samples per pixel
-    #[arg(short = 's', long = "samples", default_value_t = 100)]
+    #[arg(short = 's', long = "samples", default_value_t = 10)]
     pub samples_per_pixel: usize,
 
     /// Maximum depth of ray bounces
@@ -37,7 +37,7 @@ pub struct RenderOptions {
     /// depth of field
     #[arg(short = 'f', long = "focus-distance", default_value_t = 10.0)]
     pub focus_distance: Real,
-    #[arg(short = 'a', long = "defocus-angle", default_value_t = 0.6)]
+    #[arg(short = 'a', long = "defocus-angle", default_value_t = 0.0)]
     pub defocus_angle: Real,
 
     /// Output file name

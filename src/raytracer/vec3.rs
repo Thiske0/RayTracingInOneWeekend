@@ -8,7 +8,7 @@ use rand::Rng;
 
 use crate::raytracer::color::Color;
 
-pub type Real = f64;
+pub type Real = f32;
 
 #[derive(Debug, Clone, Copy, PartialEq, Add, AddAssign, Sub, SubAssign, Mul, Display, Neg)]
 #[display("({}, {}, {})", x, y, z)]

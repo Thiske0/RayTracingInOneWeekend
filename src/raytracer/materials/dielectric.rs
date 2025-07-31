@@ -29,26 +29,25 @@ impl Dielectric {
 }
 impl Material for Dielectric {
     fn scatter(&self, ray: &Ray, hit: &HitRecord) -> Option<(Ray, Color)> {
-        let is_front_face = hit.normal.dot(ray.direction) < 0.0;
-        let (ri, normal) = if is_front_face {
-            (1.0 / self.refraction_index, hit.normal)
+        let ri = if hit.is_front_face {
+            1.0 / self.refraction_index
         } else {
-            (self.refraction_index, -hit.normal)
+            self.refraction_index
         };
 
         let unit_direction = ray.direction.normalize();
 
-        let cos_theta = Real::min(-unit_direction.dot(normal), 1.0);
+        let cos_theta = Real::min(-unit_direction.dot(hit.normal), 1.0);
         let sin_theta = (1.0 - cos_theta * cos_theta).sqrt();
         let cannot_refract = ri * sin_theta > 1.0;
         let direction = if cannot_refract
             || Dielectric::reflectance(cos_theta, ri) > Dielectric::random_real()
         {
             // Reflect
-            unit_direction.reflect(normal)
+            unit_direction.reflect(hit.normal)
         } else {
             // Refract
-            unit_direction.refract(normal, ri)
+            unit_direction.refract(hit.normal, ri)
         };
 
         let scattered = Ray::new(hit.p, direction);
