@@ -8,15 +8,15 @@ use crate::raytracer::vec3::{Point3, Real, Vec3};
 #[derive(Debug, Args)]
 pub struct RenderOptions {
     /// Width of the image
-    #[arg(short = 'W', long = "width", default_value_t = 960)]
+    #[arg(short = 'W', long = "width", default_value_t = 1920)]
     pub width: usize,
 
     /// Height of the image
-    #[arg(short = 'H', long = "height", default_value_t = 540)]
+    #[arg(short = 'H', long = "height", default_value_t = 1080)]
     pub height: usize,
 
     /// Vertical field of view in degrees
-    #[arg(short = 'v', long = "vertical-fov", default_value_t = 70.0)]
+    #[arg(short = 'v', long = "vertical-fov", default_value_t = 20.0)]
     pub vertical_fov: Real,
 
     /// Number of samples per pixel
@@ -24,12 +24,12 @@ pub struct RenderOptions {
     pub samples_per_pixel: usize,
 
     /// Maximum depth of ray bounces
-    #[arg(short = 'd', long = "max-depth", default_value_t = 10)]
+    #[arg(short = 'd', long = "max-depth", default_value_t = 50)]
     pub max_depth: usize,
 
-    #[arg(long = "look-from", default_value = "0,0,0")]
+    #[arg(long = "look-from", default_value = "13,2,3")]
     pub lookfrom: Point3,
-    #[arg(long = "look-at", default_value = "0,0,-1")]
+    #[arg(long = "look-at", default_value = "0,0,0")]
     pub lookat: Point3,
     #[arg(long = "vup", default_value = "0,1,0")]
     pub vup: Vec3,
@@ -37,7 +37,7 @@ pub struct RenderOptions {
     /// depth of field
     #[arg(short = 'f', long = "focus-distance", default_value_t = 10.0)]
     pub focus_distance: Real,
-    #[arg(short = 'a', long = "defocus-angle", default_value_t = 0.0)]
+    #[arg(short = 'a', long = "defocus-angle", default_value_t = 0.6)]
     pub defocus_angle: Real,
 
     /// Output file name

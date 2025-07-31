@@ -1,4 +1,7 @@
-use std::{fs::File, io::Write};
+use std::{
+    fs::File,
+    io::{BufWriter, Write},
+};
 
 use indicatif::ProgressBar;
 
@@ -65,7 +68,8 @@ impl Camera {
             ProgressBar::new((self.render_options.width * self.render_options.height) as u64);
 
         // Open the output file
-        let mut file = File::create(&self.render_options.file_name)?;
+        let file = File::create(&self.render_options.file_name)?;
+        let mut writer = BufWriter::new(file);
 
         // Initialize camera parameters
         let (origin, pixel00_loc, pixel_delta_u, pixel_delta_v, defocus_disk_u, defocus_disk_v) =
@@ -75,7 +79,7 @@ impl Camera {
         let image_width = self.render_options.width;
         let image_height = self.render_options.height;
 
-        writeln!(file, "P3\n{} {}\n255\n", image_width, image_height)?;
+        writeln!(writer, "P3\n{} {}\n255\n", image_width, image_height)?;
 
         for j in 0..image_height {
             for i in 0..image_width {
@@ -101,14 +105,15 @@ impl Camera {
                     pixel_color += ray.color(self.render_options.max_depth, world);
                 }
                 writeln!(
-                    file,
+                    writer,
                     "{}",
                     pixel_color / self.render_options.samples_per_pixel as Real
                 )?;
-                progress.inc(1);
             }
+            progress.inc(image_width as u64);
         }
         progress.finish();
+        writer.flush()?;
         Ok(())
     }
 

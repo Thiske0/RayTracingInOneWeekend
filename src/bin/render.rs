@@ -9,60 +9,77 @@ use simple_ray_tracer::{
         materials::{dielectric::Dielectric, lambertian::Lambertian, metal::Metal},
         options::Options,
         sphere::Sphere,
-        vec3::{Point3, Vec3},
+        vec3::{Point3, Real, Vec3},
     },
 };
 
 fn main() -> Result<()> {
     // Parse command line options
-    let mut options = Options::parse();
-
-    // Materials
-    let material_ground = Lambertian::new(Color::new(0.8, 0.8, 0.0));
-    let material_center = Lambertian::new(Color::new(0.1, 0.2, 0.5));
-    let material_left = Dielectric::new(1.5);
-    let material_bubble = Dielectric::new(1.0 / 1.5);
-    let material_right = Metal::new(Color::new(0.8, 0.6, 0.2), 0.5);
+    let options = Options::parse();
 
     // World
     let mut world = HitableList::new();
+
+    let ground_material = Lambertian::new(Color::new(0.5, 0.5, 0.5));
     world.add(Sphere::new(
-        Point3::new(0.0, -100.5, -1.0),
-        100.0,
-        material_ground,
-    ));
-    world.add(Sphere::new(
-        Point3::new(0.0, 0.0, -1.2),
-        0.5,
-        material_center,
-    ));
-    world.add(Sphere::new(
-        Point3::new(-1.0, 0.0, -1.0),
-        0.5,
-        material_left,
-    ));
-    world.add(Sphere::new(
-        Point3::new(-1.0, 0.0, -1.0),
-        0.4,
-        material_bubble,
-    ));
-    world.add(Sphere::new(
-        Point3::new(1.0, 0.0, -1.0),
-        0.5,
-        material_right,
+        Point3::new(0.0, -1000.0, 0.0),
+        1000.0,
+        ground_material,
     ));
 
-    options.render.lookfrom = Point3::new(-2.0, 2.0, 1.0);
-    options.render.lookat = Point3::new(0.0, 0.0, -1.0);
-    options.render.vup = Vec3::new(0.0, 1.0, 0.0);
-    options.render.vertical_fov = 20.0;
+    for a in -11..11 {
+        for b in -11..11 {
+            let random_vec = Vec3::random(0.0..1.0);
+            let choose_mat = random_vec.x;
+            let center = Point3::new(
+                a as Real + 0.9 * random_vec.y,
+                0.2,
+                b as Real + 0.9 * random_vec.z,
+            );
 
-    options.render.defocus_angle = 1.0;
-    options.render.focus_distance = 3.4;
+            if (center - Point3::new(4.0, 0.2, 0.0)).length() > 0.9 {
+                if choose_mat < 0.8 {
+                    // diffuse
+                    let albedo = Color::random() * Color::random();
+                    let sphere_material = Lambertian::new(albedo);
+                    world.add(Sphere::new(center, 0.2, sphere_material));
+                } else if choose_mat < 0.95 {
+                    // metal
+                    let albedo = Color::random() / 2.0 + 0.5;
+                    let fuzz = Vec3::random(0.0..0.5).x;
+                    let sphere_material = Metal::new(albedo, fuzz);
+                    world.add(Sphere::new(center, 0.2, sphere_material));
+                } else {
+                    // glass
+                    let sphere_material = Dielectric::new(1.5);
+                    world.add(Sphere::new(center, 0.2, sphere_material));
+                }
+            }
+        }
+    }
+
+    let material1a = Dielectric::new(1.5);
+    world.add(Sphere::new(Point3::new(0.0, 1.0, 0.0), 1.0, material1a));
+
+    let material1b = Dielectric::new(1.0 / 1.5);
+    world.add(Sphere::new(Point3::new(0.0, 1.0, 0.0), 0.8, material1b));
+
+    let material2 = Lambertian::new(Color::new(0.4, 0.2, 0.1));
+    world.add(Sphere::new(Point3::new(-4.0, 1.0, 0.0), 1.0, material2));
+
+    let material3 = Metal::new(Color::new(0.7, 0.6, 0.5), 0.0);
+    world.add(Sphere::new(Point3::new(4.0, 1.0, 0.0), 1.0, material3));
 
     // Camera setup
     let camera = Camera::new(options.render);
 
+    // Time duration
+    let start = std::time::Instant::now();
+
     camera.render(&world)?;
+
+    let duration = start.elapsed();
+    println!("Render time: {:?}", duration);
+
     Ok(())
 }

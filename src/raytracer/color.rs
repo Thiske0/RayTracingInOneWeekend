@@ -35,6 +35,10 @@ impl Color {
     pub fn white() -> Self {
         Color(Vec3::new(1.0, 1.0, 1.0))
     }
+
+    pub fn random() -> Self {
+        Color(Vec3::random(0.0..1.0))
+    }
 }
 
 impl ops::Mul<Color> for Color {
@@ -46,6 +50,14 @@ impl ops::Mul<Color> for Color {
             self.0.y * other.0.y,
             self.0.z * other.0.z,
         )
+    }
+}
+
+impl ops::Add<Real> for Color {
+    type Output = Self;
+
+    fn add(self, scalar: Real) -> Self::Output {
+        Color(self.0 + scalar)
     }
 }
 
