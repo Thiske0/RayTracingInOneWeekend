@@ -1,6 +1,7 @@
+use std::ops::Range;
+
 use crate::raytracer::{
     hitable::{HitRecord, Hitable},
-    interval::Interval,
     ray::Ray,
     vec3::Point3,
 };
@@ -17,7 +18,7 @@ impl Sphere {
 }
 
 impl Hitable for Sphere {
-    fn hit(&self, ray: &Ray, interval: &Interval) -> Option<HitRecord> {
+    fn hit(&self, ray: &Ray, range: &Range<f32>) -> Option<HitRecord> {
         let oc = self.center - ray.origin;
         let a = ray.direction.dot(ray.direction);
         let b = oc.dot(ray.direction);
@@ -26,9 +27,9 @@ impl Hitable for Sphere {
 
         if discriminant > 0.0 {
             let mut t = (b - discriminant.sqrt()) / a;
-            if !interval.contains(t) {
+            if !range.contains(&t) {
                 t = (b + discriminant.sqrt()) / a;
-                if !interval.contains(t) {
+                if !range.contains(&t) {
                     return None;
                 }
             }

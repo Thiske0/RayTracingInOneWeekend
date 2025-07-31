@@ -1,5 +1,4 @@
-use rand::Rng;
-use std::{cell::RefCell, fs::File, io::Write};
+use std::{fs::File, io::Write};
 
 use indicatif::ProgressBar;
 
@@ -17,7 +16,6 @@ use crate::{
 pub struct Camera {
     pub origin: Point3,
     pub render_options: RenderOptions,
-    rng: RefCell<rand::rngs::ThreadRng>,
 }
 
 impl Camera {
@@ -25,7 +23,6 @@ impl Camera {
         Camera {
             origin,
             render_options,
-            rng: RefCell::new(rand::rng()),
         }
     }
 
@@ -63,7 +60,7 @@ impl Camera {
                 let mut pixel_color = Color::black();
                 for _ in 0..self.render_options.samples_per_pixel {
                     // Calculate the pixel sample location.
-                    let offset = self.sample_square();
+                    let offset = Vec3::sample_square();
                     let pixel_sample = pixel00_loc
                         + (pixel_delta_u * (i as f32 + offset.x))
                         + (pixel_delta_v * (j as f32 + offset.y));
@@ -82,13 +79,5 @@ impl Camera {
         }
         progress.finish();
         Ok(())
-    }
-
-    fn sample_square(&self) -> Vec3 {
-        // Returns the vector to a random point in the [-.5,-.5]-[+.5,+.5] unit square.
-        let mut rng = self.rng.borrow_mut();
-        let x = rng.random::<f32>() - 0.5;
-        let y = rng.random::<f32>() - 0.5;
-        Vec3::new(x, y, 0.0)
     }
 }

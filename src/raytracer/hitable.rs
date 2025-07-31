@@ -1,11 +1,12 @@
+use std::ops::Range;
+
 use crate::raytracer::{
-    interval::Interval,
     ray::Ray,
     vec3::{Point3, Vec3},
 };
 
 pub trait Hitable {
-    fn hit(&self, ray: &Ray, interval: &Interval) -> Option<HitRecord>;
+    fn hit(&self, ray: &Ray, range: &Range<f32>) -> Option<HitRecord>;
 }
 
 pub struct HitRecord {

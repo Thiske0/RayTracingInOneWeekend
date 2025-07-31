@@ -1,15 +1,23 @@
-use std::ops;
+use std::{
+    cell::UnsafeCell,
+    ops::{self, Range},
+};
 
-use derive_more::{Add, AddAssign, Display, Mul, Sub, SubAssign};
+use derive_more::{Add, AddAssign, Display, Mul, Neg, Sub, SubAssign};
+use rand::Rng;
 
 use crate::raytracer::color::Color;
 
-#[derive(Debug, Clone, Copy, PartialEq, Add, AddAssign, Sub, SubAssign, Mul, Display)]
+#[derive(Debug, Clone, Copy, PartialEq, Add, AddAssign, Sub, SubAssign, Mul, Display, Neg)]
 #[display("({}, {}, {})", x, y, z)]
 pub struct Vec3 {
     pub x: f32,
     pub y: f32,
     pub z: f32,
+}
+
+thread_local! {
+    static RNG: UnsafeCell<rand::rngs::ThreadRng> = UnsafeCell::new(rand::rng());
 }
 
 /// For clarity
@@ -51,6 +59,52 @@ impl Vec3 {
 
     pub fn to_color(self) -> Color {
         Color::new(self.x, self.y, self.z)
+    }
+}
+
+impl Vec3 {
+    // Returns the vector to a random point in the [-.5,-.5]-[+.5,+.5] unit square.
+    pub fn sample_square() -> Vec3 {
+        RNG.with(|rng| {
+            // Safety: we only have one &mut to the RNG at a time.
+            let rng = unsafe { &mut *rng.get() };
+            let x = rng.random::<f32>() - 0.5;
+            let y = rng.random::<f32>() - 0.5;
+            Vec3::new(x, y, 0.0)
+        })
+    }
+
+    fn random(interval: Range<f32>) -> Self {
+        RNG.with(|rng| {
+            // Safety: we only have one &mut to the RNG at a time.
+            let rng = unsafe { &mut *rng.get() };
+            Vec3::new(
+                rng.random_range(interval.clone()),
+                rng.random_range(interval.clone()),
+                rng.random_range(interval),
+            )
+        })
+    }
+
+    pub fn random_unit() -> Self {
+        loop {
+            let v = Vec3::random(-1.0..1.0);
+            let length_squared = v.dot(v);
+            // Avoid division by zero by ensuring that the vector length is not too close to zero.
+            if length_squared > 1e-15 && length_squared < 1.0 {
+                return v / length_squared.sqrt();
+            }
+        }
+    }
+
+    pub fn random_on_hemisphere(normal: Vec3) -> Vec3 {
+        let on_unit_sphere = Vec3::random_unit();
+        if on_unit_sphere.dot(normal) > 0.0 {
+            // In the same hemisphere as the normal
+            on_unit_sphere
+        } else {
+            -on_unit_sphere
+        }
     }
 }
 
