@@ -7,7 +7,7 @@ use crate::raytracer::{
 };
 
 pub trait Hitable {
-    fn hit(&self, ray: &Ray, range: &Range<Real>) -> Option<HitRecord>;
+    fn hit<'a>(&'a self, ray: &Ray, range: &Range<Real>) -> Option<HitRecord<'a>>;
 }
 
 pub struct HitRecord<'a> {

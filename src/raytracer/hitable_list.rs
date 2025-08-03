@@ -23,7 +23,7 @@ impl<'a> HitableList<'a> {
 }
 
 impl<'a> Hitable for HitableList<'a> {
-    fn hit(&self, ray: &Ray, interval: &Range<Real>) -> Option<HitRecord> {
+    fn hit<'b>(&'b self, ray: &Ray, interval: &Range<Real>) -> Option<HitRecord<'b>> {
         let mut closest_hit: Option<HitRecord> = None;
         let mut closest_interval = interval.clone();
 

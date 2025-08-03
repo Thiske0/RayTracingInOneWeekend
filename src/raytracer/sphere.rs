@@ -24,7 +24,7 @@ impl<T: Material> Sphere<T> {
 }
 
 impl<T: Material> Hitable for Sphere<T> {
-    fn hit(&self, ray: &Ray, range: &Range<Real>) -> Option<HitRecord> {
+    fn hit<'a>(&'a self, ray: &Ray, range: &Range<Real>) -> Option<HitRecord<'a>> {
         let oc = self.center - ray.origin;
         let a = ray.direction.dot(ray.direction);
         let b = oc.dot(ray.direction);
