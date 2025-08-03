@@ -1,0 +1,2 @@
+[alias]
+testall = "test --workspace"

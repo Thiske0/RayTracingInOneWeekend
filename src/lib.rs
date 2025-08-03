@@ -1,4 +1,3 @@
-//! Support library for all code in this course
 pub mod raytracer;
 
 use std::error::Error;

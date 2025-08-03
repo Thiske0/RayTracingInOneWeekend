@@ -1,0 +1,10 @@
+[package]
+name = "grid-nd"
+version = "0.1.0"
+edition = "2018"
+
+[dependencies]
+grid-nd-kernels = { path = "kernels" }
+
+[build-dependencies]
+cuda_builder = { path = "../../../Rust-CUDA/crates/cuda_builder" }

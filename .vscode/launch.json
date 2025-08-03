@@ -1,0 +1,50 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug render",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--bin=render",
+                    "--package=simple-ray-tracer"
+                ],
+                "filter": {
+                    "name": "render",
+                    "kind": "bin"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Release render",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--release",
+                    "--bin=render",
+                    "--package=simple-ray-tracer"
+                ],
+                "filter": {
+                    "name": "render",
+                    "kind": "bin"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "Cargo LLVM Coverage",
+            "type": "lldb",
+            "request": "launch",
+            "program": "cargo",
+            "args": ["llvm-cov", "--lcov", "--output-path", "lcov.info", "--branch"],
+            "cwd": "${workspaceFolder}",
+        }
+    ],
+}
