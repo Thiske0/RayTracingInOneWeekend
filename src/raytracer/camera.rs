@@ -17,12 +17,26 @@ pub struct Camera {
     pub render_options: RenderOptions,
 }
 
+struct ImageRenderOptions {
+    samples_per_pixel: usize,
+    origin: Point3,
+    max_depth: usize,
+
+    defocus_angle: Real,
+    defocus_disk_u: Vec3,
+    defocus_disk_v: Vec3,
+
+    pixel00_loc: Point3,
+    pixel_delta_u: Vec3,
+    pixel_delta_v: Vec3,
+}
+
 impl Camera {
     pub fn new(render_options: RenderOptions) -> Self {
         Camera { render_options }
     }
 
-    fn initilize(&self) -> (Point3, Vec3, Vec3, Vec3, Vec3, Vec3) {
+    fn initilize(&self) -> ImageRenderOptions {
         let origin = self.render_options.lookfrom;
 
         // Calculate the u,v,w unit basis vectors for the camera coordinate frame.
@@ -49,24 +63,22 @@ impl Camera {
         let defocus_disk_u = u * defocus_radius;
         let defocus_disk_v = v * defocus_radius;
 
-        (
+        ImageRenderOptions {
+            samples_per_pixel: self.render_options.samples_per_pixel,
             origin,
+            max_depth: self.render_options.max_depth,
+            defocus_angle: self.render_options.defocus_angle,
+            defocus_disk_u,
+            defocus_disk_v,
             pixel00_loc,
             pixel_delta_u,
             pixel_delta_v,
-            defocus_disk_u,
-            defocus_disk_v,
-        )
+        }
     }
 
     pub fn render(&self, world: &HitKind) -> Result<()> {
-        // Set up the progress bar
-        let progress =
-            ProgressBar::new((self.render_options.width * self.render_options.height) as u64);
-
         // Initialize camera parameters
-        let (origin, pixel00_loc, pixel_delta_u, pixel_delta_v, defocus_disk_u, defocus_disk_v) =
-            self.initilize();
+        let image_render_options = self.initilize();
 
         // Render
         let image_width = self.render_options.width;
@@ -74,36 +86,7 @@ impl Camera {
 
         let mut grid = GridND::new([image_height, image_width], Color::black());
 
-        for i in 0..image_width {
-            for j in 0..image_height {
-                let mut pixel_color = Color::black();
-                for _ in 0..self.render_options.samples_per_pixel {
-                    // Calculate the pixel sample location.
-                    let offset = Vec3::sample_square();
-                    let pixel_sample = pixel00_loc
-                        + (pixel_delta_u * (i as Real + offset.x))
-                        + (pixel_delta_v * (j as Real + offset.y));
-
-                    // Apply defocus if enabled
-                    let ray_origin = origin
-                        + if self.render_options.defocus_angle > 0.0 {
-                            Camera::defocus_disk_sample(defocus_disk_u, defocus_disk_v)
-                        } else {
-                            Vec3::zero()
-                        };
-
-                    let ray_direction = pixel_sample - ray_origin;
-                    let ray = Ray::new(ray_origin, ray_direction);
-
-                    pixel_color += ray.color(self.render_options.max_depth, world);
-                }
-                // Store the pixel color in the grid
-                *grid.at_mut(j).at_mut(i) =
-                    pixel_color / self.render_options.samples_per_pixel as Real;
-            }
-            progress.inc(image_height as u64);
-        }
-        progress.finish();
+        Self::render_image(&mut grid, world, &image_render_options);
 
         let img: RgbImage =
             ImageBuffer::from_fn(image_width as u32, image_height as u32, |x, y| {
@@ -112,6 +95,43 @@ impl Camera {
             });
         img.save(&self.render_options.file_name)?;
         Ok(())
+    }
+
+    fn render_image(grid: &mut GridND<Color, 2>, world: &HitKind, options: &ImageRenderOptions) {
+        // Set up the progress bar
+        let progress = ProgressBar::new(grid.shape().iter().product::<usize>() as u64);
+        for i in 0..grid.shape()[1] {
+            for j in 0..grid.shape()[0] {
+                let mut pixel_color = Color::black();
+                for _ in 0..options.samples_per_pixel {
+                    // Calculate the pixel sample location.
+                    let offset = Vec3::sample_square();
+                    let pixel_sample = options.pixel00_loc
+                        + (options.pixel_delta_u * (i as Real + offset.x))
+                        + (options.pixel_delta_v * (j as Real + offset.y));
+
+                    // Apply defocus if enabled
+                    let ray_origin = options.origin
+                        + if options.defocus_angle > 0.0 {
+                            Camera::defocus_disk_sample(
+                                options.defocus_disk_u,
+                                options.defocus_disk_v,
+                            )
+                        } else {
+                            Vec3::zero()
+                        };
+
+                    let ray_direction = pixel_sample - ray_origin;
+                    let ray = Ray::new(ray_origin, ray_direction);
+
+                    pixel_color += ray.color(options.max_depth, world);
+                }
+                // Store the pixel color in the grid
+                *grid.at_mut(j).at_mut(i) = pixel_color / options.samples_per_pixel as Real;
+            }
+            progress.inc(grid.shape()[0] as u64);
+        }
+        progress.finish();
     }
 
     fn defocus_disk_sample(defocus_disk_u: Vec3, defocus_disk_v: Vec3) -> Vec3 {
