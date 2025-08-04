@@ -1,6 +1,7 @@
 use crate::raytracer::{
     color::Color,
-    hitable::Hitable,
+    hitable::{HitKind, Hitable},
+    materials::Material,
     vec3::{Point3, Real, Vec3},
 };
 
@@ -26,7 +27,7 @@ impl Ray {
         self.origin + self.direction * t
     }
 
-    pub fn color<T: Hitable>(&self, depth: usize, hitable: &T) -> Color {
+    pub fn color(&self, depth: usize, hitable: &HitKind) -> Color {
         // If we've exceeded the ray bounce limit, no more light is gathered.
         if depth <= 0 {
             return Color::black();

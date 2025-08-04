@@ -76,7 +76,7 @@ fn main() -> Result<()> {
     // Time duration
     let start = std::time::Instant::now();
 
-    camera.render(&world)?;
+    camera.render(&world.into())?;
 
     let duration = start.elapsed();
     println!("Render time: {:?}", duration);

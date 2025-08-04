@@ -1,7 +1,7 @@
 use crate::raytracer::{
     color::Color,
     hitable::HitRecord,
-    materials::Material,
+    materials::{Material, MaterialKind},
     ray::Ray,
     vec3::{Real, Vec3},
 };
@@ -12,8 +12,8 @@ pub struct Metal {
 }
 
 impl Metal {
-    pub fn new(albedo: Color, fuzziness: Real) -> Self {
-        Metal { albedo, fuzziness }
+    pub fn new(albedo: Color, fuzziness: Real) -> MaterialKind {
+        MaterialKind::from(Metal { albedo, fuzziness })
     }
 }
 impl Material for Metal {

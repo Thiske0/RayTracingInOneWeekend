@@ -1,5 +1,9 @@
 use crate::raytracer::{
-    color::Color, hitable::HitRecord, materials::Material, ray::Ray, vec3::Vec3,
+    color::Color,
+    hitable::HitRecord,
+    materials::{Material, MaterialKind},
+    ray::Ray,
+    vec3::Vec3,
 };
 
 pub struct Lambertian {
@@ -7,8 +11,8 @@ pub struct Lambertian {
 }
 
 impl Lambertian {
-    pub fn new(albedo: Color) -> Self {
-        Lambertian { albedo }
+    pub fn new(albedo: Color) -> MaterialKind {
+        MaterialKind::from(Lambertian { albedo })
     }
 }
 impl Material for Lambertian {

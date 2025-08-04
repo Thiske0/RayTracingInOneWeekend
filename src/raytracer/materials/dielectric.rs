@@ -1,7 +1,7 @@
 use crate::raytracer::{
     color::Color,
     hitable::HitRecord,
-    materials::Material,
+    materials::{Material, MaterialKind},
     ray::Ray,
     vec3::{Real, Vec3},
 };
@@ -11,8 +11,8 @@ pub struct Dielectric {
 }
 
 impl Dielectric {
-    pub fn new(refraction_index: Real) -> Self {
-        Dielectric { refraction_index }
+    pub fn new(refraction_index: Real) -> MaterialKind {
+        MaterialKind::from(Dielectric { refraction_index })
     }
 
     // Abuse vec3::random to generate a random number in the range [0, 1)

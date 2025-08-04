@@ -9,7 +9,7 @@ use crate::{
     Result,
     raytracer::{
         color::Color,
-        hitable::Hitable,
+        hitable::HitKind,
         options::RenderOptions,
         ray::Ray,
         vec3::{Point3, Real, Vec3},
@@ -62,7 +62,7 @@ impl Camera {
         )
     }
 
-    pub fn render<T: Hitable>(&self, world: &T) -> Result<()> {
+    pub fn render(&self, world: &HitKind) -> Result<()> {
         // Set up the progress bar
         let progress =
             ProgressBar::new((self.render_options.width * self.render_options.height) as u64);
