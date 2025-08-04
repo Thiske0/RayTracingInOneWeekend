@@ -41,7 +41,7 @@ pub struct RenderOptions {
     pub defocus_angle: Real,
 
     /// Output file name
-    #[arg(short = 'o', long = "output", default_value = "image.ppm")]
+    #[arg(short = 'o', long = "output", default_value = "image.png")]
     pub file_name: String,
 }
 

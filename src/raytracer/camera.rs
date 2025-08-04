@@ -1,8 +1,5 @@
-use std::{
-    fs::File,
-    io::{BufWriter, Write},
-};
-
+use grid_nd::GridND;
+use image::{ImageBuffer, RgbImage};
 use indicatif::ProgressBar;
 
 use crate::{
@@ -67,10 +64,6 @@ impl Camera {
         let progress =
             ProgressBar::new((self.render_options.width * self.render_options.height) as u64);
 
-        // Open the output file
-        let file = File::create(&self.render_options.file_name)?;
-        let mut writer = BufWriter::new(file);
-
         // Initialize camera parameters
         let (origin, pixel00_loc, pixel_delta_u, pixel_delta_v, defocus_disk_u, defocus_disk_v) =
             self.initilize();
@@ -79,10 +72,10 @@ impl Camera {
         let image_width = self.render_options.width;
         let image_height = self.render_options.height;
 
-        writeln!(writer, "P3\n{} {}\n255\n", image_width, image_height)?;
+        let mut grid = GridND::new([image_height, image_width], Color::black());
 
-        for j in 0..image_height {
-            for i in 0..image_width {
+        for i in 0..image_width {
+            for j in 0..image_height {
                 let mut pixel_color = Color::black();
                 for _ in 0..self.render_options.samples_per_pixel {
                     // Calculate the pixel sample location.
@@ -104,16 +97,20 @@ impl Camera {
 
                     pixel_color += ray.color(self.render_options.max_depth, world);
                 }
-                writeln!(
-                    writer,
-                    "{}",
-                    pixel_color / self.render_options.samples_per_pixel as Real
-                )?;
+                // Store the pixel color in the grid
+                *grid.at_mut(j).at_mut(i) =
+                    pixel_color / self.render_options.samples_per_pixel as Real;
             }
-            progress.inc(image_width as u64);
+            progress.inc(image_height as u64);
         }
         progress.finish();
-        writer.flush()?;
+
+        let img: RgbImage =
+            ImageBuffer::from_fn(image_width as u32, image_height as u32, |x, y| {
+                let color = *grid.at(y as usize).at(x as usize);
+                color.into()
+            });
+        img.save(&self.render_options.file_name)?;
         Ok(())
     }
 

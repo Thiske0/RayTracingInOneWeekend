@@ -1,7 +1,7 @@
-use core::fmt;
 use std::ops;
 
 use derive_more::{Add, AddAssign, Div, Mul, Sub, SubAssign};
+use image::Rgb;
 
 use crate::raytracer::vec3::{Real, Vec3};
 
@@ -41,6 +41,13 @@ impl Color {
     }
 }
 
+impl Into<Rgb<u8>> for Color {
+    fn into(self) -> Rgb<u8> {
+        let (r, g, b) = self.to_rgb();
+        Rgb([r as u8, g as u8, b as u8])
+    }
+}
+
 impl ops::Mul<Color> for Color {
     type Output = Self;
 
@@ -58,12 +65,5 @@ impl ops::Add<Real> for Color {
 
     fn add(self, scalar: Real) -> Self::Output {
         Color(self.0 + scalar)
-    }
-}
-
-impl fmt::Display for Color {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let (r, g, b) = self.to_rgb();
-        write!(f, "{} {} {}", r, g, b)
     }
 }

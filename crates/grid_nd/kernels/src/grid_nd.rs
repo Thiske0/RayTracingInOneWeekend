@@ -149,13 +149,13 @@ mod host_impls {
         distr::{Distribution, StandardUniform},
     };
 
-    impl<T: Copy + Default, const N: usize> GridND<T, N> {
+    impl<T: Copy, const N: usize> GridND<T, N> {
         /// Creates a GridND with heap-allocated zero-initialized buffer.
-        pub fn new_zeroed(dims: [usize; N]) -> Self {
+        pub fn new(dims: [usize; N], value: T) -> Self {
             let total_elems = dims.iter().product::<usize>();
 
-            // Create Vec<T> filled with Default (assumed to be zero)
-            let mut vec = vec![T::default(); total_elems];
+            // Create Vec<T> filled with the specified value
+            let mut vec = vec![value; total_elems];
 
             // Leak the Vec to keep memory stable and get a raw pointer
             let data_ptr = vec.as_mut_ptr();
@@ -167,6 +167,13 @@ mod host_impls {
                 data: data_ptr,
                 dims,
             }
+        }
+    }
+
+    impl<T: Copy + Default, const N: usize> GridND<T, N> {
+        /// Creates a GridND with heap-allocated zero-initialized buffer.
+        pub fn new_zeroed(dims: [usize; N]) -> Self {
+            Self::new(dims, T::default())
         }
     }
 
