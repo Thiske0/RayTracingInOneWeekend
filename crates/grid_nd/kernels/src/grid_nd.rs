@@ -213,7 +213,7 @@ mod host_impls {
     // This is safe because GridNDDeviceInner is just a wrapper around GridND with the data moved to GPU memory.
     unsafe impl<T: DeviceCopy, const N: usize> DeviceCopy for GridNDDeviceInner<T, N> {}
 
-    impl<T: DeviceCopy + std::fmt::Debug, const N: usize> GridND<T, N> {
+    impl<T: DeviceCopy, const N: usize> GridND<T, N> {
         pub fn to_device(&self) -> Result<GridNDDevice<T, N>, Box<dyn std::error::Error>> {
             let total_elems = self.dims.iter().product::<usize>();
             // Safety: We assume the data is valid and we can copy it to the device
