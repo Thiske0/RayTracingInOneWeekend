@@ -505,6 +505,7 @@ name = "grid-nd"
 version = "0.1.0"
 dependencies = [
  "cuda_builder",
+ "cust",
  "grid-nd-kernels",
 ]
 
@@ -513,6 +514,8 @@ name = "grid-nd-kernels"
 version = "0.1.0"
 dependencies = [
  "cuda_std",
+ "cust",
+ "rand",
 ]
 
 [[package]]

@@ -2,6 +2,7 @@
 #![allow(incomplete_features)]
 
 pub mod grid_nd;
+mod test;
 
 pub use grid_nd::{GridND, GridViewND, GridViewNDMut};
 

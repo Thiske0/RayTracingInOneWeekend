@@ -5,6 +5,7 @@ edition = "2018"
 
 [dependencies]
 grid-nd-kernels = { path = "kernels" }
+cust = { path = "../../../Rust-CUDA/crates/cust" }
 
 [build-dependencies]
 cuda_builder = { path = "../../../Rust-CUDA/crates/cuda_builder" }
