@@ -1701,6 +1701,7 @@ version = "0.1.0"
 dependencies = [
  "cuda_std",
  "cust",
+ "enum_dispatch",
  "gpu_rand",
  "image",
  "rand 0.9.2",

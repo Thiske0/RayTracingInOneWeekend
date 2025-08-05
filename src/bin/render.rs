@@ -2,17 +2,14 @@ use clap::Parser;
 
 use simple_ray_tracer::{
     Result,
-    raytracer::{
-        camera::Camera,
-        hitable_list::HitableListBuilder,
-        materials::{dielectric::Dielectric, lambertian::Lambertian, metal::Metal},
-        options::Options,
-        sphere::Sphere,
-    },
+    raytracer::{camera::Camera, options::Options},
 };
 
 use simple_ray_tracer_kernels::{
     color::Color,
+    hitable_list::HitableListBuilder,
+    materials::{dielectric::Dielectric, lambertian::Lambertian, metal::Metal},
+    sphere::Sphere,
     vec3::{Point3, Real, Vec3},
 };
 

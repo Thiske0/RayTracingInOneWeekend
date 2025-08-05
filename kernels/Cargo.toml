@@ -6,6 +6,7 @@ edition = "2024"
 [dependencies]
 cuda_std = { path = "../../Rust-CUDA/crates/cuda_std" }
 gpu_rand = { path = "../../Rust-CUDA/crates/gpu_rand" }
+enum_dispatch = "0.3.13"
 
 [target.'cfg(not(target_os = "cuda"))'.dependencies]
 cust = { path = "../../Rust-CUDA/crates/cust" }

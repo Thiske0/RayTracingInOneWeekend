@@ -1,12 +1,14 @@
-use std::ops::Range;
+use core::ops::Range;
 
 use enum_dispatch::enum_dispatch;
 
-use crate::raytracer::{
-    hitable_list::HitableList, materials::MaterialKind, ray::Ray, sphere::Sphere,
+use crate::{
+    hitable_list::HitableList,
+    materials::MaterialKind,
+    ray::Ray,
+    sphere::Sphere,
+    vec3::{Point3, Real, Vec3},
 };
-
-use simple_ray_tracer_kernels::vec3::{Point3, Real, Vec3};
 
 #[enum_dispatch]
 pub trait Hitable {

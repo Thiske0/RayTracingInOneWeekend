@@ -10,6 +10,11 @@ use cust::DeviceCopy;
 use crate::vec3::{Point3, Real, Vec3};
 
 pub mod color;
+pub mod hitable;
+pub mod hitable_list;
+pub mod materials;
+pub mod ray;
+pub mod sphere;
 pub mod vec3;
 
 #[cfg_attr(not(target_os = "cuda"), derive(DeviceCopy))]

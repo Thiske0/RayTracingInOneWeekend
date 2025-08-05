@@ -8,12 +8,9 @@ use grid_nd::GridND;
 use image::{ImageBuffer, RgbImage};
 use indicatif::ProgressBar;
 use rand::Rng;
-use simple_ray_tracer_kernels::ImageRenderOptions;
+use simple_ray_tracer_kernels::{ImageRenderOptions, hitable::HitKind, ray::Ray};
 
-use crate::{
-    Result,
-    raytracer::{hitable::HitKind, options::RenderOptions, ray::Ray},
-};
+use crate::{Result, raytracer::options::RenderOptions};
 
 use simple_ray_tracer_kernels::{
     color::Color,

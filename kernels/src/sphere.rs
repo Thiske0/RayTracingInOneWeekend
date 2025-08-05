@@ -1,12 +1,14 @@
-use std::ops::Range;
+use core::ops::Range;
 
-use crate::raytracer::{
+use crate::{
     hitable::{HitKind, HitRecord, Hitable},
     materials::MaterialKind,
     ray::Ray,
+    vec3::{Point3, Real},
 };
 
-use simple_ray_tracer_kernels::vec3::{Point3, Real};
+#[cfg(target_os = "cuda")]
+use cuda_std::GpuFloat;
 
 pub struct Sphere {
     center: Point3,

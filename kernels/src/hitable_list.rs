@@ -1,12 +1,12 @@
-use std::ops::Range;
+use core::ops::Range;
 
-use crate::raytracer::{
+use crate::{
     hitable::{HitKind, HitRecord, Hitable},
     ray::Ray,
+    vec3::Real,
 };
 
-use simple_ray_tracer_kernels::vec3::Real;
-
+#[cfg(not(target_os = "cuda"))]
 pub struct HitableListBuilder<'a> {
     hitables: Vec<HitKind<'a>>,
 }
@@ -15,6 +15,7 @@ pub struct HitableList<'a> {
     hitables: &'a [HitKind<'a>],
 }
 
+#[cfg(not(target_os = "cuda"))]
 impl<'a> HitableListBuilder<'a> {
     pub fn new() -> Self {
         HitableListBuilder {

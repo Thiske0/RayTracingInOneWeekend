@@ -1,14 +1,15 @@
-use crate::raytracer::{
+use crate::{
+    color::Color,
     hitable::HitRecord,
     materials::{Material, MaterialKind},
     ray::Ray,
-};
-
-use simple_ray_tracer_kernels::{
-    color::Color,
     vec3::{Real, Vec3},
 };
 
+#[cfg(target_os = "cuda")]
+use cuda_std::GpuFloat;
+#[cfg(target_os = "cuda")]
+use gpu_rand::DefaultRand;
 pub struct Dielectric {
     refraction_index: Real,
 }
@@ -19,6 +20,12 @@ impl Dielectric {
     }
 
     // Abuse vec3::random to generate a random number in the range [0, 1)
+    #[cfg(target_os = "cuda")]
+    fn random_real(rng: &mut DefaultRand) -> Real {
+        Vec3::random(0.0..1.0, rng).x
+    }
+
+    #[cfg(not(target_os = "cuda"))]
     fn random_real() -> Real {
         Vec3::random(0.0..1.0).x
     }
@@ -29,9 +36,8 @@ impl Dielectric {
         let r0 = r0 * r0;
         r0 + (1.0 - r0) * (1.0 - cosine).powi(5)
     }
-}
-impl Material for Dielectric {
-    fn scatter(&self, ray: &Ray, hit: &HitRecord) -> Option<(Ray, Color)> {
+
+    fn scatter_inner(&self, ray: &Ray, hit: &HitRecord, random_real: Real) -> Option<(Ray, Color)> {
         let ri = if hit.is_front_face {
             1.0 / self.refraction_index
         } else {
@@ -43,9 +49,7 @@ impl Material for Dielectric {
         let cos_theta = Real::min(-unit_direction.dot(hit.normal), 1.0);
         let sin_theta = (1.0 - cos_theta * cos_theta).sqrt();
         let cannot_refract = ri * sin_theta > 1.0;
-        let direction = if cannot_refract
-            || Dielectric::reflectance(cos_theta, ri) > Dielectric::random_real()
-        {
+        let direction = if cannot_refract || Dielectric::reflectance(cos_theta, ri) > random_real {
             // Reflect
             unit_direction.reflect(hit.normal)
         } else {
@@ -55,5 +59,16 @@ impl Material for Dielectric {
 
         let scattered = Ray::new(hit.p, direction);
         Some((scattered, Color::white()))
+    }
+}
+impl Material for Dielectric {
+    #[cfg(target_os = "cuda")]
+    fn scatter(&self, ray: &Ray, hit: &HitRecord, rng: &mut DefaultRand) -> Option<(Ray, Color)> {
+        self.scatter_inner(ray, hit, Dielectric::random_real(rng))
+    }
+
+    #[cfg(not(target_os = "cuda"))]
+    fn scatter(&self, ray: &Ray, hit: &HitRecord) -> Option<(Ray, Color)> {
+        self.scatter_inner(ray, hit, Dielectric::random_real())
     }
 }

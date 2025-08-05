@@ -1,12 +1,12 @@
-use crate::raytracer::{
+use crate::{
+    color::Color,
     hitable::{HitKind, Hitable},
     materials::Material,
-};
-
-use simple_ray_tracer_kernels::{
-    color::Color,
     vec3::{Point3, Real, Vec3},
 };
+
+#[cfg(target_os = "cuda")]
+use gpu_rand::DefaultRand;
 
 pub struct Ray {
     pub origin: Point3,
@@ -30,6 +30,7 @@ impl Ray {
         self.origin + self.direction * t
     }
 
+    #[cfg(not(target_os = "cuda"))]
     pub fn color(&self, depth: usize, hitable: &HitKind) -> Color {
         // If we've exceeded the ray bounce limit, no more light is gathered.
         if depth <= 0 {
@@ -45,6 +46,35 @@ impl Ray {
 
                 // Recursively calculate the color of the scattered ray.
                 let new_color = scattered_ray.color(depth - 1, hitable);
+                return attenuation * new_color;
+            } else {
+                return Color::black(); // Ray was absorbed
+            }
+        }
+
+        let unit_direction = self.direction.normalize();
+        let blue = Color::new(0.5, 0.7, 1.0);
+        let white = Color::new(1.0, 1.0, 1.0);
+        let t = 0.5 * (unit_direction.y + 1.0);
+        white.lerp(blue, t)
+    }
+
+    #[cfg(target_os = "cuda")]
+    pub fn color(&self, depth: usize, hitable: &HitKind, rng: &mut DefaultRand) -> Color {
+        // If we've exceeded the ray bounce limit, no more light is gathered.
+        if depth <= 0 {
+            return Color::black();
+        }
+
+        if let Some(hit) = hitable.hit(self, &(1e-12..Real::INFINITY)) {
+            if let Some((mut scattered_ray, attenuation)) = hit.mat.scatter(self, &hit, rng) {
+                // Improve the scattered ray's direction and origin.
+                // This is to avoid precision issues with re-intersection.
+                scattered_ray.direction = scattered_ray.direction.normalize(); // Ensure direction is normalized
+                scattered_ray.origin = scattered_ray.origin + scattered_ray.direction * 1e-4; // Offset to avoid re-intersection
+
+                // Recursively calculate the color of the scattered ray.
+                let new_color = scattered_ray.color(depth - 1, hitable, rng);
                 return attenuation * new_color;
             } else {
                 return Color::black(); // Ray was absorbed
