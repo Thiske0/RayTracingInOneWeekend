@@ -124,7 +124,8 @@ impl Camera {
             grid.copy_back(&grid_device)?;
 
             //CPU rendering
-            // simple_ray_tracer_kernels::render_image(              &mut grid,
+            // simple_ray_tracer_kernels::render_image(
+            //     &mut grid,
             //     &world.build(),
             //     &image_render_options,
             // );

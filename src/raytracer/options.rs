@@ -6,11 +6,11 @@ use simple_ray_tracer_kernels::vec3::{Point3, Real, Vec3};
 #[derive(Debug, Args)]
 pub struct RenderOptions {
     /// Width of the image
-    #[arg(short = 'W', long = "width", default_value_t = 1920 / 4)]
+    #[arg(short = 'W', long = "width", default_value_t = 1920)]
     pub width: usize,
 
     /// Height of the image
-    #[arg(short = 'H', long = "height", default_value_t = 1080 / 4)]
+    #[arg(short = 'H', long = "height", default_value_t = 1080)]
     pub height: usize,
 
     /// Vertical field of view in degrees
