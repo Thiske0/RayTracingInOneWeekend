@@ -1,4 +1,5 @@
 use cust::{
+    launch,
     memory::{AsyncCopyDestination, DeviceBox, DeviceBuffer},
     module::Module,
     stream::{Stream, StreamFlags},
@@ -7,7 +8,7 @@ use gpu_rand::DefaultRand;
 use grid_nd::GridND;
 use image::{ImageBuffer, RgbImage};
 use rand::Rng;
-use simple_ray_tracer_kernels::{ImageRenderOptions, hitable::HitKind};
+use simple_ray_tracer_kernels::{ImageRenderOptions, hitable_list::HitableListBuilder};
 
 use crate::{Result, raytracer::options::RenderOptions};
 
@@ -79,7 +80,7 @@ impl Camera {
         ))
     }
 
-    pub fn render(&self, world: &HitKind) -> Result<()> {
+    pub fn render<'a>(&self, world: &'a HitableListBuilder<'a>) -> Result<()> {
         // Render
         let image_width = self.render_options.width;
         let image_height = self.render_options.height;
@@ -94,29 +95,39 @@ impl Camera {
             // Initialize camera parameters
             let (image_render_options, rand_states_device) = self.initilize(&stream)?;
 
-            let world_device = DeviceBox::new_async(world, &stream)?;
+            let (world_device, world_buffer) = world.build_device(&stream)?;
             let image_render_options_device = DeviceBox::new_async(&image_render_options, &stream)?;
             let grid_device = grid.to_device_async(&stream)?;
 
-            /*launch!(
-                module.render<<<blocks, threads, 0, stream>>>(
-                    self.buffers.accumulated_buffer.as_device_ptr(),
-                    self.buffers.viewport,
-                    scene.as_device_ptr(),
-                    self.buffers.rand_states.as_unified_ptr()
+            let render_image = module.get_function("render_image")?;
+
+            let (_, recommended_block_size) =
+                render_image.suggested_launch_configuration(0, 0.into())?;
+            let (blocks, threads) = grid.grid_and_block_size(recommended_block_size);
+
+            launch!(
+                render_image<<<blocks, threads, 0, stream>>>(
+                    grid_device.as_device_ptr().as_mut_ptr(),
+                    world_device.as_device_ptr(),
+                    image_render_options_device.as_device_ptr(),
+                    rand_states_device.as_device_ptr().as_mut_ptr()
                 )
-            )?;*/
+            )?;
 
             world_device.drop_async(&stream)?;
             image_render_options_device.drop_async(&stream)?;
             rand_states_device.drop_async(&stream)?;
+            world_buffer.drop_async(&stream)?;
 
             stream.synchronize()?;
 
             grid.copy_back(&grid_device)?;
 
             //CPU rendering
-            simple_ray_tracer_kernels::render_image(&mut grid, world, &image_render_options);
+            // simple_ray_tracer_kernels::render_image(              &mut grid,
+            //     &world.build(),
+            //     &image_render_options,
+            // );
         }
 
         let img: RgbImage =

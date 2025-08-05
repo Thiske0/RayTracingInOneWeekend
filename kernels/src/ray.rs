@@ -74,6 +74,7 @@ impl Ray {
 
         let mut current_color = Color::white();
         let mut current_ray = self;
+
         for _ in 0..depth {
             if let Some(hit) = hitable.hit(&current_ray, &(1e-12..Real::INFINITY)) {
                 if let Some((mut scattered_ray, attenuation)) =

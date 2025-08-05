@@ -140,7 +140,7 @@ mod tests {
 
     #[test]
     fn cuda_grid_2d() -> Result<(), Box<dyn Error>> {
-        let dims = [1024, 1024];
+        let dims = [1024, 512];
 
         // initialize CUDA, this will pick the first available device and will
         // make a CUDA context from it.
@@ -205,7 +205,7 @@ mod tests {
 
     #[test]
     fn cuda_grid_2d_async() -> Result<(), Box<dyn Error>> {
-        let dims = [1024, 1024];
+        let dims = [1024, 512];
 
         // initialize CUDA, this will pick the first available device and will
         // make a CUDA context from it.
@@ -270,7 +270,7 @@ mod tests {
 
     #[test]
     fn cuda_grid_3d() -> Result<(), Box<dyn Error>> {
-        let dims = [128, 128, 128];
+        let dims = [128, 256, 64];
 
         // initialize CUDA, this will pick the first available device and will
         // make a CUDA context from it.
@@ -340,7 +340,7 @@ mod tests {
 
     #[test]
     fn cuda_grid_3d_async() -> Result<(), Box<dyn Error>> {
-        let dims = [128, 128, 128];
+        let dims = [128, 256, 64];
 
         // initialize CUDA, this will pick the first available device and will
         // make a CUDA context from it.

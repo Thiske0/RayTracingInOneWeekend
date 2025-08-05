@@ -55,7 +55,7 @@ pub unsafe fn render_image(
 
     let (idx_x, idx_y) = thread::index_2d().as_usize_tuple();
     let dims = grid.shape();
-    if idx_x >= dims[0] || idx_y >= dims[1] {
+    if idx_x >= dims[1] || idx_y >= dims[0] {
         return;
     }
     let px_idx = idx_y * dims[0] + idx_x;

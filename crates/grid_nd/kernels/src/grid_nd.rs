@@ -311,7 +311,7 @@ mod host_impls {
             let block_size = [recommended_block_size; 2];
 
             for i in 0..2 {
-                grid_size[i] = (self.dims[i] as u32).div_ceil(block_size[i]);
+                grid_size[i] = (self.dims[1 - i] as u32).div_ceil(block_size[i]);
             }
             let grid_size = (grid_size[0], grid_size[1]);
             let block_size = (block_size[0], block_size[1]);
@@ -327,7 +327,7 @@ mod host_impls {
             let block_size = [recommended_block_size; 3];
 
             for i in 0..3 {
-                grid_size[i] = (self.dims[i] as u32).div_ceil(block_size[i]);
+                grid_size[i] = (self.dims[2 - i] as u32).div_ceil(block_size[i]);
             }
             let grid_size = (grid_size[0], grid_size[1], grid_size[2]);
             let block_size = (block_size[0], block_size[1], block_size[2]);

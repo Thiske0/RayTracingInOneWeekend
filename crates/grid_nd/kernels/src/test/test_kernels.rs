@@ -22,8 +22,8 @@ pub unsafe fn vecadd_2d_f32(a: &GridND<f32, 2>, b: &GridND<f32, 2>, c: *mut Grid
     let (idx_x, idx_y) = thread::index_2d().as_usize_tuple();
     let dims = a.shape();
     assert!(dims == b.shape() && dims == c.shape());
-    if idx_x < dims[0] && idx_y < dims[1] {
-        *c.at_mut(idx_x).at_mut(idx_y) = *a.at(idx_x).at(idx_y) + *b.at(idx_x).at(idx_y);
+    if idx_x < dims[1] && idx_y < dims[0] {
+        *c.at_mut(idx_y).at_mut(idx_x) = *a.at(idx_y).at(idx_x) + *b.at(idx_y).at(idx_x);
     }
 }
 
@@ -35,8 +35,8 @@ pub unsafe fn vecadd_3d_f32(a: &GridND<f32, 3>, b: &GridND<f32, 3>, c: *mut Grid
     let (idx_x, idx_y, idx_z) = thread::index_3d().as_usize_tuple();
     let dims = a.shape();
     assert!(dims == b.shape() && dims == c.shape());
-    if idx_x < dims[0] && idx_y < dims[1] && idx_z < dims[2] {
-        *c.at_mut(idx_x).at_mut(idx_y).at_mut(idx_z) =
-            *a.at(idx_x).at(idx_y).at(idx_z) + *b.at(idx_x).at(idx_y).at(idx_z);
+    if idx_x < dims[2] && idx_y < dims[1] && idx_z < dims[0] {
+        *c.at_mut(idx_z).at_mut(idx_y).at_mut(idx_x) =
+            *a.at(idx_z).at(idx_y).at(idx_x) + *b.at(idx_z).at(idx_y).at(idx_x);
     }
 }

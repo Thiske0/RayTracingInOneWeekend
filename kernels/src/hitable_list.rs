@@ -15,6 +15,7 @@ pub struct HitableListBuilder<'a> {
 use cust::{
     error::CudaResult,
     memory::{DeviceBox, DeviceBuffer, DeviceCopy},
+    stream::Stream,
 };
 
 #[cfg_attr(not(target_os = "cuda"), derive(Clone, Copy))]
@@ -40,17 +41,19 @@ impl<'a> HitableListBuilder<'a> {
     /// This is for CPU usage only.
     /// For GPU usage, use `HitableList::build_device`.
     /// If you try using this on the GPU, it will invoke UB.
-    pub fn build(&'a mut self) -> HitKind<'a> {
+    pub fn build(&'a self) -> HitKind<'a> {
         HitableList {
             hitables: self.hitables.as_slice(),
         }
         .into()
     }
 
-    pub fn build_device(
+    pub unsafe fn build_device(
         &self,
-    ) -> CudaResult<(DeviceBox<HitableList<'a>>, DeviceBuffer<HitKind<'a>>)> {
-        let device_buffer = DeviceBuffer::from_slice(self.hitables.as_slice())?;
+        stream: &Stream,
+    ) -> CudaResult<(DeviceBox<HitKind<'a>>, DeviceBuffer<HitKind<'a>>)> {
+        let device_buffer =
+            unsafe { DeviceBuffer::from_slice_async(self.hitables.as_slice(), stream)? };
         let hitable_list = HitableList {
             hitables: unsafe {
                 std::slice::from_raw_parts(
@@ -59,7 +62,10 @@ impl<'a> HitableListBuilder<'a> {
                 )
             },
         };
-        Ok((DeviceBox::new(&hitable_list)?, device_buffer))
+        Ok((
+            unsafe { DeviceBox::new_async(&hitable_list.into(), stream)? },
+            device_buffer,
+        ))
     }
 }
 
