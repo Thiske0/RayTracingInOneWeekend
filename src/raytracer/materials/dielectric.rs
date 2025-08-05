@@ -1,8 +1,11 @@
 use crate::raytracer::{
-    color::Color,
     hitable::HitRecord,
     materials::{Material, MaterialKind},
     ray::Ray,
+};
+
+use simple_ray_tracer_kernels::{
+    color::Color,
     vec3::{Real, Vec3},
 };
 

@@ -1,9 +1,10 @@
 use crate::raytracer::{
-    color::Color,
     hitable::HitRecord,
     materials::{dielectric::Dielectric, lambertian::Lambertian, metal::Metal},
     ray::Ray,
 };
+use simple_ray_tracer_kernels::color::Color;
+
 use enum_dispatch::enum_dispatch;
 
 #[enum_dispatch]

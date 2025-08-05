@@ -1,8 +1,6 @@
-use std::str::FromStr;
-
 use clap::{Args, Parser};
 
-use crate::raytracer::vec3::{Point3, Real, Vec3};
+use simple_ray_tracer_kernels::vec3::{Point3, Real, Vec3};
 
 /// Rendering options for the ray tracer.
 #[derive(Debug, Args)]
@@ -43,27 +41,6 @@ pub struct RenderOptions {
     /// Output file name
     #[arg(short = 'o', long = "output", default_value = "image.png")]
     pub file_name: String,
-}
-
-impl FromStr for Vec3 {
-    type Err = String;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let parts: Vec<&str> = s.split(',').collect();
-        if parts.len() != 3 {
-            return Err("Expected three comma-separated values".to_string());
-        }
-        let x = parts[0]
-            .parse()
-            .map_err(|_| "Invalid x value".to_string())?;
-        let y = parts[1]
-            .parse()
-            .map_err(|_| "Invalid y value".to_string())?;
-        let z = parts[2]
-            .parse()
-            .map_err(|_| "Invalid z value".to_string())?;
-        Ok(Vec3::new(x, y, z))
-    }
 }
 
 impl RenderOptions {

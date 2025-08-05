@@ -18,6 +18,8 @@ nanorand = "0.8.0"
 rand = "0.9.2"
 grid-nd = { path = "crates/grid_nd" }
 image = "0.25.6"
+simple-ray-tracer-kernels = { path = "kernels" }
+gpu_rand = { path = "../Rust-CUDA/crates/gpu_rand" }
 
 [build-dependencies]
 cuda_builder = { path = "../Rust-CUDA/crates/cuda_builder" }

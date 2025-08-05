@@ -1,7 +1,10 @@
 use crate::raytracer::{
-    color::Color,
     hitable::{HitKind, Hitable},
     materials::Material,
+};
+
+use simple_ray_tracer_kernels::{
+    color::Color,
     vec3::{Point3, Real, Vec3},
 };
 

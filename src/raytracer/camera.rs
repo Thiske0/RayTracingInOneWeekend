@@ -1,34 +1,29 @@
+use cust::{
+    memory::DeviceBox,
+    module::Module,
+    stream::{Stream, StreamFlags},
+};
+use gpu_rand::DefaultRand;
 use grid_nd::GridND;
 use image::{ImageBuffer, RgbImage};
 use indicatif::ProgressBar;
+use rand::Rng;
+use simple_ray_tracer_kernels::ImageRenderOptions;
 
 use crate::{
     Result,
-    raytracer::{
-        color::Color,
-        hitable::HitKind,
-        options::RenderOptions,
-        ray::Ray,
-        vec3::{Point3, Real, Vec3},
-    },
+    raytracer::{hitable::HitKind, options::RenderOptions, ray::Ray},
 };
+
+use simple_ray_tracer_kernels::{
+    color::Color,
+    vec3::{Real, Vec3},
+};
+
+static PTX: &str = include_str!(concat!(env!("OUT_DIR"), "/kernels.ptx"));
 
 pub struct Camera {
     pub render_options: RenderOptions,
-}
-
-struct ImageRenderOptions {
-    samples_per_pixel: usize,
-    origin: Point3,
-    max_depth: usize,
-
-    defocus_angle: Real,
-    defocus_disk_u: Vec3,
-    defocus_disk_v: Vec3,
-
-    pixel00_loc: Point3,
-    pixel_delta_u: Vec3,
-    pixel_delta_v: Vec3,
 }
 
 impl Camera {
@@ -63,6 +58,12 @@ impl Camera {
         let defocus_disk_u = u * defocus_radius;
         let defocus_disk_v = v * defocus_radius;
 
+        let seed = rand::rng().random();
+        let rand_states = DefaultRand::initialize_states(
+            seed,
+            self.render_options.width * self.render_options.height,
+        );
+
         ImageRenderOptions {
             samples_per_pixel: self.render_options.samples_per_pixel,
             origin,
@@ -85,6 +86,28 @@ impl Camera {
         let image_height = self.render_options.height;
 
         let mut grid = GridND::new([image_height, image_width], Color::black());
+
+        let _ctx = cust::quick_init()?;
+        let module = Module::from_ptx(PTX, &[])?;
+        let stream = Stream::new(StreamFlags::NON_BLOCKING, None)?;
+
+        unsafe {
+            //let world_device = DeviceBox::new_async(world, &stream)?;
+            let image_render_options_device = DeviceBox::new_async(&image_render_options, &stream)?;
+            let grid_device = grid.to_device_async(&stream)?;
+
+            /*launch!(
+                module.render<<<blocks, threads, 0, stream>>>(
+                    self.buffers.accumulated_buffer.as_device_ptr(),
+                    self.buffers.viewport,
+                    scene.as_device_ptr(),
+                    self.buffers.rand_states.as_unified_ptr()
+                )
+            )?;*/
+
+            //world_device.drop_async(&stream)?;
+            image_render_options_device.drop_async(&stream)?;
+        }
 
         Self::render_image(&mut grid, world, &image_render_options);
 

@@ -1,10 +1,10 @@
 use crate::raytracer::{
-    color::Color,
     hitable::HitRecord,
     materials::{Material, MaterialKind},
     ray::Ray,
-    vec3::Vec3,
 };
+
+use simple_ray_tracer_kernels::{color::Color, vec3::Vec3};
 
 pub struct Lambertian {
     albedo: Color,

@@ -4,8 +4,9 @@ use crate::raytracer::{
     hitable::{HitKind, HitRecord, Hitable},
     materials::MaterialKind,
     ray::Ray,
-    vec3::{Point3, Real},
 };
+
+use simple_ray_tracer_kernels::vec3::{Point3, Real};
 
 pub struct Sphere {
     center: Point3,
@@ -14,7 +15,7 @@ pub struct Sphere {
 }
 
 impl Sphere {
-    pub fn new(center: Point3, radius: Real, material: MaterialKind) -> HitKind {
+    pub fn new<'a>(center: Point3, radius: Real, material: MaterialKind) -> HitKind<'a> {
         HitKind::from(Sphere {
             center,
             radius,

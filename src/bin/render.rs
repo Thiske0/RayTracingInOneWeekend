@@ -4,13 +4,16 @@ use simple_ray_tracer::{
     Result,
     raytracer::{
         camera::Camera,
-        color::Color,
-        hitable_list::HitableList,
+        hitable_list::HitableListBuilder,
         materials::{dielectric::Dielectric, lambertian::Lambertian, metal::Metal},
         options::Options,
         sphere::Sphere,
-        vec3::{Point3, Real, Vec3},
     },
+};
+
+use simple_ray_tracer_kernels::{
+    color::Color,
+    vec3::{Point3, Real, Vec3},
 };
 
 fn main() -> Result<()> {
@@ -18,7 +21,7 @@ fn main() -> Result<()> {
     let options = Options::parse();
 
     // World
-    let mut world = HitableList::new();
+    let mut world = HitableListBuilder::new();
 
     let ground_material = Lambertian::new(Color::new(0.5, 0.5, 0.5));
     world.add(Sphere::new(
@@ -76,7 +79,7 @@ fn main() -> Result<()> {
     // Time duration
     let start = std::time::Instant::now();
 
-    camera.render(&world.into())?;
+    camera.render(&world.build())?;
 
     let duration = start.elapsed();
     println!("Render time: {:?}", duration);
