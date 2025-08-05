@@ -11,9 +11,15 @@ pub struct HitableListBuilder<'a> {
     hitables: Vec<HitKind<'a>>,
 }
 
+#[cfg(not(target_os = "cuda"))]
+use cust::memory::DeviceCopy;
+
+#[cfg_attr(not(target_os = "cuda"), derive(Clone, Copy))]
 pub struct HitableList<'a> {
     hitables: &'a [HitKind<'a>],
 }
+#[cfg(not(target_os = "cuda"))]
+unsafe impl<'a> DeviceCopy for HitableList<'a> {}
 
 #[cfg(not(target_os = "cuda"))]
 impl<'a> HitableListBuilder<'a> {
@@ -27,6 +33,10 @@ impl<'a> HitableListBuilder<'a> {
         self.hitables.push(hitable);
     }
 
+    /// Builds the HitableList from the added hitables.
+    /// This is for CPU usage only.
+    /// For GPU usage, use `HitableList::build_device`.
+    /// If you try using this on the GPU, it will invoke UB.
     pub fn build(&'a mut self) -> HitKind<'a> {
         HitableList {
             hitables: self.hitables.as_slice(),

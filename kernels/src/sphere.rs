@@ -9,7 +9,10 @@ use crate::{
 
 #[cfg(target_os = "cuda")]
 use cuda_std::GpuFloat;
+#[cfg(not(target_os = "cuda"))]
+use cust::DeviceCopy;
 
+#[cfg_attr(not(target_os = "cuda"), derive(Clone, Copy, DeviceCopy))]
 pub struct Sphere {
     center: Point3,
     radius: Real,
@@ -28,9 +31,9 @@ impl Sphere {
 
 impl Hitable for Sphere {
     fn hit<'a>(&'a self, ray: &Ray, range: &Range<Real>) -> Option<HitRecord<'a>> {
-        let oc = self.center - ray.origin;
-        let a = ray.direction.dot(ray.direction);
-        let b = oc.dot(ray.direction);
+        let oc = &self.center - &ray.origin;
+        let a = ray.direction.dot(&ray.direction);
+        let b = oc.dot(&ray.direction);
         let c = oc.length_squared() - self.radius * self.radius;
         let discriminant = b * b - a * c;
 
@@ -43,9 +46,9 @@ impl Hitable for Sphere {
                 }
             }
             let p = ray.at(t);
-            let mut normal = (p - self.center).normalize();
+            let mut normal = (&p - &self.center).normalize();
 
-            let is_front_face = normal.dot(ray.direction) < 0.0;
+            let is_front_face = normal.dot(&ray.direction) < 0.0;
             if !is_front_face {
                 normal = -normal;
             };

@@ -7,8 +7,8 @@ use crate::color::Color;
 
 pub type Real = f32;
 
-#[cfg_attr(not(target_os = "cuda"), derive(DeviceCopy, Debug))]
-#[derive(Clone, Copy, PartialEq)]
+#[cfg_attr(not(target_os = "cuda"), derive(DeviceCopy, Clone, Copy, Debug))]
+#[derive(PartialEq)]
 pub struct Vec3 {
     pub x: Real,
     pub y: Real,
@@ -27,24 +27,24 @@ impl Vec3 {
         Vec3::new(0.0, 0.0, 0.0)
     }
 
-    pub fn dot(self, other: Vec3) -> Real {
+    pub fn dot(&self, other: &Vec3) -> Real {
         self.x * other.x + self.y * other.y + self.z * other.z
     }
 
-    pub fn length_squared(self) -> Real {
+    pub fn length_squared(&self) -> Real {
         self.dot(self)
     }
 
-    pub fn length(self) -> Real {
+    pub fn length(&self) -> Real {
         self.length_squared().sqrt()
     }
 
-    pub fn normalize(self) -> Self {
+    pub fn normalize(&self) -> Self {
         let len = self.length();
         Vec3::new(self.x / len, self.y / len, self.z / len)
     }
 
-    pub fn cross(self, other: Vec3) -> Self {
+    pub fn cross(&self, other: &Vec3) -> Self {
         Vec3::new(
             self.y * other.z - self.z * other.y,
             self.z * other.x - self.x * other.z,
@@ -52,7 +52,7 @@ impl Vec3 {
         )
     }
 
-    pub fn map(self, f: fn(Real) -> Real) -> Self {
+    pub fn map(&self, f: fn(Real) -> Real) -> Self {
         Vec3::new(f(self.x), f(self.y), f(self.z))
     }
 
@@ -60,16 +60,16 @@ impl Vec3 {
         Color::new(self.x, self.y, self.z)
     }
 
-    pub fn near_zero(self) -> bool {
+    pub fn near_zero(&self) -> bool {
         let s = 1e-8;
         (self.x.abs() < s) && (self.y.abs() < s) && (self.z.abs() < s)
     }
 
-    pub fn reflect(self, normal: Vec3) -> Self {
+    pub fn reflect(&self, normal: &Vec3) -> Self {
         self - normal * 2.0 * self.dot(normal)
     }
 
-    pub fn refract(self, normal: Vec3, etai_over_etat: Real) -> Self {
+    pub fn refract(&self, normal: &Vec3, etai_over_etat: Real) -> Self {
         let cos_theta = Real::min(-self.dot(normal), 1.0);
         let r_out_perp = (self + normal * cos_theta) * etai_over_etat;
         let r_out_parallel = normal * -Real::abs(1.0 - r_out_perp.length_squared()).sqrt();
@@ -117,7 +117,7 @@ impl Vec3 {
 
     pub fn random_on_hemisphere(normal: Vec3, rng: &mut DefaultRand) -> Vec3 {
         let on_unit_sphere = Vec3::random_unit(rng);
-        if on_unit_sphere.dot(normal) > 0.0 {
+        if on_unit_sphere.dot(&normal) > 0.0 {
             // In the same hemisphere as the normal
             on_unit_sphere
         } else {
@@ -184,13 +184,13 @@ impl Vec3 {
         }
     }
 
-    pub fn random_on_hemisphere(normal: Vec3) -> Vec3 {
+    pub fn random_on_hemisphere(normal: &Vec3) -> Vec3 {
         let on_unit_sphere = Vec3::random_unit();
         if on_unit_sphere.dot(normal) > 0.0 {
             // In the same hemisphere as the normal
             on_unit_sphere
         } else {
-            -on_unit_sphere
+            -&on_unit_sphere
         }
     }
 
@@ -207,65 +207,171 @@ impl Vec3 {
     }
 }
 
-impl ops::Add<Real> for Vec3 {
-    type Output = Self;
+impl ops::Add<&Vec3> for &Vec3 {
+    type Output = Vec3;
+
+    fn add(self, other: &Vec3) -> Self::Output {
+        Vec3::new(self.x + other.x, self.y + other.y, self.z + other.z)
+    }
+}
+
+impl ops::Add<&Vec3> for Vec3 {
+    type Output = Vec3;
+    fn add(self, other: &Vec3) -> Self::Output {
+        &self + other
+    }
+}
+
+impl ops::Add<Vec3> for &Vec3 {
+    type Output = Vec3;
+    fn add(self, other: Vec3) -> Self::Output {
+        self + &other
+    }
+}
+
+impl ops::Add<Vec3> for Vec3 {
+    type Output = Vec3;
+    fn add(self, other: Vec3) -> Self::Output {
+        &self + &other
+    }
+}
+
+impl ops::Add<Real> for &Vec3 {
+    type Output = Vec3;
 
     fn add(self, scalar: Real) -> Self::Output {
         Vec3::new(self.x + scalar, self.y + scalar, self.z + scalar)
     }
 }
 
-impl ops::Add<Vec3> for Vec3 {
-    type Output = Self;
+impl ops::Add<Real> for Vec3 {
+    type Output = Vec3;
 
-    fn add(self, other: Vec3) -> Self::Output {
-        Vec3::new(self.x + other.x, self.y + other.y, self.z + other.z)
+    fn add(self, scalar: Real) -> Self::Output {
+        &self + scalar
+    }
+}
+
+impl ops::AddAssign<&Vec3> for Vec3 {
+    fn add_assign(&mut self, other: &Vec3) {
+        *self = &*self + other;
     }
 }
 
 impl ops::AddAssign<Vec3> for Vec3 {
     fn add_assign(&mut self, other: Vec3) {
-        *self = *self + other;
+        *self += &other;
+    }
+}
+
+impl ops::Sub<&Vec3> for &Vec3 {
+    type Output = Vec3;
+
+    fn sub(self, other: &Vec3) -> Self::Output {
+        Vec3::new(self.x - other.x, self.y - other.y, self.z - other.z)
+    }
+}
+
+impl ops::Sub<Vec3> for &Vec3 {
+    type Output = Vec3;
+
+    fn sub(self, other: Vec3) -> Self::Output {
+        self - &other
+    }
+}
+
+impl ops::Sub<&Vec3> for Vec3 {
+    type Output = Vec3;
+
+    fn sub(self, other: &Vec3) -> Self::Output {
+        &self - other
     }
 }
 
 impl ops::Sub<Vec3> for Vec3 {
-    type Output = Self;
+    type Output = Vec3;
 
     fn sub(self, other: Vec3) -> Self::Output {
-        Vec3::new(self.x - other.x, self.y - other.y, self.z - other.z)
+        &self - &other
+    }
+}
+
+impl ops::Sub<Real> for &Vec3 {
+    type Output = Vec3;
+
+    fn sub(self, scalar: Real) -> Self::Output {
+        Vec3::new(self.x - scalar, self.y - scalar, self.z - scalar)
+    }
+}
+
+impl ops::Sub<Real> for Vec3 {
+    type Output = Vec3;
+
+    fn sub(self, scalar: Real) -> Self::Output {
+        &self - scalar
+    }
+}
+
+impl ops::SubAssign<&Vec3> for Vec3 {
+    fn sub_assign(&mut self, other: &Vec3) {
+        *self = &*self - other;
     }
 }
 
 impl ops::SubAssign<Vec3> for Vec3 {
     fn sub_assign(&mut self, other: Vec3) {
-        *self = *self - other;
+        *self -= &other;
     }
 }
 
-impl ops::Mul<Real> for Vec3 {
-    type Output = Self;
+impl ops::Mul<Real> for &Vec3 {
+    type Output = Vec3;
 
     fn mul(self, scalar: Real) -> Self::Output {
         Vec3::new(self.x * scalar, self.y * scalar, self.z * scalar)
     }
 }
 
-impl ops::Div<Real> for Vec3 {
-    type Output = Self;
+impl ops::Mul<Real> for Vec3 {
+    type Output = Vec3;
+
+    fn mul(self, scalar: Real) -> Self::Output {
+        &self * scalar
+    }
+}
+
+impl ops::Div<Real> for &Vec3 {
+    type Output = Vec3;
 
     fn div(self, scalar: Real) -> Self::Output {
         Vec3::new(self.x / scalar, self.y / scalar, self.z / scalar)
     }
 }
 
-impl ops::Neg for Vec3 {
-    type Output = Self;
+impl ops::Div<Real> for Vec3 {
+    type Output = Vec3;
+
+    fn div(self, scalar: Real) -> Self::Output {
+        &self / scalar
+    }
+}
+
+impl ops::Neg for &Vec3 {
+    type Output = Vec3;
 
     fn neg(self) -> Self::Output {
         Vec3::new(-self.x, -self.y, -self.z)
     }
 }
+
+impl ops::Neg for Vec3 {
+    type Output = Vec3;
+
+    fn neg(self) -> Self::Output {
+        -&self
+    }
+}
+
 #[cfg(not(target_os = "cuda"))]
 use core::str::FromStr;
 

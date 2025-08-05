@@ -1,5 +1,5 @@
 use cust::{
-    memory::DeviceBox,
+    memory::{AsyncCopyDestination, DeviceBox, DeviceBuffer},
     module::Module,
     stream::{Stream, StreamFlags},
 };
@@ -28,13 +28,16 @@ impl Camera {
         Camera { render_options }
     }
 
-    fn initilize(&self) -> ImageRenderOptions {
+    unsafe fn initilize(
+        &self,
+        stream: &Stream,
+    ) -> Result<(ImageRenderOptions, DeviceBuffer<DefaultRand>)> {
         let origin = self.render_options.lookfrom;
 
         // Calculate the u,v,w unit basis vectors for the camera coordinate frame.
         let w = (origin - self.render_options.lookat).normalize();
-        let u = self.render_options.vup.cross(w).normalize();
-        let v = w.cross(u);
+        let u = self.render_options.vup.cross(&w).normalize();
+        let v = w.cross(&u);
 
         // Calculate the location of the upper left pixel.
         let viewport_u = u * self.render_options.viewport_width();
@@ -56,28 +59,31 @@ impl Camera {
         let defocus_disk_v = v * defocus_radius;
 
         let seed = rand::rng().random();
-        let rand_states = DefaultRand::initialize_states(
-            seed,
-            self.render_options.width * self.render_options.height,
-        );
+        let total_elems = self.render_options.width * self.render_options.height;
+        let rand_states = DefaultRand::initialize_states(seed, total_elems);
+        let rand_states = unsafe {
+            let mut device_buffer = DeviceBuffer::uninitialized_async(total_elems, stream)?;
+            device_buffer.async_copy_from(rand_states.as_slice(), stream)?;
+            device_buffer
+        };
 
-        ImageRenderOptions {
-            samples_per_pixel: self.render_options.samples_per_pixel,
-            origin,
-            max_depth: self.render_options.max_depth,
-            defocus_angle: self.render_options.defocus_angle,
-            defocus_disk_u,
-            defocus_disk_v,
-            pixel00_loc,
-            pixel_delta_u,
-            pixel_delta_v,
-        }
+        Ok((
+            ImageRenderOptions {
+                samples_per_pixel: self.render_options.samples_per_pixel,
+                origin,
+                max_depth: self.render_options.max_depth,
+                defocus_angle: self.render_options.defocus_angle,
+                defocus_disk_u,
+                defocus_disk_v,
+                pixel00_loc,
+                pixel_delta_u,
+                pixel_delta_v,
+            },
+            rand_states,
+        ))
     }
 
     pub fn render(&self, world: &HitKind) -> Result<()> {
-        // Initialize camera parameters
-        let image_render_options = self.initilize();
-
         // Render
         let image_width = self.render_options.width;
         let image_height = self.render_options.height;
@@ -89,7 +95,10 @@ impl Camera {
         let stream = Stream::new(StreamFlags::NON_BLOCKING, None)?;
 
         unsafe {
-            //let world_device = DeviceBox::new_async(world, &stream)?;
+            // Initialize camera parameters
+            let (image_render_options, rand_states_device) = self.initilize(&stream)?;
+
+            let world_device = DeviceBox::new_async(world, &stream)?;
             let image_render_options_device = DeviceBox::new_async(&image_render_options, &stream)?;
             let grid_device = grid.to_device_async(&stream)?;
 
@@ -102,11 +111,17 @@ impl Camera {
                 )
             )?;*/
 
-            //world_device.drop_async(&stream)?;
+            world_device.drop_async(&stream)?;
             image_render_options_device.drop_async(&stream)?;
-        }
+            rand_states_device.drop_async(&stream)?;
 
-        Self::render_image(&mut grid, world, &image_render_options);
+            stream.synchronize()?;
+
+            grid.copy_back(&grid_device)?;
+
+            //CPU rendering
+            Self::render_image(&mut grid, world, &image_render_options);
+        }
 
         let img: RgbImage =
             ImageBuffer::from_fn(image_width as u32, image_height as u32, |x, y| {

@@ -17,8 +17,7 @@ pub mod ray;
 pub mod sphere;
 pub mod vec3;
 
-#[cfg_attr(not(target_os = "cuda"), derive(DeviceCopy))]
-#[derive(Clone, Copy)]
+#[cfg_attr(not(target_os = "cuda"), derive(Clone, Copy, DeviceCopy))]
 pub struct ImageRenderOptions {
     pub samples_per_pixel: usize,
     pub origin: Point3,

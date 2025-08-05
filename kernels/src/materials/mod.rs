@@ -5,6 +5,8 @@ use crate::{
     ray::Ray,
 };
 
+#[cfg(not(target_os = "cuda"))]
+use cust::DeviceCopy;
 use enum_dispatch::enum_dispatch;
 #[cfg(target_os = "cuda")]
 use gpu_rand::DefaultRand;
@@ -13,16 +15,17 @@ use gpu_rand::DefaultRand;
 pub trait Material {
     /// Returns the scattered ray and the attenuation color.
     #[cfg(not(target_os = "cuda"))]
-    fn scatter(&self, ray: &Ray, hit_record: &HitRecord) -> Option<(Ray, Color)>;
+    fn scatter(&self, ray: &Ray, hit_record: HitRecord) -> Option<(Ray, &Color)>;
     #[cfg(target_os = "cuda")]
     fn scatter(
         &self,
         ray: &Ray,
-        hit_record: &HitRecord,
+        hit_record: HitRecord,
         rng: &mut DefaultRand,
-    ) -> Option<(Ray, Color)>;
+    ) -> Option<(Ray, &Color)>;
 }
 
+#[cfg_attr(not(target_os = "cuda"), derive(Clone, Copy, DeviceCopy))]
 #[enum_dispatch(Material)]
 pub enum MaterialKind {
     Lambertian(Lambertian),

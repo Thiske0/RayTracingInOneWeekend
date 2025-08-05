@@ -18,16 +18,16 @@ impl Ray {
         Ray { origin, direction }
     }
 
-    pub fn origin(&self) -> Point3 {
-        self.origin
+    pub fn origin(&self) -> &Point3 {
+        &self.origin
     }
 
-    pub fn direction(&self) -> Vec3 {
-        self.direction
+    pub fn direction(&self) -> &Vec3 {
+        &self.direction
     }
 
     pub fn at(&self, t: Real) -> Point3 {
-        self.origin + self.direction * t
+        &self.origin + &self.direction * t
     }
 
     #[cfg(not(target_os = "cuda"))]
@@ -41,12 +41,11 @@ impl Ray {
         let mut current_ray = self;
         for _ in 0..depth {
             if let Some(hit) = hitable.hit(&current_ray, &(1e-12..Real::INFINITY)) {
-                if let Some((mut scattered_ray, attenuation)) = hit.mat.scatter(&current_ray, &hit)
-                {
+                if let Some((mut scattered_ray, attenuation)) = hit.mat.scatter(&current_ray, hit) {
                     // Improve the scattered ray's direction and origin.
                     // This is to avoid precision issues with re-intersection.
                     scattered_ray.direction = scattered_ray.direction.normalize(); // Ensure direction is normalized
-                    scattered_ray.origin = scattered_ray.origin + scattered_ray.direction * 1e-4; // Offset to avoid re-intersection
+                    scattered_ray.origin = scattered_ray.origin + &scattered_ray.direction * 1e-4; // Offset to avoid re-intersection
 
                     // Recursively calculate the color of the scattered ray.
                     current_ray = scattered_ray;
@@ -59,7 +58,7 @@ impl Ray {
                 let blue = Color::new(0.5, 0.7, 1.0);
                 let white = Color::new(1.0, 1.0, 1.0);
                 let t = 0.5 * (unit_direction.y + 1.0);
-                return white.lerp(blue, t) * current_color;
+                return white.lerp(&blue, t) * current_color;
             }
         }
         // no more light is gathered
@@ -78,12 +77,12 @@ impl Ray {
         for _ in 0..depth {
             if let Some(hit) = hitable.hit(&current_ray, &(1e-12..Real::INFINITY)) {
                 if let Some((mut scattered_ray, attenuation)) =
-                    hit.mat.scatter(&current_ray, &hit, rng)
+                    hit.mat.scatter(&current_ray, hit, rng)
                 {
                     // Improve the scattered ray's direction and origin.
                     // This is to avoid precision issues with re-intersection.
                     scattered_ray.direction = scattered_ray.direction.normalize(); // Ensure direction is normalized
-                    scattered_ray.origin = scattered_ray.origin + scattered_ray.direction * 1e-4; // Offset to avoid re-intersection
+                    scattered_ray.origin = scattered_ray.origin + &scattered_ray.direction * 1e-4; // Offset to avoid re-intersection
 
                     // Recursively calculate the color of the scattered ray.
                     current_ray = scattered_ray;
@@ -96,7 +95,7 @@ impl Ray {
                 let blue = Color::new(0.5, 0.7, 1.0);
                 let white = Color::new(1.0, 1.0, 1.0);
                 let t = 0.5 * (unit_direction.y + 1.0);
-                return white.lerp(blue, t) * current_color;
+                return white.lerp(&blue, t) * current_color;
             }
         }
         // no more light is gathered
