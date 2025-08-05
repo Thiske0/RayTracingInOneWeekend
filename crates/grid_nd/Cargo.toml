@@ -5,6 +5,8 @@ edition = "2018"
 
 [dependencies]
 grid-nd-kernels = { path = "kernels" }
+
+[target.'cfg(not(target_os = "cuda"))'.dependencies]
 cust = { path = "../../../Rust-CUDA/crates/cust" }
 
 [build-dependencies]

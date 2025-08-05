@@ -7,11 +7,13 @@ edition = "2024"
 cuda_std = { path = "../../Rust-CUDA/crates/cuda_std" }
 gpu_rand = { path = "../../Rust-CUDA/crates/gpu_rand" }
 enum_dispatch = "0.3.13"
+grid-nd = { path = "../crates/grid_nd" }
 
 [target.'cfg(not(target_os = "cuda"))'.dependencies]
 cust = { path = "../../Rust-CUDA/crates/cust" }
 image = "0.25.6"
 rand = "0.9.2"
+indicatif = "0.18.0"
 
 [lib]
 crate-type = ["cdylib", "rlib"]

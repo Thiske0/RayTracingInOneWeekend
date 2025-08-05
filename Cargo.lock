@@ -1703,7 +1703,9 @@ dependencies = [
  "cust",
  "enum_dispatch",
  "gpu_rand",
+ "grid-nd",
  "image",
+ "indicatif",
  "rand 0.9.2",
 ]
 

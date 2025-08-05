@@ -12,7 +12,10 @@ pub struct HitableListBuilder<'a> {
 }
 
 #[cfg(not(target_os = "cuda"))]
-use cust::memory::DeviceCopy;
+use cust::{
+    error::CudaResult,
+    memory::{DeviceBox, DeviceBuffer, DeviceCopy},
+};
 
 #[cfg_attr(not(target_os = "cuda"), derive(Clone, Copy))]
 pub struct HitableList<'a> {
@@ -42,6 +45,21 @@ impl<'a> HitableListBuilder<'a> {
             hitables: self.hitables.as_slice(),
         }
         .into()
+    }
+
+    pub fn build_device(
+        &self,
+    ) -> CudaResult<(DeviceBox<HitableList<'a>>, DeviceBuffer<HitKind<'a>>)> {
+        let device_buffer = DeviceBuffer::from_slice(self.hitables.as_slice())?;
+        let hitable_list = HitableList {
+            hitables: unsafe {
+                std::slice::from_raw_parts(
+                    device_buffer.as_device_ptr().as_ptr(),
+                    device_buffer.len(),
+                )
+            },
+        };
+        Ok((DeviceBox::new(&hitable_list)?, device_buffer))
     }
 }
 
