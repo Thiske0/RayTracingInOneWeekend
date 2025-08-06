@@ -85,7 +85,7 @@ impl Camera {
         let image_width = self.render_options.width;
         let image_height = self.render_options.height;
 
-        let mut grid = GridND::new([image_height, image_width], Color::black());
+        let mut image_grid = GridND::new([image_height, image_width], Color::black());
 
         let _ctx = cust::quick_init()?;
         let module = Module::from_ptx(PTX, &[])?;
@@ -97,17 +97,17 @@ impl Camera {
 
             let (world_device, world_buffer) = world.build_device(&stream)?;
             let image_render_options_device = DeviceBox::new_async(&image_render_options, &stream)?;
-            let grid_device = grid.to_device_async(&stream)?;
+            let image_grid_device = image_grid.to_device_async(&stream)?;
 
-            let render_image = module.get_function("render_image")?;
+            let render_image = module.get_function("render_image_v2")?;
 
             let (_, recommended_block_size) =
                 render_image.suggested_launch_configuration(0, 0.into())?;
-            let (blocks, threads) = grid.grid_and_block_size(recommended_block_size);
+            let (blocks, threads) = image_grid.grid_and_block_size(recommended_block_size);
 
             launch!(
                 render_image<<<blocks, threads, 0, stream>>>(
-                    grid_device.as_device_ptr().as_mut_ptr(),
+                    image_grid_device.as_device_ptr().as_mut_ptr(),
                     world_device.as_device_ptr(),
                     image_render_options_device.as_device_ptr(),
                     rand_states_device.as_device_ptr().as_mut_ptr()
@@ -121,7 +121,7 @@ impl Camera {
 
             stream.synchronize()?;
 
-            grid.copy_back(&grid_device)?;
+            image_grid.copy_back(&image_grid_device)?;
 
             //CPU rendering
             // simple_ray_tracer_kernels::render_image(
@@ -133,7 +133,7 @@ impl Camera {
 
         let img: RgbImage =
             ImageBuffer::from_fn(image_width as u32, image_height as u32, |x, y| {
-                let color = *grid.at(y as usize).at(x as usize);
+                let color = *image_grid.at(y as usize).at(x as usize);
                 color.into()
             });
         img.save(&self.render_options.file_name)?;
