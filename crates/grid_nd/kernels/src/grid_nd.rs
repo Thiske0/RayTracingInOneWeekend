@@ -148,6 +148,7 @@ mod host_impls {
         Rng,
         distr::{Distribution, StandardUniform},
     };
+    use core::cmp::min;
 
     impl<T: Copy, const N: usize> GridND<T, N> {
         /// Creates a GridND with heap-allocated zero-initialized buffer.
@@ -294,7 +295,10 @@ mod host_impls {
 
     impl<T> GridND<T, 1> {
         pub fn grid_and_block_size(&self, recommended_block_size: u32) -> (GridSize, BlockSize) {
-            let block_size = recommended_block_size;
+            let mut block_size = recommended_block_size;
+            if block_size > 32 {
+                block_size = block_size.div_floor(32) * 32; // Ensure block size is a multiple of 32
+            }
 
             let grid_size = (self.dims[0] as u32).div_ceil(block_size);
 
@@ -305,10 +309,10 @@ mod host_impls {
     use std::cmp::max;
     impl<T> GridND<T, 2> {
         pub fn grid_and_block_size(&self, recommended_block_size: u32) -> (GridSize, BlockSize) {
-            let recommended_block_size =
-                max((recommended_block_size as f32).sqrt().floor() as u32, 1);
+            let block_size_x = min(recommended_block_size, 32);
+            let block_size_y = recommended_block_size.div_floor(block_size_x);
             let mut grid_size = [1u32; 2];
-            let block_size = [recommended_block_size; 2];
+            let block_size = [block_size_x, block_size_y];
 
             for i in 0..2 {
                 grid_size[i] = (self.dims[1 - i] as u32).div_ceil(block_size[i]);
@@ -321,10 +325,16 @@ mod host_impls {
 
     impl<T> GridND<T, 3> {
         pub fn grid_and_block_size(&self, recommended_block_size: u32) -> (GridSize, BlockSize) {
-            let recommended_block_size =
-                max((recommended_block_size as f32).cbrt().floor() as u32, 1);
+            let block_size_x = min(recommended_block_size, 32);
+            let block_size_z = max(
+                (recommended_block_size as f32 / block_size_x as f32)
+                    .sqrt()
+                    .floor() as u32,
+                1,
+            );
+            let block_size_y = recommended_block_size.div_floor(block_size_x * block_size_z);
             let mut grid_size = [1u32; 3];
-            let block_size = [recommended_block_size; 3];
+            let block_size = [block_size_x, block_size_y, block_size_z];
 
             for i in 0..3 {
                 grid_size[i] = (self.dims[2 - i] as u32).div_ceil(block_size[i]);

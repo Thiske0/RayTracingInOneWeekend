@@ -1,4 +1,5 @@
 #![feature(generic_const_exprs)]
+#![feature(int_roundings)]
 #![allow(incomplete_features)]
 
 pub mod grid_nd;
