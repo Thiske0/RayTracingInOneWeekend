@@ -18,7 +18,7 @@ pub struct RenderOptions {
     pub vertical_fov: Real,
 
     /// Number of samples per pixel
-    #[arg(short = 's', long = "samples", default_value_t = 10)]
+    #[arg(short = 's', long = "samples", default_value_t = 20)]
     pub samples_per_pixel: usize,
 
     /// Maximum depth of ray bounces
