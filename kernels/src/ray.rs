@@ -3,18 +3,26 @@ use crate::{
     color::Color,
     hitable::{HitKind, Hitable},
     materials::Material,
-    random::Random,
+    random::{Random, random_single},
     vec3::{Point3, Real, Vec3},
 };
 
+#[cfg(not(target_os = "cuda"))]
+use cust::DeviceCopy;
+#[cfg_attr(not(target_os = "cuda"), derive(Clone, Copy, DeviceCopy))]
 pub struct Ray {
     pub origin: Point3,
     pub direction: Vec3,
+    pub time: Real,
 }
 
 impl Ray {
-    pub fn new(origin: Point3, direction: Vec3) -> Self {
-        Ray { origin, direction }
+    pub fn new(origin: Point3, direction: Vec3, time: Real) -> Self {
+        Ray {
+            origin,
+            direction,
+            time,
+        }
     }
 
     pub fn origin(&self) -> &Point3 {
@@ -81,6 +89,6 @@ impl Ray {
             };
 
         let ray_direction = pixel_sample - &ray_origin;
-        Ray::new(ray_origin, ray_direction)
+        Ray::new(ray_origin, ray_direction, random_single(0.0..1.0, rng))
     }
 }

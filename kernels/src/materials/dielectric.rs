@@ -56,7 +56,7 @@ impl Material for Dielectric {
             unit_direction.refract(&hit.normal, ri)
         };
 
-        let scattered = Ray::new(hit.p, direction);
+        let scattered = Ray::new(hit.p, direction, ray.time);
         Some((scattered, &self.albedo))
     }
 }

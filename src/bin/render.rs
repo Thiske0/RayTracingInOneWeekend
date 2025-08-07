@@ -22,7 +22,7 @@ fn main() -> Result<()> {
     let mut world = HitableListBuilder::new();
 
     let ground_material = Lambertian::new(Color::new(0.5, 0.5, 0.5));
-    world.add(Sphere::new(
+    world.add(Sphere::new_static(
         Point3::new(0.0, -1000.0, 0.0),
         1000.0,
         ground_material,
@@ -45,33 +45,50 @@ fn main() -> Result<()> {
                     // diffuse
                     let albedo = Color::random(&mut rng) * Color::random(&mut rng);
                     let sphere_material = Lambertian::new(albedo);
-                    world.add(Sphere::new(center, 0.2, sphere_material));
+                    let end = center + Vec3::new(0.0, random_single(0.0..0.2, &mut rng), 0.0);
+                    world.add(Sphere::new_moving(center, end, 0.2, sphere_material));
                 } else if choose_mat < 0.95 {
                     // metal
                     let albedo = Color::random(&mut rng) / 2.0 + 0.5;
                     let fuzz = random_single(0.0..0.5, &mut rng);
                     let sphere_material = Metal::new(albedo, fuzz);
-                    world.add(Sphere::new(center, 0.2, sphere_material));
+                    world.add(Sphere::new_static(center, 0.2, sphere_material));
                 } else {
                     // glass
                     let sphere_material = Dielectric::new(1.5);
-                    world.add(Sphere::new(center, 0.2, sphere_material));
+                    world.add(Sphere::new_static(center, 0.2, sphere_material));
                 }
             }
         }
     }
 
     let material1a = Dielectric::new(1.5);
-    world.add(Sphere::new(Point3::new(0.0, 1.0, 0.0), 1.0, material1a));
+    world.add(Sphere::new_static(
+        Point3::new(0.0, 1.0, 0.0),
+        1.0,
+        material1a,
+    ));
 
     let material1b = Dielectric::new(1.0 / 1.5);
-    world.add(Sphere::new(Point3::new(0.0, 1.0, 0.0), 0.8, material1b));
+    world.add(Sphere::new_static(
+        Point3::new(0.0, 1.0, 0.0),
+        0.8,
+        material1b,
+    ));
 
     let material2 = Lambertian::new(Color::new(0.4, 0.2, 0.1));
-    world.add(Sphere::new(Point3::new(-4.0, 1.0, 0.0), 1.0, material2));
+    world.add(Sphere::new_static(
+        Point3::new(-4.0, 1.0, 0.0),
+        1.0,
+        material2,
+    ));
 
     let material3 = Metal::new(Color::new(0.7, 0.6, 0.5), 0.0);
-    world.add(Sphere::new(Point3::new(4.0, 1.0, 0.0), 1.0, material3));
+    world.add(Sphere::new_static(
+        Point3::new(4.0, 1.0, 0.0),
+        1.0,
+        material3,
+    ));
 
     // Camera setup
     let camera = Camera::new(options.render);

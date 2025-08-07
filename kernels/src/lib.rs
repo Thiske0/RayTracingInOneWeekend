@@ -119,30 +119,12 @@ fn render_pixel_v2(
     let mut cur_depth = 0;
 
     // To satisfy the compiler, we need to initialize `current_ray` here.
-    let mut current_ray = Ray::new(Vec3::zero(), Vec3::zero());
+    let mut current_ray = Ray::new(Vec3::zero(), Vec3::zero(), 0.0);
 
-    let mut ret = None;
     let mut current_color = Color::white();
     while cur_sample < options.samples_per_pixel {
         if cur_depth == 0 {
-            // Calculate the pixel sample location.
-            let offset = Vec3::sample_square(rng);
-            let pixel_sample = &options.pixel00_loc
-                + (&options.pixel_delta_u * (i as Real + offset.x))
-                + (&options.pixel_delta_v * (j as Real + offset.y));
-
-            // Apply defocus if enabled
-            let ray_origin = &options.origin
-                + if options.defocus_angle > 0.0 {
-                    let offset = Vec3::random_in_unit_disk(rng);
-                    &options.defocus_disk_u * offset.x + &options.defocus_disk_v * offset.y
-                } else {
-                    Vec3::zero()
-                };
-
-            let ray_direction = pixel_sample - &ray_origin;
-            current_ray = Ray::new(ray_origin, ray_direction);
-            ret = None;
+            current_ray = Ray::get_ray(i, j, options, rng);
             current_color = Color::white();
         }
 
@@ -158,25 +140,25 @@ fn render_pixel_v2(
                 current_ray = scattered_ray;
                 current_color = current_color * attenuation;
                 cur_depth += 1;
+
+                if cur_depth >= options.max_depth {
+                    // max depth is reached, don't gather any light
+                    cur_depth = 0;
+                    cur_sample += 1;
+                }
             } else {
-                cur_depth = options.max_depth; // Ray was absorbed
+                // Ray was absorbed
+                cur_depth = 0;
+                cur_sample += 1;
             }
         } else {
             let unit_direction = current_ray.direction.normalize();
             let blue = Color::new(0.5, 0.7, 1.0);
             let white = Color::new(1.0, 1.0, 1.0);
             let t = 0.5 * (unit_direction.y + 1.0);
-            ret = Some(white.lerp(&blue, t) * &current_color);
-            cur_depth = options.max_depth;
-        }
 
-        if cur_depth >= options.max_depth {
-            // Reset for the next sample
-            if let Some(color) = &ret {
-                pixel_color += color
-            } else {
-                // no more light is gathered
-            }
+            // update color
+            pixel_color += white.lerp(&blue, t) * &current_color;
             cur_depth = 0;
             cur_sample += 1;
         }

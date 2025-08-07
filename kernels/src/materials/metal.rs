@@ -28,7 +28,7 @@ impl Material for Metal {
         if direction.near_zero() || direction.dot(&hit_record.normal) < 0.0 {
             return None; // Ray is absorbed
         }
-        let new_ray = Ray::new(hit_record.p, direction);
+        let new_ray = Ray::new(hit_record.p, direction, ray.time);
         Some((new_ray, &self.albedo))
     }
 }
