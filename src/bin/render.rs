@@ -9,6 +9,7 @@ use simple_ray_tracer_kernels::{
     color::Color,
     hitable_list::HitableListBuilder,
     materials::{dielectric::Dielectric, lambertian::Lambertian, metal::Metal},
+    random::random_single,
     sphere::Sphere,
     vec3::{Point3, Real, Vec3},
 };
@@ -27,9 +28,11 @@ fn main() -> Result<()> {
         ground_material,
     ));
 
+    let mut rng = rand::rng();
+
     for a in -11..11 {
         for b in -11..11 {
-            let random_vec = Vec3::random(0.0..1.0);
+            let random_vec = Vec3::random(0.0..1.0, &mut rng);
             let choose_mat = random_vec.x;
             let center = Point3::new(
                 a as Real + 0.9 * random_vec.y,
@@ -40,13 +43,13 @@ fn main() -> Result<()> {
             if (center - Point3::new(4.0, 0.2, 0.0)).length() > 0.9 {
                 if choose_mat < 0.8 {
                     // diffuse
-                    let albedo = Color::random() * Color::random();
+                    let albedo = Color::random(&mut rng) * Color::random(&mut rng);
                     let sphere_material = Lambertian::new(albedo);
                     world.add(Sphere::new(center, 0.2, sphere_material));
                 } else if choose_mat < 0.95 {
                     // metal
-                    let albedo = Color::random() / 2.0 + 0.5;
-                    let fuzz = Vec3::random(0.0..0.5).x;
+                    let albedo = Color::random(&mut rng) / 2.0 + 0.5;
+                    let fuzz = random_single(0.0..0.5, &mut rng);
                     let sphere_material = Metal::new(albedo, fuzz);
                     world.add(Sphere::new(center, 0.2, sphere_material));
                 } else {

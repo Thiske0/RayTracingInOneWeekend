@@ -2,14 +2,13 @@ use crate::{
     color::Color,
     hitable::HitRecord,
     materials::{Material, MaterialKind},
+    random::Random,
     ray::Ray,
     vec3::Vec3,
 };
 
 #[cfg(not(target_os = "cuda"))]
 use cust::DeviceCopy;
-#[cfg(target_os = "cuda")]
-use gpu_rand::DefaultRand;
 
 #[cfg_attr(not(target_os = "cuda"), derive(Clone, Copy, DeviceCopy))]
 pub struct Lambertian {
@@ -20,34 +19,19 @@ impl Lambertian {
     pub fn new(albedo: Color) -> MaterialKind {
         MaterialKind::from(Lambertian { albedo })
     }
-
-    fn scatter_inner(
-        &self,
-        _ray: &Ray,
-        hit: HitRecord,
-        random_unit: Vec3,
-    ) -> Option<(Ray, &Color)> {
-        let mut direction = &hit.normal + random_unit;
-        if direction.near_zero() {
-            direction = hit.normal; // Handle near-zero direction to avoid NaN
-        }
-        let new_ray = Ray::new(hit.p, direction);
-        Some((new_ray, &self.albedo))
-    }
 }
 impl Material for Lambertian {
-    #[cfg(target_os = "cuda")]
     fn scatter(
         &self,
-        ray: &Ray,
+        _ray: &Ray,
         hit_record: HitRecord,
-        rng: &mut DefaultRand,
+        rng: &mut Random,
     ) -> Option<(Ray, &Color)> {
-        self.scatter_inner(ray, hit_record, Vec3::random_unit(rng))
-    }
-
-    #[cfg(not(target_os = "cuda"))]
-    fn scatter(&self, ray: &Ray, hit_record: HitRecord) -> Option<(Ray, &Color)> {
-        self.scatter_inner(ray, hit_record, Vec3::random_unit())
+        let mut direction = &hit_record.normal + Vec3::random_unit(rng);
+        if direction.near_zero() {
+            direction = hit_record.normal; // Handle near-zero direction to avoid NaN
+        }
+        let new_ray = Ray::new(hit_record.p, direction);
+        Some((new_ray, &self.albedo))
     }
 }

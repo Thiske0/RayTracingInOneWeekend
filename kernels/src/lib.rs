@@ -11,6 +11,7 @@ use cust::DeviceCopy;
 #[cfg(target_os = "cuda")]
 use gpu_rand::DefaultRand;
 
+use crate::random::Random;
 use crate::vec3::{Point3, Real, Vec3};
 use crate::{color::Color, hitable::HitKind};
 use grid_nd::GridND;
@@ -22,6 +23,7 @@ pub mod color;
 pub mod hitable;
 pub mod hitable_list;
 pub mod materials;
+pub mod random;
 pub mod ray;
 pub mod sphere;
 pub mod vec3;
@@ -61,68 +63,57 @@ pub unsafe fn render_image(
     let px_idx = idx_y * dims[0] + idx_x;
 
     // generate a tiny offset for the ray for antialiasing
-    let rng = unsafe { &mut *rand_states.add(px_idx) };
+    let mut rng = unsafe { &mut *rand_states.add(px_idx) };
 
-    let mut pixel_color = Color::black();
-    for _ in 0..options.samples_per_pixel {
-        // Calculate the pixel sample location.
-
-        use crate::ray::Ray;
-        let offset = Vec3::sample_square(rng);
-        let pixel_sample = &options.pixel00_loc
-            + (&options.pixel_delta_u * (idx_x as Real + offset.x))
-            + (&options.pixel_delta_v * (idx_y as Real + offset.y));
-
-        // Apply defocus if enabled
-        let ray_origin = &options.origin
-            + if options.defocus_angle > 0.0 {
-                let offset = Vec3::random_in_unit_disk(rng);
-                &options.defocus_disk_u * offset.x + &options.defocus_disk_v * offset.y
-            } else {
-                Vec3::zero()
-            };
-
-        let ray_direction = pixel_sample - &ray_origin;
-        let ray = Ray::new(ray_origin, ray_direction);
-
-        pixel_color += ray.color(options.max_depth, world, rng);
-    }
     // Store the pixel color in the grid
-    *grid.at_mut(idx_y).at_mut(idx_x) = pixel_color / options.samples_per_pixel as Real;
+    *grid.at_mut(idx_y).at_mut(idx_x) = render_pixel_v2(idx_x, idx_y, options, world, &mut rng);
+}
+use crate::ray::Ray;
+
+#[cfg(not(target_os = "cuda"))]
+pub fn render_image(grid: &mut GridND<Color, 2>, world: &HitKind, options: &ImageRenderOptions) {
+    // Set up the progress bar
+
+    let progress = ProgressBar::new(grid.shape().iter().product::<usize>() as u64);
+
+    let mut rng = rand::rng();
+    for i in 0..grid.shape()[1] {
+        for j in 0..grid.shape()[0] {
+            *grid.at_mut(j).at_mut(i) = render_pixel(i, j, options, world, &mut rng);
+        }
+        progress.inc(grid.shape()[0] as u64);
+    }
+    progress.finish();
 }
 
-#[cfg(target_os = "cuda")]
+fn render_pixel(
+    i: usize,
+    j: usize,
+    options: &ImageRenderOptions,
+    world: &HitKind,
+    rng: &mut Random,
+) -> Color {
+    let mut pixel_color = Color::black();
+    for _ in 0..options.samples_per_pixel {
+        let ray = Ray::get_ray(i, j, options, rng);
+        pixel_color += ray.color(options.max_depth, world, rng);
+    }
+    pixel_color / options.samples_per_pixel as Real
+}
 use crate::hitable::Hitable;
-#[cfg(target_os = "cuda")]
 use crate::materials::Material;
-#[cfg(target_os = "cuda")]
-use crate::ray::Ray;
 
 /// This function is used to render the image using CUDA kernels.
 /// It functions the same way as `render_image`, but has its inner loop unrolled to improve thread divergence.
 /// Improves performance by 40%.
-#[cfg(target_os = "cuda")]
-#[kernel]
-#[cfg(target_os = "cuda")]
-pub unsafe fn render_image_v2(
-    grid: *mut GridND<Color, 2>,
-    world: &HitKind,
+#[allow(unused)]
+fn render_pixel_v2(
+    i: usize,
+    j: usize,
     options: &ImageRenderOptions,
-    rand_states: *mut DefaultRand,
-) {
-    // Safety: 'grid' must point to a valid GridND<Color, 2> that is mutable.
-    let grid = unsafe { &mut *grid };
-
-    let (idx_x, idx_y) = thread::index_2d().as_usize_tuple();
-    let dims = grid.shape();
-    if idx_x >= dims[1] || idx_y >= dims[0] {
-        return;
-    }
-    let px_idx = idx_y * dims[0] + idx_x;
-
-    // generate a tiny offset for the ray for antialiasing
-    let rng = unsafe { &mut *rand_states.add(px_idx) };
-
+    world: &HitKind,
+    rng: &mut Random,
+) -> Color {
     let mut pixel_color = Color::black();
     let mut cur_sample = 0;
     let mut cur_depth = 0;
@@ -137,8 +128,8 @@ pub unsafe fn render_image_v2(
             // Calculate the pixel sample location.
             let offset = Vec3::sample_square(rng);
             let pixel_sample = &options.pixel00_loc
-                + (&options.pixel_delta_u * (idx_x as Real + offset.x))
-                + (&options.pixel_delta_v * (idx_y as Real + offset.y));
+                + (&options.pixel_delta_u * (i as Real + offset.x))
+                + (&options.pixel_delta_v * (j as Real + offset.y));
 
             // Apply defocus if enabled
             let ray_origin = &options.origin
@@ -190,46 +181,7 @@ pub unsafe fn render_image_v2(
             cur_sample += 1;
         }
     }
-    // Store the pixel color in the grid
-    *grid.at_mut(idx_y).at_mut(idx_x) = pixel_color / options.samples_per_pixel as Real;
-}
-
-#[cfg(not(target_os = "cuda"))]
-pub fn render_image(grid: &mut GridND<Color, 2>, world: &HitKind, options: &ImageRenderOptions) {
-    // Set up the progress bar
-    let progress = ProgressBar::new(grid.shape().iter().product::<usize>() as u64);
-    for i in 0..grid.shape()[1] {
-        for j in 0..grid.shape()[0] {
-            let mut pixel_color = Color::black();
-            for _ in 0..options.samples_per_pixel {
-                // Calculate the pixel sample location.
-
-                use crate::ray::Ray;
-                let offset = Vec3::sample_square();
-                let pixel_sample = &options.pixel00_loc
-                    + (&options.pixel_delta_u * (i as Real + offset.x))
-                    + (&options.pixel_delta_v * (j as Real + offset.y));
-
-                // Apply defocus if enabled
-                let ray_origin = &options.origin
-                    + if options.defocus_angle > 0.0 {
-                        let offset = Vec3::random_in_unit_disk();
-                        &options.defocus_disk_u * offset.x + &options.defocus_disk_v * offset.y
-                    } else {
-                        Vec3::zero()
-                    };
-
-                let ray_direction = pixel_sample - &ray_origin;
-                let ray = Ray::new(ray_origin, ray_direction);
-
-                pixel_color += ray.color(options.max_depth, world);
-            }
-            // Store the pixel color in the grid
-            *grid.at_mut(j).at_mut(i) = pixel_color / options.samples_per_pixel as Real;
-        }
-        progress.inc(grid.shape()[0] as u64);
-    }
-    progress.finish();
+    pixel_color / options.samples_per_pixel as Real
 }
 
 #[cfg(target_os = "cuda")]

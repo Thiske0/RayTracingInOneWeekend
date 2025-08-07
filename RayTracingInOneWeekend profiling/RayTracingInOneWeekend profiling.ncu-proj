@@ -23,6 +23,18 @@
         {
             "is_open": true,
             "path": "profilings/profile_5.ncu-rep"
+        },
+        {
+            "is_open": true,
+            "path": "profilings/profile_6.ncu-rep"
+        },
+        {
+            "is_open": true,
+            "path": "profilings/profile_7.ncu-rep"
+        },
+        {
+            "is_open": true,
+            "path": "profilings/profile_8.ncu-rep"
         }
     ],
     "launcher": {

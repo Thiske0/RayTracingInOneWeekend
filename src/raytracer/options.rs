@@ -35,7 +35,7 @@ pub struct RenderOptions {
     /// depth of field
     #[arg(short = 'f', long = "focus-distance", default_value_t = 10.0)]
     pub focus_distance: Real,
-    #[arg(short = 'a', long = "defocus-angle", default_value_t = 0.0)]
+    #[arg(short = 'a', long = "defocus-angle", default_value_t = 0.6)]
     pub defocus_angle: Real,
 
     /// Output file name

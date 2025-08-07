@@ -3,7 +3,10 @@ use core::ops::{self, Range};
 #[cfg(not(target_os = "cuda"))]
 use cust::DeviceCopy;
 
-use crate::color::Color;
+use crate::{
+    color::Color,
+    random::{Random, random_single},
+};
 
 pub type Real = f32;
 
@@ -79,32 +82,24 @@ impl Vec3 {
 
 #[cfg(target_os = "cuda")]
 use cuda_std::GpuFloat;
-#[cfg(target_os = "cuda")]
-use gpu_rand::{DefaultRand, GpuRand};
 
-#[cfg(target_os = "cuda")]
 impl Vec3 {
     // Returns the vector to a random point in the [-.5,-.5]-[+.5,+.5] unit square.
-    pub fn sample_square(rng: &mut DefaultRand) -> Vec3 {
-        let x = rng.uniform_f32() as Real - 0.5;
-        let y = rng.uniform_f32() as Real - 0.5;
+    pub fn sample_square(rng: &mut Random) -> Vec3 {
+        let x = random_single(-0.5..0.5, rng);
+        let y = random_single(-0.5..0.5, rng);
         Vec3::new(x, y, 0.0)
     }
 
-    fn random_single(interval: Range<Real>, rng: &mut DefaultRand) -> Real {
-        let value = rng.uniform_f32() as Real;
-        value * (interval.end - interval.start) + interval.start
-    }
-
-    pub fn random(interval: Range<Real>, rng: &mut DefaultRand) -> Self {
+    pub fn random(interval: Range<Real>, rng: &mut Random) -> Self {
         Vec3::new(
-            Self::random_single(interval.clone(), rng),
-            Self::random_single(interval.clone(), rng),
-            Self::random_single(interval, rng),
+            random_single(interval.clone(), rng),
+            random_single(interval.clone(), rng),
+            random_single(interval, rng),
         )
     }
 
-    pub fn random_unit(rng: &mut DefaultRand) -> Self {
+    pub fn random_unit(rng: &mut Random) -> Self {
         loop {
             let v = Vec3::random(-1.0..1.0, rng);
             let length_squared = v.length_squared();
@@ -115,7 +110,7 @@ impl Vec3 {
         }
     }
 
-    pub fn random_on_hemisphere(normal: Vec3, rng: &mut DefaultRand) -> Vec3 {
+    pub fn random_on_hemisphere(normal: Vec3, rng: &mut Random) -> Vec3 {
         let on_unit_sphere = Vec3::random_unit(rng);
         if on_unit_sphere.dot(&normal) > 0.0 {
             // In the same hemisphere as the normal
@@ -125,78 +120,9 @@ impl Vec3 {
         }
     }
 
-    pub fn random_in_unit_disk(rng: &mut DefaultRand) -> Vec3 {
+    pub fn random_in_unit_disk(rng: &mut Random) -> Vec3 {
         loop {
             let mut v = Vec3::random(-1.0..1.0, rng);
-            v.z = 0.0; // Ensure it's in the disk
-            let length_squared = v.length_squared();
-            // Avoid division by zero by ensuring that the vector length is not too close to zero.
-            if length_squared > 1e-15 && length_squared < 1.0 {
-                return v / length_squared.sqrt();
-            }
-        }
-    }
-}
-
-#[cfg(not(target_os = "cuda"))]
-use rand::{Rng, rngs::ThreadRng};
-
-#[cfg(not(target_os = "cuda"))]
-use std::cell::UnsafeCell;
-
-#[cfg(not(target_os = "cuda"))]
-impl Vec3 {
-    thread_local! {
-        static RNG: UnsafeCell<ThreadRng> = UnsafeCell::new(ThreadRng::default());
-    }
-
-    // Returns the vector to a random point in the [-.5,-.5]-[+.5,+.5] unit square.
-    pub fn sample_square() -> Vec3 {
-        Self::RNG.with(|rng| {
-            // Safety: we only have one &mut to the RNG at a time.
-            let rng = unsafe { &mut *rng.get() };
-            let x = rng.random::<Real>() - 0.5;
-            let y = rng.random::<Real>() - 0.5;
-            Vec3::new(x, y, 0.0)
-        })
-    }
-
-    pub fn random(interval: Range<Real>) -> Self {
-        Self::RNG.with(|rng| {
-            // Safety: we only have one &mut to the RNG at a time.
-            let rng = unsafe { &mut *rng.get() };
-            Vec3::new(
-                rng.random_range(interval.clone()),
-                rng.random_range(interval.clone()),
-                rng.random_range(interval),
-            )
-        })
-    }
-
-    pub fn random_unit() -> Self {
-        loop {
-            let v = Vec3::random(-1.0..1.0);
-            let length_squared = v.length_squared();
-            // Avoid division by zero by ensuring that the vector length is not too close to zero.
-            if length_squared > 1e-15 && length_squared < 1.0 {
-                return v / length_squared.sqrt();
-            }
-        }
-    }
-
-    pub fn random_on_hemisphere(normal: &Vec3) -> Vec3 {
-        let on_unit_sphere = Vec3::random_unit();
-        if on_unit_sphere.dot(normal) > 0.0 {
-            // In the same hemisphere as the normal
-            on_unit_sphere
-        } else {
-            -&on_unit_sphere
-        }
-    }
-
-    pub fn random_in_unit_disk() -> Vec3 {
-        loop {
-            let mut v = Vec3::random(-1.0..1.0);
             v.z = 0.0; // Ensure it's in the disk
             let length_squared = v.length_squared();
             // Avoid division by zero by ensuring that the vector length is not too close to zero.

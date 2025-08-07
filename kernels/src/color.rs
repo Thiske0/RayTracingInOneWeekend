@@ -8,7 +8,10 @@ use image::Rgb;
 #[cfg(target_os = "cuda")]
 use cuda_std::GpuFloat;
 
-use crate::vec3::{Real, Vec3};
+use crate::{
+    random::Random,
+    vec3::{Real, Vec3},
+};
 
 #[cfg_attr(not(target_os = "cuda"), derive(Clone, Copy, DeviceCopy))]
 #[derive(PartialEq)]
@@ -41,21 +44,8 @@ impl Color {
     pub fn white() -> Self {
         Color(Vec3::new(1.0, 1.0, 1.0))
     }
-}
 
-#[cfg(not(target_os = "cuda"))]
-impl Color {
-    pub fn random() -> Self {
-        Color(Vec3::random(0.0..1.0))
-    }
-}
-
-#[cfg(target_os = "cuda")]
-use gpu_rand::DefaultRand;
-
-#[cfg(target_os = "cuda")]
-impl Color {
-    pub fn random(rng: &mut DefaultRand) -> Self {
+    pub fn random(rng: &mut Random) -> Self {
         Color(Vec3::random(0.0..1.0, rng))
     }
 }

@@ -99,7 +99,7 @@ impl Camera {
             let image_render_options_device = DeviceBox::new_async(&image_render_options, &stream)?;
             let image_grid_device = image_grid.to_device_async(&stream)?;
 
-            let render_image = module.get_function("render_image_v2")?;
+            let render_image = module.get_function("render_image")?;
 
             let (_, recommended_block_size) =
                 render_image.suggested_launch_configuration(0, 0.into())?;
@@ -125,7 +125,7 @@ impl Camera {
 
             //CPU rendering
             // simple_ray_tracer_kernels::render_image(
-            //     &mut grid,
+            //     &mut image_grid,
             //     &world.build(),
             //     &image_render_options,
             // );
