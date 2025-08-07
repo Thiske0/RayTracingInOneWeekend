@@ -1,7 +1,8 @@
 use core::ops::Range;
 
 use crate::{
-    hitable::{HitKind, HitRecord, Hitable},
+    boundingbox::{BoundingBox, IntoBoundingBox},
+    hitable::{HitRecord, Hitable},
     materials::MaterialKind,
     ray::Ray,
     vec3::{Point3, Real, Vec3},
@@ -20,26 +21,21 @@ pub struct Sphere {
 }
 
 impl Sphere {
-    pub fn new_static<'a>(center: Point3, radius: Real, material: MaterialKind) -> HitKind<'a> {
-        HitKind::from(Sphere {
+    pub fn new_static(center: Point3, radius: Real, material: MaterialKind) -> Self {
+        Sphere {
             center: Ray::new(center, Vec3::zero(), 0.0),
             radius,
             mat: material,
-        })
+        }
     }
 
-    pub fn new_moving<'a>(
-        start: Point3,
-        end: Point3,
-        radius: Real,
-        material: MaterialKind,
-    ) -> HitKind<'a> {
+    pub fn new_moving(start: Point3, end: Point3, radius: Real, material: MaterialKind) -> Self {
         let velocity = end - &start;
-        HitKind::from(Sphere {
+        Sphere {
             center: Ray::new(start, velocity, 0.0),
             radius,
             mat: material,
-        })
+        }
     }
 }
 
@@ -73,5 +69,18 @@ impl Hitable for Sphere {
         } else {
             None
         }
+    }
+}
+
+impl IntoBoundingBox for Sphere {
+    fn boundingbox(&self) -> BoundingBox {
+        let start = self.center.at(0.0);
+        let end = self.center.at(1.0);
+        let radius_vec = Vec3::new(self.radius, self.radius, self.radius);
+
+        let start_box = BoundingBox::new(&start - &radius_vec, start + &radius_vec);
+        let end_box = BoundingBox::new(&end - &radius_vec, end + radius_vec);
+
+        start_box.merge(&end_box)
     }
 }

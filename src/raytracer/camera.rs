@@ -8,7 +8,7 @@ use gpu_rand::DefaultRand;
 use grid_nd::GridND;
 use image::{ImageBuffer, RgbImage};
 use rand::Rng;
-use simple_ray_tracer_kernels::{ImageRenderOptions, hitable_list::HitableListBuilder};
+use simple_ray_tracer_kernels::{ImageRenderOptions, hitable_list::Builder};
 
 use crate::{Result, raytracer::options::RenderOptions};
 
@@ -80,7 +80,7 @@ impl Camera {
         ))
     }
 
-    pub fn render<'a>(&self, world: &'a HitableListBuilder<'a>) -> Result<()> {
+    pub fn render<'a, T: Builder<'a>>(&self, world: &'a mut T) -> Result<()> {
         // Render
         let image_width = self.render_options.width;
         let image_height = self.render_options.height;
@@ -95,8 +95,41 @@ impl Camera {
             // Initialize camera parameters
             let (image_render_options, rand_states_device) = self.initilize(&stream)?;
 
+            Self::render_gpu(
+                &mut image_grid,
+                world,
+                &image_render_options,
+                rand_states_device,
+                &module,
+                &stream,
+            )?;
+
+            //CPU rendering
+            //Self::render_cpu(&mut image_grid, world, &image_render_options);
+        }
+
+        let img: RgbImage =
+            ImageBuffer::from_fn(image_width as u32, image_height as u32, |x, y| {
+                let color = *image_grid.at(y as usize).at(x as usize);
+                color.into()
+            });
+        img.save(&self.render_options.file_name)?;
+        Ok(())
+    }
+
+    #[allow(unused)]
+    unsafe fn render_gpu<'a, T: Builder<'a>>(
+        image_grid: &mut GridND<Color, 2>,
+        world: &'a mut T,
+        image_render_options: &ImageRenderOptions,
+        rand_states_device: DeviceBuffer<DefaultRand>,
+        module: &Module,
+        stream: &Stream,
+    ) -> Result<()> {
+        unsafe {
             let (world_device, world_buffer) = world.build_device(&stream)?;
-            let image_render_options_device = DeviceBox::new_async(&image_render_options, &stream)?;
+
+            let image_render_options_device = DeviceBox::new_async(image_render_options, &stream)?;
             let image_grid_device = image_grid.to_device_async(&stream)?;
 
             let render_image = module.get_function("render_image")?;
@@ -122,21 +155,17 @@ impl Camera {
             stream.synchronize()?;
 
             image_grid.copy_back(&image_grid_device)?;
-
-            //CPU rendering
-            // simple_ray_tracer_kernels::render_image(
-            //     &mut image_grid,
-            //     &world.build(),
-            //     &image_render_options,
-            // );
         }
 
-        let img: RgbImage =
-            ImageBuffer::from_fn(image_width as u32, image_height as u32, |x, y| {
-                let color = *image_grid.at(y as usize).at(x as usize);
-                color.into()
-            });
-        img.save(&self.render_options.file_name)?;
         Ok(())
+    }
+
+    #[allow(unused)]
+    fn render_cpu<'a, T: Builder<'a>>(
+        image_grid: &mut GridND<Color, 2>,
+        world: &'a mut T,
+        image_render_options: &ImageRenderOptions,
+    ) {
+        simple_ray_tracer_kernels::render_image(image_grid, &world.build(), image_render_options);
     }
 }

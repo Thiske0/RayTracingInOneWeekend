@@ -3,6 +3,7 @@ use core::ops::Range;
 use enum_dispatch::enum_dispatch;
 
 use crate::{
+    boundingbox::{BoundingBox, IntoBoundingBox},
     hitable_list::HitableList,
     materials::MaterialKind,
     ray::Ray,
@@ -23,6 +24,15 @@ pub trait Hitable {
 pub enum HitKind<'b> {
     Sphere(Sphere),
     HitableList(HitableList<'b>),
+}
+
+impl IntoBoundingBox for HitKind<'_> {
+    fn boundingbox(&self) -> BoundingBox {
+        match self {
+            HitKind::Sphere(sphere) => sphere.boundingbox(),
+            HitKind::HitableList(list) => list.boundingbox(),
+        }
+    }
 }
 
 pub struct HitRecord<'a> {

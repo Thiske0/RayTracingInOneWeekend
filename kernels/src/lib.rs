@@ -19,6 +19,7 @@ use grid_nd::GridND;
 #[cfg(not(target_os = "cuda"))]
 use indicatif::ProgressBar;
 
+pub mod boundingbox;
 pub mod color;
 pub mod hitable;
 pub mod hitable_list;

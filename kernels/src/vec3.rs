@@ -1,4 +1,4 @@
-use core::ops::{self, Range};
+use core::ops::{self, Index, Range};
 
 #[cfg(not(target_os = "cuda"))]
 use cust::DeviceCopy;
@@ -20,7 +20,6 @@ pub struct Vec3 {
 
 /// For clarity
 pub type Point3 = Vec3;
-
 impl Vec3 {
     pub fn new(x: Real, y: Real, z: Real) -> Self {
         Vec3 { x, y, z }
@@ -320,5 +319,18 @@ impl FromStr for Vec3 {
             .parse()
             .map_err(|_| "Invalid z value".to_string())?;
         Ok(Vec3::new(x, y, z))
+    }
+}
+
+impl Index<usize> for &Vec3 {
+    type Output = Real;
+
+    fn index(&self, index: usize) -> &Real {
+        match index {
+            0 => &self.x,
+            1 => &self.y,
+            2 => &self.z,
+            _ => panic!("Index out of bounds for Vec3"),
+        }
     }
 }
