@@ -56,16 +56,40 @@ fn main() -> Result<()> {
 
     let rng = rand::rng();
 
-    let mut spheres = HitableListBuilder::new();
+    let mut ul_spheres = HitableListBuilder::new();
+    let mut ur_spheres = HitableListBuilder::new();
+    let mut ll_spheres = HitableListBuilder::new();
+    let mut lr_spheres = HitableListBuilder::new();
 
-    for a in -11..11 {
-        for b in -11..11 {
+    for a in -11..0 {
+        for b in -11..0 {
             if let Some(sphere) = generate_random_sphere(a as Real, b as Real, rng.clone()) {
-                spheres.add(sphere);
+                ul_spheres.add(sphere);
+            }
+        }
+        for b in 0..11 {
+            if let Some(sphere) = generate_random_sphere(a as Real, b as Real, rng.clone()) {
+                ur_spheres.add(sphere);
             }
         }
     }
-    world.add_builder(spheres.into());
+    for a in 0..11 {
+        for b in -11..0 {
+            if let Some(sphere) = generate_random_sphere(a as Real, b as Real, rng.clone()) {
+                ll_spheres.add(sphere);
+            }
+        }
+        for b in 0..11 {
+            if let Some(sphere) = generate_random_sphere(a as Real, b as Real, rng.clone()) {
+                lr_spheres.add(sphere);
+            }
+        }
+    }
+
+    world.add_builder(ul_spheres.into());
+    world.add_builder(ur_spheres.into());
+    world.add_builder(ll_spheres.into());
+    world.add_builder(lr_spheres.into());
 
     let material1a = Dielectric::new(1.5);
     world.add(Sphere::new_static(Point3::new(0.0, 1.0, 0.0), 1.0, material1a).into());
