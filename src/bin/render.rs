@@ -9,7 +9,7 @@ use simple_ray_tracer::{
 use simple_ray_tracer_kernels::{
     color::Color,
     hitable::HitKind,
-    hitable_list::HitableListBuilder,
+    hitable_list_builder::HitableListBuilder,
     materials::{dielectric::Dielectric, lambertian::Lambertian, metal::Metal},
     random::random_single,
     sphere::Sphere,

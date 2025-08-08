@@ -8,7 +8,7 @@ use gpu_rand::DefaultRand;
 use grid_nd::GridND;
 use image::{ImageBuffer, RgbImage};
 use rand::Rng;
-use simple_ray_tracer_kernels::{ImageRenderOptions, hitable_list::Builder};
+use simple_ray_tracer_kernels::{ImageRenderOptions, hitable_list_builder::Builder};
 
 use crate::{Result, raytracer::options::RenderOptions};
 

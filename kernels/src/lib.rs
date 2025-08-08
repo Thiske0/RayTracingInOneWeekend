@@ -29,6 +29,9 @@ pub mod ray;
 pub mod sphere;
 pub mod vec3;
 
+#[cfg(not(target_os = "cuda"))]
+pub mod hitable_list_builder;
+
 #[cfg_attr(not(target_os = "cuda"), derive(Clone, Copy, DeviceCopy))]
 pub struct ImageRenderOptions {
     pub samples_per_pixel: usize,
