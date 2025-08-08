@@ -2,10 +2,11 @@ use core::ops::Range;
 
 #[cfg(not(target_os = "cuda"))]
 use cust::DeviceCopy;
+use enum_dispatch::enum_dispatch;
 
 use crate::{
     ray::Ray,
-    vec3::{Point3, Real},
+    vec3::{Axis, Point3, Real},
 };
 
 #[cfg_attr(not(target_os = "cuda"), derive(Clone, Copy, DeviceCopy, Debug))]
@@ -45,10 +46,10 @@ impl BoundingBox {
         let mut t_min = range.start;
         let mut t_max = range.end;
 
-        for i in 0..3 {
-            let inv_d = 1.0 / (&ray.direction)[i];
-            let mut t0 = ((&self.min)[i] - (&ray.origin)[i]) * inv_d;
-            let mut t1 = ((&self.max)[i] - (&ray.origin)[i]) * inv_d;
+        for axis in Axis::items() {
+            let inv_d = 1.0 / (&ray.direction)[&axis];
+            let mut t0 = ((&self.min)[&axis] - (&ray.origin)[&axis]) * inv_d;
+            let mut t1 = ((&self.max)[&axis] - (&ray.origin)[axis]) * inv_d;
 
             if inv_d < 0.0 {
                 core::mem::swap(&mut t0, &mut t1);
@@ -64,8 +65,27 @@ impl BoundingBox {
 
         true
     }
+
+    pub fn longest_axis(&self) -> Axis {
+        let dx = self.max.x - self.min.x;
+        let dy = self.max.y - self.min.y;
+        let dz = self.max.z - self.min.z;
+
+        if dx >= dy && dx >= dz {
+            Axis::X
+        } else if dy >= dz {
+            Axis::Y
+        } else {
+            Axis::Z
+        }
+    }
+
+    pub fn center(&self) -> Point3 {
+        (&self.min + &self.max) / 2.0
+    }
 }
 
+#[enum_dispatch]
 pub trait IntoBoundingBox {
     fn boundingbox(&self) -> BoundingBox;
 }

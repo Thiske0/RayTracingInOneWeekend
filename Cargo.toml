@@ -11,6 +11,7 @@ crate-type = ["cdylib", "rlib"]
 clap = { version = "4.5.7", features = ["derive", "env"] }
 cuda_std = { path = "../Rust-CUDA/crates/cuda_std" }
 cust = { path = "../Rust-CUDA/crates/cust" }
+cust_raw = { path = "../Rust-CUDA/crates/cust_raw" }
 derive_more = { version = "2.0.1", features = ["full"] }
 enum_dispatch = "0.3.13"
 indicatif = "0.18.0"

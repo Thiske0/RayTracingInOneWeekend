@@ -1,3 +1,5 @@
+use std::mem;
+
 use crate::{
     boundingbox::{BoundingBox, IntoBoundingBox},
     hitable::HitKind,
@@ -27,6 +29,17 @@ impl<'a> HitableListBuilder<'a> {
         }
     }
 
+    fn from_parts(hitables: Vec<HitKind<'a>>, builders: Vec<BuilderKind<'a>>) -> Self {
+        let bounding_box = hitables
+            .iter()
+            .fold(BoundingBox::empty(), |acc, h| acc.merge(&h.boundingbox()));
+        HitableListBuilder {
+            hitables,
+            bounding_box,
+            builders,
+        }
+    }
+
     pub fn add(&mut self, hitable: HitKind<'a>) {
         self.bounding_box = self.bounding_box.merge(&hitable.boundingbox());
         self.hitables.push(hitable);
@@ -34,6 +47,79 @@ impl<'a> HitableListBuilder<'a> {
 
     pub fn add_builder(&mut self, builder: BuilderKind<'a>) {
         self.builders.push(builder);
+    }
+
+    pub fn add_unrolled(&mut self, builder: HitableListBuilder<'a>) {
+        self.bounding_box = self.bounding_box.merge(&builder.boundingbox());
+        self.builders.extend(builder.builders);
+        self.hitables.extend(builder.hitables);
+    }
+
+    fn split(self) -> (HitableListBuilder<'a>, Option<HitableListBuilder<'a>>) {
+        let bounding_box = self.boundingbox();
+
+        let axis = bounding_box.longest_axis();
+        let average_along_axis = (&bounding_box.center())[&axis];
+
+        let (mut left_hitables, mut right_hitables): (Vec<HitKind<'a>>, Vec<HitKind<'a>>) =
+            self.hitables.into_iter().partition(|h| {
+                let center = h.boundingbox().center();
+                (&center)[&axis] < average_along_axis
+            });
+
+        let (mut left_builders, mut right_builders): (Vec<BuilderKind<'a>>, Vec<BuilderKind<'a>>) =
+            self.builders.into_iter().partition(|h| {
+                let center = h.boundingbox().center();
+                (&center)[&axis] < average_along_axis
+            });
+
+        if left_hitables.len() + left_builders.len() < right_hitables.len() + right_builders.len() {
+            mem::swap(&mut left_hitables, &mut right_hitables);
+            mem::swap(&mut left_builders, &mut right_builders);
+        }
+
+        if !right_hitables.is_empty() && !right_builders.is_empty() {
+            (
+                HitableListBuilder::from_parts(left_hitables, left_builders),
+                None,
+            )
+        } else {
+            (
+                HitableListBuilder::from_parts(left_hitables, left_builders),
+                Some(HitableListBuilder::from_parts(
+                    right_hitables,
+                    right_builders,
+                )),
+            )
+        }
+    }
+
+    pub fn subdivide(self, divisions: &[usize]) -> HitableListBuilder<'a> {
+        if divisions.is_empty() {
+            return self;
+        }
+
+        let times = divisions[0];
+        let mut divided = vec![self];
+        for _ in 0..times {
+            divided = divided
+                .into_iter()
+                .flat_map(|builder| {
+                    let (left, right) = builder.split();
+                    if let Some(right) = right {
+                        vec![left, right]
+                    } else {
+                        vec![left]
+                    }
+                })
+                .collect();
+        }
+
+        let divided: Vec<BuilderKind<'a>> = divided
+            .into_iter()
+            .map(|builder| builder.subdivide(&divisions[1..]).into())
+            .collect();
+        HitableListBuilder::from_parts(Vec::new(), divided)
     }
 }
 
@@ -106,10 +192,14 @@ impl<'a> Builder<'a> for HitableListBuilder<'a> {
             unsafe { DeviceBuffer::from_slice_async(self.hitables.as_slice(), stream)? };
         let hitable_list = HitableList::new(
             unsafe {
-                std::slice::from_raw_parts(
-                    device_buffer.as_device_ptr().as_ptr(),
-                    device_buffer.len(),
-                )
+                if device_buffer.len() > 0 {
+                    std::slice::from_raw_parts(
+                        device_buffer.as_device_ptr().as_ptr(),
+                        device_buffer.len(),
+                    )
+                } else {
+                    &[]
+                }
             },
             self.bounding_box,
         );
@@ -122,7 +212,17 @@ impl<'a> Builder<'a> for HitableListBuilder<'a> {
     }
 }
 
-#[enum_dispatch(Builder)]
+#[enum_dispatch(Builder, IntoBoundingBox)]
 pub enum BuilderKind<'a> {
     HitableListBuilder(HitableListBuilder<'a>),
+}
+
+impl IntoBoundingBox for HitableListBuilder<'_> {
+    fn boundingbox(&self) -> BoundingBox {
+        self.builders
+            .iter()
+            .fold(self.bounding_box, |acc, builder| {
+                acc.merge(&builder.boundingbox())
+            })
+    }
 }

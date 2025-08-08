@@ -1684,6 +1684,7 @@ dependencies = [
  "cuda_builder",
  "cuda_std",
  "cust",
+ "cust_raw",
  "derive_more",
  "enum_dispatch",
  "gpu_rand",

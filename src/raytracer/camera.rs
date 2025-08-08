@@ -138,6 +138,14 @@ impl Camera {
                 render_image.suggested_launch_configuration(0, 0.into())?;
             let (blocks, threads) = image_grid.grid_and_block_size(recommended_block_size);
 
+            // Set larger stack size (per thread) before launching
+            unsafe {
+                cust_raw::driver_sys::cuCtxSetLimit(
+                    cust_raw::driver_sys::CUlimit::CU_LIMIT_STACK_SIZE,
+                    4096, // Stack size in bytes (default is usually 1024)
+                );
+            }
+
             launch!(
                 render_image<<<blocks, threads, 0, stream>>>(
                     image_grid_device.as_device_ptr().as_mut_ptr(),

@@ -322,15 +322,34 @@ impl FromStr for Vec3 {
     }
 }
 
-impl Index<usize> for &Vec3 {
+pub enum Axis {
+    X,
+    Y,
+    Z,
+}
+
+impl Axis {
+    pub fn items() -> [Axis; 3] {
+        [Axis::X, Axis::Y, Axis::Z]
+    }
+}
+
+impl Index<&Axis> for &Vec3 {
     type Output = Real;
 
-    fn index(&self, index: usize) -> &Real {
+    fn index(&self, index: &Axis) -> &Real {
         match index {
-            0 => &self.x,
-            1 => &self.y,
-            2 => &self.z,
-            _ => panic!("Index out of bounds for Vec3"),
+            Axis::X => &self.x,
+            Axis::Y => &self.y,
+            Axis::Z => &self.z,
         }
+    }
+}
+
+impl Index<Axis> for &Vec3 {
+    type Output = Real;
+
+    fn index(&self, index: Axis) -> &Real {
+        self.index(&index)
     }
 }
