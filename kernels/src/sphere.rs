@@ -37,6 +37,15 @@ impl Sphere {
             mat: material,
         }
     }
+
+    fn get_uv(p: &Point3) -> (Real, Real) {
+        let theta = (-p.y).acos();
+        let phi = (-p.z).atan2(p.x) + (core::f32::consts::PI as Real);
+
+        let u = phi / (2.0 * (core::f32::consts::PI as Real));
+        let v = theta / (core::f32::consts::PI as Real);
+        (u, v)
+    }
 }
 
 impl Hitable for Sphere {
@@ -59,13 +68,14 @@ impl Hitable for Sphere {
             }
             let p = ray.at(t);
             let mut normal = (&p - &actual_center).normalize();
+            let uv = Self::get_uv(&normal);
 
             let is_front_face = normal.dot(&ray.direction) < 0.0;
             if !is_front_face {
                 normal = -normal;
             };
 
-            Some(HitRecord::new(p, normal, t, is_front_face, &self.mat))
+            Some(HitRecord::new(p, normal, t, is_front_face, &self.mat, uv))
         } else {
             None
         }

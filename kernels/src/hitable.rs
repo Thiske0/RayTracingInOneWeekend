@@ -52,6 +52,7 @@ impl<'a> HitRecord<'a> {
         t: Real,
         is_front_face: bool,
         mat: &'a MaterialKind,
+        (u, v): (Real, Real),
     ) -> Self {
         HitRecord {
             p,
@@ -59,8 +60,8 @@ impl<'a> HitRecord<'a> {
             t,
             is_front_face,
             mat,
-            u: 0.0,
-            v: 0.0,
+            u,
+            v,
         }
     }
 }
