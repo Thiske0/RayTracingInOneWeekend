@@ -4,6 +4,7 @@ use crate::{
     materials::{Material, MaterialKind},
     random::{Random, random_single},
     ray::Ray,
+    textures::{Texture, TextureKind, solid::Solid},
     vec3::Real,
 };
 
@@ -15,14 +16,14 @@ use cust::DeviceCopy;
 #[cfg_attr(not(target_os = "cuda"), derive(Clone, Copy, DeviceCopy))]
 pub struct Dielectric {
     refraction_index: Real,
-    albedo: Color,
+    texture: TextureKind,
 }
 
 impl Dielectric {
     pub fn new(refraction_index: Real) -> MaterialKind {
         MaterialKind::from(Dielectric {
             refraction_index,
-            albedo: Color::white(),
+            texture: Solid::new(Color::white()).into(),
         })
     }
 
@@ -56,7 +57,8 @@ impl Material for Dielectric {
             unit_direction.refract(&hit.normal, ri)
         };
 
+        let color = self.texture.color(hit.u, hit.v, &hit.p, rng);
         let scattered = Ray::new(hit.p, direction, ray.time);
-        Some((scattered, &self.albedo))
+        Some((scattered, color))
     }
 }

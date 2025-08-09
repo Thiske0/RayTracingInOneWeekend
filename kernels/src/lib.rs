@@ -27,6 +27,7 @@ pub mod materials;
 pub mod random;
 pub mod ray;
 pub mod sphere;
+pub mod textures;
 pub mod vec3;
 
 #[cfg(not(target_os = "cuda"))]

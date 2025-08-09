@@ -41,6 +41,8 @@ pub struct HitRecord<'a> {
     pub t: Real,
     pub is_front_face: bool,
     pub mat: &'a MaterialKind,
+    pub u: Real,
+    pub v: Real,
 }
 
 impl<'a> HitRecord<'a> {
@@ -57,6 +59,8 @@ impl<'a> HitRecord<'a> {
             t,
             is_front_face,
             mat,
+            u: 0.0,
+            v: 0.0,
         }
     }
 }

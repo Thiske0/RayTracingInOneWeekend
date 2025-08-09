@@ -8,9 +8,6 @@ mod test;
 use cuda_std::glam::{UVec2, UVec3};
 pub use grid_nd::{GridND, GridViewND, GridViewNDMut};
 
-#[cfg(target_os = "cuda")]
-use cuda_std::prelude::*;
-
 // Helper types for const generic constraints
 pub enum Assert<const COND: bool> {}
 pub trait IsTrue {}
