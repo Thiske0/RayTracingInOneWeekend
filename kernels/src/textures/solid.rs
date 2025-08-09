@@ -9,17 +9,17 @@ use crate::{
 use cust::DeviceCopy;
 
 #[cfg_attr(not(target_os = "cuda"), derive(Clone, Copy, DeviceCopy))]
-pub struct Solid {
+pub struct SolidTexture {
     color: Color,
 }
 
-impl Solid {
+impl SolidTexture {
     pub fn new(color: Color) -> Self {
-        Solid { color }
+        SolidTexture { color }
     }
 }
 
-impl Texture for Solid {
+impl Texture for SolidTexture {
     fn color<'a>(&'a self, _u: Real, _v: Real, _p: &Point3, _rng: &mut Random) -> &'a Color {
         &self.color
     }

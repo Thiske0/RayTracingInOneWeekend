@@ -4,7 +4,7 @@ use crate::{
     materials::{Material, MaterialKind},
     random::{Random, random_single},
     ray::Ray,
-    textures::{Texture, TextureKind, solid::Solid},
+    textures::{Texture, TextureKind, solid::SolidTexture},
     vec3::Real,
 };
 
@@ -23,7 +23,7 @@ impl Dielectric {
     pub fn new(refraction_index: Real) -> MaterialKind {
         MaterialKind::from(Dielectric {
             refraction_index,
-            texture: Solid::new(Color::white()).into(),
+            texture: SolidTexture::new(Color::white()).into(),
         })
     }
 

@@ -1,7 +1,7 @@
 use crate::{
     color::Color,
     random::Random,
-    textures::solid::Solid,
+    textures::{checker::CheckerTexture, solid::SolidTexture},
     vec3::{Point3, Real},
 };
 
@@ -18,7 +18,9 @@ pub trait Texture {
 #[cfg_attr(not(target_os = "cuda"), derive(Clone, Copy, DeviceCopy))]
 #[enum_dispatch(Texture)]
 pub enum TextureKind {
-    Solid(Solid),
+    SolidTexture(SolidTexture),
+    CheckerTexture(CheckerTexture),
 }
 
+pub mod checker;
 pub mod solid;

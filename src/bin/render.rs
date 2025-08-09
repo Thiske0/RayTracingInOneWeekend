@@ -13,7 +13,7 @@ use simple_ray_tracer_kernels::{
     materials::{dielectric::Dielectric, lambertian::Lambertian, metal::Metal},
     random::random_single,
     sphere::Sphere,
-    textures::solid::Solid,
+    textures::{checker::CheckerTexture, solid::SolidTexture},
     vec3::{Point3, Real, Vec3},
 };
 
@@ -26,14 +26,14 @@ fn generate_random_sphere<'a>(x: Real, y: Real, mut rng: ThreadRng) -> Option<Hi
         if choose_mat < 0.8 {
             // diffuse
             let albedo = Color::random(&mut rng) * Color::random(&mut rng);
-            let sphere_material = Lambertian::new(Solid::new(albedo).into());
+            let sphere_material = Lambertian::new(SolidTexture::new(albedo).into());
             let end = center + Vec3::new(0.0, random_single(0.0..0.2, &mut rng), 0.0);
             Some(Sphere::new_moving(center, end, 0.2, sphere_material).into())
         } else if choose_mat < 0.95 {
             // metal
             let albedo = Color::random(&mut rng) / 2.0 + 0.5;
             let fuzz = random_single(0.0..0.5, &mut rng);
-            let sphere_material = Metal::new(Solid::new(albedo).into(), fuzz);
+            let sphere_material = Metal::new(SolidTexture::new(albedo).into(), fuzz);
             Some(Sphere::new_static(center, 0.2, sphere_material).into())
         } else {
             // glass
@@ -52,7 +52,9 @@ fn main() -> Result<()> {
     // World
     let mut world = HitableListBuilder::new();
 
-    let ground_material = Lambertian::new(Solid::new(Color::new(0.5, 0.5, 0.5)).into());
+    let checker_texture =
+        CheckerTexture::new(Color::new(0.2, 0.3, 0.1), Color::new(0.9, 0.9, 0.9), 0.32);
+    let ground_material = Lambertian::new(checker_texture.into());
     world.add(Sphere::new_static(Point3::new(0.0, -1000.0, 0.0), 1000.0, ground_material).into());
 
     let rng = rand::rng();
@@ -76,10 +78,10 @@ fn main() -> Result<()> {
     let material1b = Dielectric::new(1.0 / 1.5);
     world.add(Sphere::new_static(Point3::new(0.0, 1.0, 0.0), 0.8, material1b).into());
 
-    let material2 = Lambertian::new(Solid::new(Color::new(0.4, 0.2, 0.1)).into());
+    let material2 = Lambertian::new(SolidTexture::new(Color::new(0.4, 0.2, 0.1)).into());
     world.add(Sphere::new_static(Point3::new(-4.0, 1.0, 0.0), 1.0, material2).into());
 
-    let material3 = Metal::new(Solid::new(Color::new(0.7, 0.6, 0.5)).into(), 0.0);
+    let material3 = Metal::new(SolidTexture::new(Color::new(0.7, 0.6, 0.5)).into(), 0.0);
     world.add(Sphere::new_static(Point3::new(4.0, 1.0, 0.0), 1.0, material3).into());
 
     // Camera setup
