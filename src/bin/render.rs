@@ -45,11 +45,7 @@ fn generate_random_sphere<'a>(x: Real, y: Real, mut rng: ThreadRng) -> Option<Hi
     }
 }
 
-fn main() -> Result<()> {
-    // Parse command line options
-    let options = Options::parse();
-
-    // World
+fn bouncing_spheres<'a>() -> HitableListBuilder<'a> {
     let mut world = HitableListBuilder::new();
 
     let checker_texture =
@@ -83,6 +79,15 @@ fn main() -> Result<()> {
 
     let material3 = Metal::new(SolidTexture::new(Color::new(0.7, 0.6, 0.5)).into(), 0.0);
     world.add(Sphere::new_static(Point3::new(4.0, 1.0, 0.0), 1.0, material3).into());
+    world
+}
+
+fn main() -> Result<()> {
+    // Parse command line options
+    let options = Options::parse();
+
+    // World setup
+    let mut world = bouncing_spheres();
 
     // Camera setup
     let camera = Camera::new(options.render);

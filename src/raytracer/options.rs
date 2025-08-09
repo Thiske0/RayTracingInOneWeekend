@@ -41,6 +41,10 @@ pub struct RenderOptions {
     /// Output file name
     #[arg(short = 'o', long = "output", default_value = "image.png")]
     pub file_name: String,
+
+    /// Render on GPU
+    #[arg(short = 'g', long = "gpu", default_value_t = true)]
+    pub gpu_render: bool,
 }
 
 impl RenderOptions {

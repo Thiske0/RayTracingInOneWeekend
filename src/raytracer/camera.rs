@@ -95,17 +95,18 @@ impl Camera {
             // Initialize camera parameters
             let (image_render_options, rand_states_device) = self.initilize(&stream)?;
 
-            Self::render_gpu(
-                &mut image_grid,
-                world,
-                &image_render_options,
-                rand_states_device,
-                &module,
-                &stream,
-            )?;
-
-            //CPU rendering
-            //Self::render_cpu(&mut image_grid, world, &image_render_options);
+            if self.render_options.gpu_render {
+                Self::render_gpu(
+                    &mut image_grid,
+                    world,
+                    &image_render_options,
+                    rand_states_device,
+                    &module,
+                    &stream,
+                )?;
+            } else {
+                Self::render_cpu(&mut image_grid, world, &image_render_options);
+            }
         }
 
         let img: RgbImage =
