@@ -2,8 +2,20 @@ use core::marker::PhantomData;
 
 use crate::{Assert, IsTrue};
 
+use gpu_builder::{BuildResultType, Builder, DeviceImpl};
+
 #[repr(C)]
-pub struct GridND<T, const N: usize> {
+pub struct GridND<'a, T: Builder<'a>, const N: usize> {
+    data: *mut T,
+    dims: [usize; N],
+    _marker: PhantomData<&'a T>,
+}
+
+#[repr(C)]
+#[derive(DeviceImpl)]
+#[builder(GridND)]
+#[use_lifetime("'a")]
+pub struct GridNDDevice<T: BuildResultType, const N: usize> {
     data: *mut T,
     dims: [usize; N],
 }
@@ -13,17 +25,17 @@ pub struct GridND<T, const N: usize> {
 pub struct GridViewND<'a, T, const N: usize> {
     data: *const T,
     dims: [usize; N],
-    _phantom: PhantomData<&'a T>,
+    _marker: PhantomData<&'a T>,
 }
 
 #[repr(C)]
 pub struct GridViewNDMut<'a, T, const N: usize> {
     data: *mut T,
     dims: [usize; N],
-    _phantom: PhantomData<&'a T>,
+    _marker: PhantomData<&'a T>,
 }
 
-impl<T> GridND<T, 1> {
+impl<'b, T: Builder<'b>> GridND<'b, T, 1> {
     pub fn at<'a>(&'a self, index: usize) -> &'a T {
         assert!(index < self.dims[0], "Index out of bounds");
         // Safety: We assume index is within bounds and data is valid, we can dereference safely
@@ -36,7 +48,7 @@ impl<T> GridND<T, 1> {
     }
 }
 
-impl<T, const N: usize> GridND<T, N>
+impl<'b, T: Builder<'b>, const N: usize> GridND<'b, T, N>
 where
     [(); N - 1]:,
     Assert<{ N > 1 }>: IsTrue,
@@ -49,7 +61,7 @@ where
         GridViewND {
             data: data,
             dims: self.dims[1..].try_into().unwrap(),
-            _phantom: PhantomData,
+            _marker: PhantomData,
         }
     }
     pub fn at_mut<'a>(&'a mut self, index: usize) -> GridViewNDMut<'a, T, { N - 1 }> {
@@ -60,19 +72,19 @@ where
         GridViewNDMut {
             data: data,
             dims: self.dims[1..].try_into().unwrap(),
-            _phantom: PhantomData,
+            _marker: PhantomData,
         }
     }
 }
 
 impl<'a, T> GridViewNDMut<'a, T, 1> {
-    pub fn at<'b>(&'b self, index: usize) -> &'b T {
+    pub fn at(&self, index: usize) -> &'a T {
         assert!(index < self.dims[0], "Index out of bounds");
         // Safety: We assume index is within bounds and data is valid, we can dereference safely
         unsafe { &*self.data.add(index) }
     }
 
-    pub fn at_mut<'b>(&'b mut self, index: usize) -> &'b mut T {
+    pub fn at_mut(&'a mut self, index: usize) -> &'a mut T {
         assert!(index < self.dims[0], "Index out of bounds");
         // Safety: We assume index is within bounds and data is valid, we can dereference safely
         unsafe { &mut *self.data.add(index) }
@@ -84,7 +96,7 @@ where
     [(); N - 1]:,
     Assert<{ N > 1 }>: IsTrue,
 {
-    pub fn at<'b>(&'b self, index: usize) -> GridViewND<'b, T, { N - 1 }> {
+    pub fn at(&self, index: usize) -> GridViewND<'a, T, { N - 1 }> {
         assert!(index < self.dims[0], "Index out of bounds");
         let stride = self.dims[1..].iter().product::<usize>();
         // Safety: We assume index is within bounds and data is valid
@@ -92,11 +104,11 @@ where
         GridViewND {
             data: data,
             dims: self.dims[1..].try_into().unwrap(),
-            _phantom: PhantomData,
+            _marker: PhantomData,
         }
     }
 
-    pub fn at_mut<'b>(&'b mut self, index: usize) -> GridViewNDMut<'b, T, { N - 1 }> {
+    pub fn at_mut(&'a mut self, index: usize) -> GridViewNDMut<'a, T, { N - 1 }> {
         assert!(index < self.dims[0], "Index out of bounds");
         let stride = self.dims[1..].iter().product::<usize>();
         // Safety: We assume index is within bounds and data is valid
@@ -104,13 +116,13 @@ where
         GridViewNDMut {
             data: data,
             dims: self.dims[1..].try_into().unwrap(),
-            _phantom: PhantomData,
+            _marker: PhantomData,
         }
     }
 }
 
 impl<'a, T> GridViewND<'a, T, 1> {
-    pub fn at<'b>(&'b self, index: usize) -> &'b T {
+    pub fn at(&self, index: usize) -> &'a T {
         assert!(index < self.dims[0], "Index out of bounds");
         // Safety: We assume index is within bounds and data is valid, we can dereference safely
         unsafe { &*self.data.add(index) }
@@ -122,7 +134,7 @@ where
     [(); N - 1]:,
     Assert<{ N > 1 }>: IsTrue,
 {
-    pub fn at<'b>(&'b self, index: usize) -> GridViewND<'b, T, { N - 1 }> {
+    pub fn at(&self, index: usize) -> GridViewND<'a, T, { N - 1 }> {
         assert!(index < self.dims[0], "Index out of bounds");
         let stride = self.dims[1..].iter().product::<usize>();
         // Safety: We assume index is within bounds and data is valid
@@ -130,27 +142,29 @@ where
         GridViewND {
             data: data,
             dims: self.dims[1..].try_into().unwrap(),
-            _phantom: PhantomData,
+            _marker: PhantomData,
         }
     }
 }
 
 #[cfg(not(target_os = "cuda"))]
-mod host_impls {
+pub mod host_impls {
     use super::*;
+    use core::cmp::min;
     use cust::{
+        error::CudaResult,
         function::{BlockSize, GridSize},
-        memory::{AsyncCopyDestination, CopyDestination, DeviceBox, DeviceCopy},
-        prelude::{DeviceBuffer, DevicePointer},
+        memory::{AsyncCopyDestination, DeviceBox},
+        prelude::DeviceBuffer,
         stream::Stream,
     };
+    use gpu_builder::{BuildResult, BuildResultType, Builder, Cache, DeviceBufferList};
     use rand::{
         Rng,
         distr::{Distribution, StandardUniform},
     };
-    use core::cmp::min;
 
-    impl<T: Copy, const N: usize> GridND<T, N> {
+    impl<'a, T: Copy + Builder<'a>, const N: usize> GridND<'a, T, N> {
         /// Creates a GridND with heap-allocated zero-initialized buffer.
         pub fn new(dims: [usize; N], value: T) -> Self {
             let total_elems = dims.iter().product::<usize>();
@@ -167,18 +181,19 @@ mod host_impls {
             GridND {
                 data: data_ptr,
                 dims,
+                _marker: PhantomData,
             }
         }
     }
 
-    impl<T: Copy + Default, const N: usize> GridND<T, N> {
+    impl<'a, T: Copy + Default + Builder<'a>, const N: usize> GridND<'a, T, N> {
         /// Creates a GridND with heap-allocated zero-initialized buffer.
         pub fn new_zeroed(dims: [usize; N]) -> Self {
             Self::new(dims, T::default())
         }
     }
 
-    impl<T: Copy + Default, const N: usize> GridND<T, N>
+    impl<'a, T: Copy + Default + Builder<'a>, const N: usize> GridND<'a, T, N>
     where
         StandardUniform: Distribution<T>,
     {
@@ -195,7 +210,7 @@ mod host_impls {
         }
     }
 
-    impl<T, const N: usize> Drop for GridND<T, N> {
+    impl<'a, T: Builder<'a>, const N: usize> Drop for GridND<'a, T, N> {
         fn drop(&mut self) {
             // Safety: We assume the data was allocated with Vec and we are responsible for freeing it.
             unsafe {
@@ -205,48 +220,27 @@ mod host_impls {
         }
     }
 
-    #[repr(C)]
-    #[derive(Copy, Clone)]
-    pub struct GridNDDeviceInner<T: DeviceCopy, const N: usize> {
-        data: *mut T,
-        dims: [usize; N],
-    }
-
-    pub struct GridNDDevice<T: DeviceCopy, const N: usize> {
-        device_buffer: DeviceBuffer<T>,
-        device_ptr: DeviceBox<GridNDDeviceInner<T, N>>,
-    }
-
-    // Safety: We implement DeviceCopy for GridNDDeviceInner to allow it to be used in CUDA kernels.
-    // This is safe because GridNDDeviceInner is just a wrapper around GridND with the data moved to GPU memory.
-    unsafe impl<T: DeviceCopy, const N: usize> DeviceCopy for GridNDDeviceInner<T, N> {}
-
-    impl<T: DeviceCopy, const N: usize> GridND<T, N> {
-        pub fn to_device(&self) -> Result<GridNDDevice<T, N>, Box<dyn std::error::Error>> {
-            let total_elems = self.dims.iter().product::<usize>();
-            // Safety: We assume the data is valid and we can copy it to the device
-            // Safety: We make sure to initialize the DeviceBuffer correctly
-            let device_buffer = unsafe {
-                let mut device_buffer = DeviceBuffer::uninitialized(total_elems)?;
-                let data = std::slice::from_raw_parts(self.data, total_elems);
-                device_buffer.copy_from(data)?;
-                device_buffer
-            };
-            let device_ptr = DeviceBox::new(&GridNDDeviceInner {
-                data: device_buffer.as_device_ptr().as_mut_ptr(),
+    impl<'a, T: BuildResultType, const N: usize> Builder<'a> for GridND<'a, T, N>
+    where
+        Self: 'a,
+    {
+        type Output = GridNDDevice<T, N>;
+        fn build_inner(self, _cache: &mut Cache) -> GridNDDevice<T, N> {
+            let result = GridNDDevice {
+                data: self.data,
                 dims: self.dims,
-            })?;
-            Ok(GridNDDevice {
-                device_buffer,
-                device_ptr,
-            })
+            };
+            mem::forget(self); // Prevent double free
+            result
         }
 
-        pub unsafe fn to_device_async(
-            &self,
-            stream: &Stream,
-        ) -> Result<GridNDDevice<T, N>, Box<dyn std::error::Error>> {
+        unsafe fn build_device_inner(
+            self,
+            stream: &'a Stream,
+            _cache: &mut Cache<'_>,
+        ) -> CudaResult<BuildResult<'a, GridND<'a, T, N>>> {
             let total_elems = self.dims.iter().product::<usize>();
+            let mut device_buffers = DeviceBufferList::new();
             // Safety: We assume the data is valid and we can copy it to the device
             // Safety: We make sure to initialize the DeviceBuffer correctly
             let device_buffer = unsafe {
@@ -255,67 +249,73 @@ mod host_impls {
                 device_buffer.async_copy_from(data, stream)?;
                 device_buffer
             };
-            let device_ptr = unsafe {
-                DeviceBox::new_async(
-                    &GridNDDeviceInner {
-                        data: device_buffer.as_device_ptr().as_mut_ptr(),
-                        dims: self.dims,
-                    },
-                    stream,
-                )?
-            };
-            Ok(GridNDDevice {
-                device_buffer,
-                device_ptr,
-            })
-        }
-
-        pub fn copy_back(
-            &mut self,
-            device_grid: &GridNDDevice<T, N>,
-        ) -> Result<(), Box<dyn std::error::Error>> {
-            let mut grid = GridNDDeviceInner {
+            let device_ptr = device_buffer.as_device_ptr().as_mut_ptr();
+            device_buffers.add(device_buffer);
+            let inner_host = GridND {
                 data: self.data,
                 dims: self.dims,
+                _marker: PhantomData,
             };
-            device_grid.device_ptr.copy_to(&mut grid)?;
+            mem::forget(self); // Prevent double free
+            Ok(BuildResult::new(
+                GridNDDevice {
+                    data: device_ptr,
+                    dims: inner_host.dims,
+                },
+                inner_host,
+                stream,
+                device_buffers,
+            ))
+        }
+
+        fn copy_back(
+            &mut self,
+            device_grid: &DeviceBox<GridNDDevice<<T as Builder<'a>>::Output, N>>,
+        ) -> CudaResult<()> {
+            let grid = device_grid.as_host_value()?;
             assert_eq!(grid.dims, self.dims, "Dimensions mismatch after copy back");
             let total_elems = self.dims.iter().product::<usize>();
-            let data = unsafe { std::slice::from_raw_parts_mut(self.data, total_elems) };
-            device_grid.device_buffer.copy_to(data)?;
+            for i in 0..total_elems {
+                let value: DeviceBox<<T as Builder<'a>>::Output> =
+                    unsafe { DeviceBox::from_raw(grid.data.add(i) as u64) };
+                // Safety: We assume the data is valid and we can write to it
+                let data = unsafe { &mut *self.data.add(i) };
+                data.copy_back(&value)?;
+                mem::forget(value); // Prevent double free
+            }
             Ok(())
         }
     }
 
-    impl<T: DeviceCopy, const N: usize> GridNDDevice<T, N> {
-        pub fn as_device_ptr(&self) -> DevicePointer<GridNDDeviceInner<T, N>> {
-            self.device_ptr.as_device_ptr()
-        }
-    }
-
-    impl<T> GridND<T, 1> {
-        pub fn grid_and_block_size(&self, recommended_block_size: u32) -> (GridSize, BlockSize) {
+    impl<'a, T: Builder<'a>> GridND<'a, T, 1> {
+        pub fn grid_and_block_size(
+            dims: [usize; 1],
+            recommended_block_size: u32,
+        ) -> (GridSize, BlockSize) {
             let mut block_size = recommended_block_size;
             if block_size > 32 {
                 block_size = block_size.div_floor(32) * 32; // Ensure block size is a multiple of 32
             }
 
-            let grid_size = (self.dims[0] as u32).div_ceil(block_size);
+            let grid_size = (dims[0] as u32).div_ceil(block_size);
 
             (grid_size.into(), block_size.into())
         }
     }
 
-    use std::cmp::max;
-    impl<T> GridND<T, 2> {
-        pub fn grid_and_block_size(&self, recommended_block_size: u32) -> (GridSize, BlockSize) {
+    use std::{cmp::max, mem};
+    impl<'a, T: Builder<'a>> GridND<'a, T, 2> {
+        pub fn grid_and_block_size(
+            dims: [usize; 2],
+            recommended_block_size: u32,
+        ) -> (GridSize, BlockSize) {
             let block_size_x = min(recommended_block_size, 32);
             let block_size_y = recommended_block_size.div_floor(block_size_x);
             let mut grid_size = [1u32; 2];
             let block_size = [block_size_x, block_size_y];
 
             for i in 0..2 {
-                grid_size[i] = (self.dims[1 - i] as u32).div_ceil(block_size[i]);
+                grid_size[i] = (dims[1 - i] as u32).div_ceil(block_size[i]);
             }
             let grid_size = (grid_size[0], grid_size[1]);
             let block_size = (block_size[0], block_size[1]);
@@ -323,8 +323,11 @@ mod host_impls {
         }
     }
 
-    impl<T> GridND<T, 3> {
-        pub fn grid_and_block_size(&self, recommended_block_size: u32) -> (GridSize, BlockSize) {
+    impl<'a, T: Builder<'a>> GridND<'a, T, 3> {
+        pub fn grid_and_block_size(
+            dims: [usize; 3],
+            recommended_block_size: u32,
+        ) -> (GridSize, BlockSize) {
             let block_size_x = min(recommended_block_size, 32);
             let block_size_z = max(
                 (recommended_block_size as f32 / block_size_x as f32)
@@ -337,7 +340,7 @@ mod host_impls {
             let block_size = [block_size_x, block_size_y, block_size_z];
 
             for i in 0..3 {
-                grid_size[i] = (self.dims[2 - i] as u32).div_ceil(block_size[i]);
+                grid_size[i] = (dims[2 - i] as u32).div_ceil(block_size[i]);
             }
             let grid_size = (grid_size[0], grid_size[1], grid_size[2]);
             let block_size = (block_size[0], block_size[1], block_size[2]);
@@ -348,25 +351,8 @@ mod host_impls {
 
 #[cfg(test)]
 mod tests {
-    use std::any::Any;
-    use std::mem;
-
     use super::*;
-
-    #[test]
-    fn gridnd_device_is_mirror() {
-        assert_eq!(
-            mem::size_of::<GridND<f32, 3>>(),
-            mem::size_of::<host_impls::GridNDDeviceInner<f32, 3>>(),
-            "Size mismatch between host and device types"
-        );
-
-        assert_eq!(
-            mem::align_of::<GridND<f32, 3>>(),
-            mem::align_of::<host_impls::GridNDDeviceInner<f32, 3>>(),
-            "Alignment mismatch"
-        );
-    }
+    use std::any::Any;
 
     #[test]
     fn gridnd_zeroed_fills_with_zeros() {
@@ -511,7 +497,7 @@ mod tests {
     }
 }
 
-impl<T, const N: usize> GridND<T, N> {
+impl<'a, T: Builder<'a>, const N: usize> GridND<'a, T, N> {
     pub fn shape(&self) -> [usize; N] {
         self.dims
     }
@@ -560,10 +546,10 @@ pub struct GridViewIter<'a, T, const N: usize> {
     dims: [usize; N],
     index: usize,
     stride: usize,
-    _phantom: PhantomData<&'a T>,
+    _marker: PhantomData<&'a T>,
 }
 
-impl<'a, T> IntoIterator for &'a GridND<T, 1> {
+impl<'a, 'b, T: Builder<'b>> IntoIterator for &'a GridND<'b, T, 1> {
     type Item = &'a T;
     type IntoIter = GridViewIter<'a, T, 1>;
 
@@ -575,7 +561,7 @@ impl<'a, T> IntoIterator for &'a GridND<T, 1> {
             dims: self.dims,
             index: 0,
             stride,
-            _phantom: PhantomData,
+            _marker: PhantomData,
         }
     }
 }
@@ -595,7 +581,7 @@ impl<'a, T: 'a> Iterator for GridViewIter<'a, T, 1> {
     }
 }
 
-impl<'a, T, const N: usize> IntoIterator for &'a GridND<T, N>
+impl<'a, 'b, T: Builder<'b>, const N: usize> IntoIterator for &'a GridND<'b, T, N>
 where
     [(); N - 1]:,
     Assert<{ N > 1 }>: IsTrue,
@@ -611,7 +597,7 @@ where
             dims: self.dims,
             index: 0,
             stride,
-            _phantom: PhantomData,
+            _marker: PhantomData,
         }
     }
 }
@@ -634,7 +620,7 @@ where
         Some(GridViewND {
             data: data,
             dims: self.dims[1..].try_into().unwrap(),
-            _phantom: PhantomData,
+            _marker: PhantomData,
         })
     }
 }
@@ -644,10 +630,10 @@ pub struct GridViewIterMut<'a, T, const N: usize> {
     dims: [usize; N],
     index: usize,
     stride: usize,
-    _phantom: PhantomData<&'a T>,
+    _marker: PhantomData<&'a T>,
 }
 
-impl<'a, T> IntoIterator for &'a mut GridND<T, 1> {
+impl<'a, 'b, T: Builder<'b>> IntoIterator for &'a mut GridND<'b, T, 1> {
     type Item = &'a mut T;
     type IntoIter = GridViewIterMut<'a, T, 1>;
 
@@ -659,7 +645,7 @@ impl<'a, T> IntoIterator for &'a mut GridND<T, 1> {
             dims: self.dims,
             index: 0,
             stride,
-            _phantom: PhantomData,
+            _marker: PhantomData,
         }
     }
 }
@@ -679,7 +665,7 @@ impl<'a, T: 'a> Iterator for GridViewIterMut<'a, T, 1> {
     }
 }
 
-impl<'a, T, const N: usize> IntoIterator for &'a mut GridND<T, N>
+impl<'a, 'b, T: Builder<'b>, const N: usize> IntoIterator for &'a mut GridND<'b, T, N>
 where
     [(); N - 1]:,
     Assert<{ N > 1 }>: IsTrue,
@@ -695,7 +681,7 @@ where
             dims: self.dims,
             index: 0,
             stride,
-            _phantom: PhantomData,
+            _marker: PhantomData,
         }
     }
 }
@@ -718,7 +704,7 @@ where
         Some(GridViewNDMut {
             data: data,
             dims: self.dims[1..].try_into().unwrap(),
-            _phantom: PhantomData,
+            _marker: PhantomData,
         })
     }
 }
@@ -735,7 +721,7 @@ impl<'a, T> IntoIterator for &'a GridViewND<'a, T, 1> {
             dims: self.dims,
             index: 0,
             stride,
-            _phantom: PhantomData,
+            _marker: PhantomData,
         }
     }
 }
@@ -756,7 +742,7 @@ where
             dims: self.dims,
             index: 0,
             stride,
-            _phantom: PhantomData,
+            _marker: PhantomData,
         }
     }
 }
@@ -773,7 +759,7 @@ impl<'a, T> IntoIterator for &'a GridViewNDMut<'a, T, 1> {
             dims: self.dims,
             index: 0,
             stride,
-            _phantom: PhantomData,
+            _marker: PhantomData,
         }
     }
 }
@@ -794,7 +780,7 @@ where
             dims: self.dims,
             index: 0,
             stride,
-            _phantom: PhantomData,
+            _marker: PhantomData,
         }
     }
 }
@@ -811,7 +797,7 @@ impl<'a, T> IntoIterator for &'a mut GridViewNDMut<'a, T, 1> {
             dims: self.dims,
             index: 0,
             stride,
-            _phantom: PhantomData,
+            _marker: PhantomData,
         }
     }
 }
@@ -832,7 +818,7 @@ where
             dims: self.dims,
             index: 0,
             stride,
-            _phantom: PhantomData,
+            _marker: PhantomData,
         }
     }
 }
@@ -932,5 +918,178 @@ mod iterator_tests {
                 .fold(0, |acc, inner_val| acc + inner_val.into_iter().sum::<u32>())
         });
         assert_eq!(sum, 42 * 5 + 1 * 5 * 4 + 1 * 5 * 5 * 4); // Check if the sum is correct
+    }
+}
+
+#[cfg(not(target_os = "cuda"))]
+impl<'a, T: Builder<'a>, const N: usize> GridND<'a, T, N> {
+    pub fn map<F, R: Builder<'a>>(self, mut f: F) -> GridND<'a, R, N>
+    where
+        F: FnMut(T) -> R,
+    {
+        let total_elems = self.dims.iter().product::<usize>();
+
+        let data = unsafe { Vec::from_raw_parts(self.data, total_elems, total_elems) };
+        let mut new_data: Vec<R> = Vec::with_capacity(total_elems);
+        // Leak the Vec to keep memory stable and get a raw pointer
+        let new_data_ptr = new_data.as_mut_ptr();
+
+        // Don't drop the Vec — we're now managing memory manually
+        core::mem::forget(new_data);
+
+        // Safety: We assume the data is valid and we can modify it
+        for (i, value) in data.into_iter().enumerate() {
+            let new_data = unsafe { new_data_ptr.add(i) };
+            // Apply the function to each element
+            let new_value = f(value);
+            // Safety: We assume data is valid and we can write to it
+            unsafe { *new_data = new_value };
+        }
+
+        let dims = self.dims;
+        core::mem::forget(self); // Prevent double free
+
+        GridND {
+            data: new_data_ptr,
+            dims,
+            _marker: PhantomData,
+        }
+    }
+}
+
+#[cfg(not(target_os = "cuda"))]
+impl<'a, T: Clone + Builder<'a>, const N: usize> Clone for GridND<'a, T, N> {
+    fn clone(&self) -> Self {
+        let total_elems = self.dims.iter().product::<usize>();
+        // Safety: We assume the data is valid and we can copy it
+        let data = unsafe { Vec::from_raw_parts(self.data, total_elems, total_elems) };
+        let mut new_data: Vec<T> = Vec::with_capacity(total_elems);
+        for value in &data {
+            new_data.push(value.clone());
+        }
+        // Leak the Vec to keep memory stable and get a raw pointer
+        let new_data_ptr = new_data.as_mut_ptr();
+
+        // Don't drop the Vec — we're now managing memory manually
+        core::mem::forget(new_data);
+        core::mem::forget(data); // Prevent double free
+
+        GridND {
+            data: new_data_ptr,
+            dims: self.dims,
+            _marker: PhantomData,
+        }
+    }
+}
+
+#[cfg(not(target_os = "cuda"))]
+impl<'a, T: Builder<'a, Output = T> + BuildResultType, const N: usize> GridND<'a, Option<T>, N> {
+    pub fn transpose(self) -> Option<GridND<'a, T, N>> {
+        let total_elems = self.dims.iter().product::<usize>();
+        let data = unsafe { Vec::from_raw_parts(self.data, total_elems, total_elems) };
+        let mut new_data: Vec<T> = Vec::with_capacity(total_elems);
+        // Leak the Vec to keep memory stable and get a raw pointer
+        let new_data_ptr = new_data.as_mut_ptr();
+
+        // Don't drop the Vec — we're now managing memory manually
+        core::mem::forget(new_data);
+
+        // Safety: We assume the data is valid and we can modify it
+        for (i, value) in data.into_iter().enumerate() {
+            if let Some(val) = value {
+                let new_data = unsafe { new_data_ptr.add(i) };
+                // Safety: We assume data is valid and we can write to it
+                unsafe { *new_data = val };
+            } else {
+                return None; // If any value is None, we cannot transpose
+            }
+        }
+
+        let dims = self.dims;
+        core::mem::forget(self); // Prevent double free
+
+        Some(GridND {
+            data: new_data_ptr,
+            dims,
+            _marker: PhantomData,
+        })
+    }
+}
+
+#[cfg(not(target_os = "cuda"))]
+impl<
+    'a,
+    T: Builder<'a, Output = T> + BuildResultType,
+    const N: usize,
+    E: Builder<'a, Output = E> + BuildResultType,
+> GridND<'a, Result<T, E>, N>
+{
+    pub fn transpose(self) -> Result<GridND<'a, T, N>, E> {
+        let total_elems = self.dims.iter().product::<usize>();
+        let data = unsafe { Vec::from_raw_parts(self.data, total_elems, total_elems) };
+        let mut new_data: Vec<T> = Vec::with_capacity(total_elems);
+        // Leak the Vec to keep memory stable and get a raw pointer
+        let new_data_ptr = new_data.as_mut_ptr();
+
+        // Don't drop the Vec — we're now managing memory manually
+        core::mem::forget(new_data);
+
+        // Safety: We assume the data is valid and we can modify it
+        for (i, value) in data.into_iter().enumerate() {
+            match value {
+                Ok(val) => {
+                    let new_data = unsafe { new_data_ptr.add(i) };
+                    // Safety: We assume data is valid and we can write to it
+                    unsafe { *new_data = val };
+                }
+                Err(err) => return Err(err),
+            }
+        }
+
+        let dims = self.dims;
+
+        core::mem::forget(self);
+
+        Ok(GridND {
+            data: new_data_ptr,
+            dims,
+            _marker: PhantomData,
+        })
+    }
+}
+
+#[cfg(test)]
+mod map_tests {
+    use super::*;
+
+    #[test]
+    #[allow(unused_mut)]
+    fn test_gridnd_map() {
+        let dims = [5, 5];
+        let grid = GridND::<u32, 2>::new_zeroed(dims);
+
+        // Map to double each value
+        let mut grid = grid.map(|val| val * 2);
+
+        for val in &grid {
+            for inner_val in &val {
+                assert_eq!(*inner_val, 0); // Since original was zeroed, doubled should also be zero
+            }
+        }
+
+        // Modify original grid to have some values
+        for mut val in &mut grid {
+            for mut inner_val in &mut val {
+                *inner_val = 1; // Set all values to 1
+            }
+        }
+
+        let grid = grid.map(|val| val * 2);
+
+        for val in &grid {
+            for inner_val in &val {
+                assert_eq!(*inner_val, 2); // Now doubled values should be 2
+            }
+        }
     }
 }

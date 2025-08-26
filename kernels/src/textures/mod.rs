@@ -1,13 +1,16 @@
 use crate::{
     color::Color,
     random::Random,
-    textures::{checker::CheckerTexture, solid::SolidTexture},
+    textures::{
+        checker::CheckerTexture,
+        image::{ImageTexture, ImageTextureDevice},
+        solid::SolidTexture,
+    },
     vec3::{Point3, Real},
 };
 
-#[cfg(not(target_os = "cuda"))]
-use cust::DeviceCopy;
 use enum_dispatch::enum_dispatch;
+use gpu_builder::Builder;
 
 #[enum_dispatch]
 pub trait Texture {
@@ -15,12 +18,16 @@ pub trait Texture {
     fn color<'a>(&'a self, u: Real, v: Real, p: &Point3, rng: &mut Random) -> &'a Color;
 }
 
-#[cfg_attr(not(target_os = "cuda"), derive(Clone, Copy, DeviceCopy))]
 #[enum_dispatch(Texture)]
-pub enum TextureKind {
+#[derive(Builder)]
+#[use_lifetime("'b")]
+#[repr(C)]
+pub enum TextureKind<'b> {
     SolidTexture(SolidTexture),
     CheckerTexture(CheckerTexture),
+    ImageTexture(ImageTexture<'b>),
 }
 
 pub mod checker;
+pub mod image;
 pub mod solid;

@@ -1,0 +1,12 @@
+[package]
+name = "gpu-builder"
+version = "0.1.0"
+edition = "2018"
+
+[dependencies]
+gpu-builder-macros = { path = "macros" }
+enum_dispatch = "0.3.13"
+
+[target.'cfg(not(target_os = "cuda"))'.dependencies]
+cust = { path = "../../../Rust-CUDA/crates/cust" }
+thiserror = "2.0.16"

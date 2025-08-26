@@ -1,9 +1,13 @@
 use clap::Parser;
 
+use grid_nd::GridND;
 use rand::rngs::ThreadRng;
 use simple_ray_tracer::{
     Result,
-    raytracer::{camera::Camera, options::Options},
+    raytracer::{
+        camera::Camera,
+        options::{Options, RenderOptions},
+    },
 };
 
 use simple_ray_tracer_kernels::{
@@ -13,7 +17,7 @@ use simple_ray_tracer_kernels::{
     materials::{dielectric::Dielectric, lambertian::Lambertian, metal::Metal},
     random::random_single,
     sphere::Sphere,
-    textures::{checker::CheckerTexture, solid::SolidTexture},
+    textures::{checker::CheckerTexture, image::ImageTexture, solid::SolidTexture},
     vec3::{Point3, Real, Vec3},
 };
 
@@ -45,7 +49,7 @@ fn generate_random_sphere<'a>(x: Real, y: Real, mut rng: ThreadRng) -> Option<Hi
     }
 }
 
-fn bouncing_spheres<'a>() -> HitableListBuilder<'a> {
+fn bouncing_spheres<'a>() -> Result<HitableListBuilder<'a>> {
     let mut world = HitableListBuilder::new();
 
     let checker_texture =
@@ -79,15 +83,37 @@ fn bouncing_spheres<'a>() -> HitableListBuilder<'a> {
 
     let material3 = Metal::new(SolidTexture::new(Color::new(0.7, 0.6, 0.5)).into(), 0.0);
     world.add(Sphere::new_static(Point3::new(4.0, 1.0, 0.0), 1.0, material3).into());
-    world
+    Ok(world)
+}
+
+fn earth<'a>(
+    options: &mut RenderOptions,
+    earth_image: &'a GridND<Color, 2>,
+) -> Result<HitableListBuilder<'a>> {
+    let earth_texture = ImageTexture::new(&earth_image);
+    let earth_surface = Lambertian::new(earth_texture.into());
+    let globe = Sphere::new_static(Point3::new(0.0, 0.0, 0.0), 2.0, earth_surface);
+
+    options.vertical_fov = 20.0;
+    options.lookfrom = Point3::new(0.0, 0.0, 12.0);
+    options.lookat = Point3::new(0.0, 0.0, 0.0);
+    options.vup = Vec3::new(0.0, 1.0, 0.0);
+
+    options.defocus_angle = 0.0;
+
+    let mut world = HitableListBuilder::new();
+    world.add(globe.into());
+    Ok(world)
 }
 
 fn main() -> Result<()> {
     // Parse command line options
-    let options = Options::parse();
+    let mut options = Options::parse();
 
     // World setup
-    let mut world = bouncing_spheres();
+    let mut world = bouncing_spheres()?;
+    let earth_image = ImageTexture::from_file("data/earthmap.jpg")?;
+    let mut _world = earth(&mut options.render, &earth_image)?;
 
     // Camera setup
     let camera = Camera::new(options.render);
@@ -95,7 +121,7 @@ fn main() -> Result<()> {
     // Time duration
     let start = std::time::Instant::now();
 
-    camera.render(&mut world)?;
+    camera.render((&mut world).into())?;
 
     let duration = start.elapsed();
     println!("Render time: {:?}", duration);

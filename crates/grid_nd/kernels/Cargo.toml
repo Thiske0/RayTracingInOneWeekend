@@ -5,6 +5,7 @@ edition = "2024"
 
 [dependencies]
 cuda_std = { path = "../../../../Rust-CUDA/crates/cuda_std" }
+gpu-builder = { path = "../../../crates/gpu_builder" }
 
 [target.'cfg(not(target_os = "cuda"))'.dependencies]
 cust = { path = "../../../../Rust-CUDA/crates/cust" }

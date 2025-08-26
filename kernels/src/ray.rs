@@ -6,10 +6,13 @@ use crate::{
     random::{Random, random_single},
     vec3::{Point3, Real, Vec3},
 };
+use gpu_builder::DeviceCopyBuilder;
 
 #[cfg(not(target_os = "cuda"))]
 use cust::DeviceCopy;
 #[cfg_attr(not(target_os = "cuda"), derive(Clone, Copy, DeviceCopy))]
+#[repr(C)]
+#[derive(DeviceCopyBuilder)]
 pub struct Ray {
     pub origin: Point3,
     pub direction: Vec3,

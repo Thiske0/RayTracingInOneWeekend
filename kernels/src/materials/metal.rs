@@ -4,25 +4,26 @@ use crate::{
     materials::{Material, MaterialKind},
     random::Random,
     ray::Ray,
-    textures::{Texture, TextureKind},
+    textures::{Texture, TextureKind, TextureKindDevice},
     vec3::{Real, Vec3},
 };
 
-#[cfg(not(target_os = "cuda"))]
-use cust::DeviceCopy;
+use gpu_builder::Builder;
 
-#[cfg_attr(not(target_os = "cuda"), derive(Clone, Copy, DeviceCopy))]
-pub struct Metal {
-    texture: TextureKind,
+#[repr(C)]
+#[derive(Builder)]
+#[use_lifetime("'a")]
+pub struct Metal<'a> {
+    texture: TextureKind<'a>,
     fuzziness: Real,
 }
 
-impl Metal {
+impl Metal<'_> {
     pub fn new(texture: TextureKind, fuzziness: Real) -> MaterialKind {
         MaterialKind::from(Metal { texture, fuzziness })
     }
 }
-impl Material for Metal {
+impl Material for Metal<'_> {
     fn scatter(&self, ray: &Ray, hit: HitRecord, rng: &mut Random) -> Option<(Ray, &Color)> {
         let direction = ray.direction.reflect(&hit.normal).normalize()
             + Vec3::random_unit(rng) * self.fuzziness;

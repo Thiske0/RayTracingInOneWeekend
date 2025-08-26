@@ -6,7 +6,7 @@ pub mod grid_nd;
 mod test;
 
 use cuda_std::glam::{UVec2, UVec3};
-pub use grid_nd::{GridND, GridViewND, GridViewNDMut};
+pub use grid_nd::{GridND, GridNDDevice, GridViewND, GridViewNDMut};
 
 // Helper types for const generic constraints
 pub enum Assert<const COND: bool> {}

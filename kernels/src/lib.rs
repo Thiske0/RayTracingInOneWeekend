@@ -1,5 +1,6 @@
 #![feature(generic_const_exprs)]
 #![allow(incomplete_features)]
+#![feature(offset_of_enum)]
 
 #[cfg(target_os = "cuda")]
 use cuda_std::glam::{UVec2, UVec3};
@@ -8,6 +9,7 @@ use cuda_std::prelude::*;
 
 #[cfg(not(target_os = "cuda"))]
 use cust::DeviceCopy;
+use gpu_builder::DeviceCopyBuilder;
 #[cfg(target_os = "cuda")]
 use gpu_rand::DefaultRand;
 
@@ -34,6 +36,8 @@ pub mod vec3;
 pub mod hitable_list_builder;
 
 #[cfg_attr(not(target_os = "cuda"), derive(Clone, Copy, DeviceCopy))]
+#[repr(C)]
+#[derive(DeviceCopyBuilder)]
 pub struct ImageRenderOptions {
     pub samples_per_pixel: usize,
     pub origin: Point3,

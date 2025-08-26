@@ -4,25 +4,25 @@ use enum_dispatch::enum_dispatch;
 
 use crate::{
     boundingbox::{BoundingBox, IntoBoundingBox},
-    hitable_list::HitableList,
+    hitable_list::{HitableList, HitableListDevice},
     materials::MaterialKind,
     ray::Ray,
-    sphere::Sphere,
+    sphere::{Sphere, SphereDevice},
     vec3::{Point3, Real, Vec3},
 };
-
-#[cfg(not(target_os = "cuda"))]
-use cust::DeviceCopy;
+use gpu_builder::Builder;
 
 #[enum_dispatch]
 pub trait Hitable {
     fn hit<'a>(&'a self, ray: &Ray, range: &Range<Real>) -> Option<HitRecord<'a>>;
 }
 
-#[cfg_attr(not(target_os = "cuda"), derive(Clone, Copy, DeviceCopy))]
+#[repr(C)]
+#[derive(Builder)]
+#[use_lifetime("'b")]
 #[enum_dispatch(Hitable)]
 pub enum HitKind<'b> {
-    Sphere(Sphere),
+    Sphere(Sphere<'b>),
     HitableList(HitableList<'b>),
 }
 
@@ -40,7 +40,7 @@ pub struct HitRecord<'a> {
     pub normal: Vec3,
     pub t: Real,
     pub is_front_face: bool,
-    pub mat: &'a MaterialKind,
+    pub mat: &'a MaterialKind<'a>,
     pub u: Real,
     pub v: Real,
 }

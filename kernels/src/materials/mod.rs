@@ -1,14 +1,16 @@
 use crate::{
     color::Color,
     hitable::HitRecord,
-    materials::{dielectric::Dielectric, lambertian::Lambertian, metal::Metal},
+    materials::{
+        dielectric::{Dielectric, DielectricDevice},
+        lambertian::{Lambertian, LambertianDevice},
+        metal::{Metal, MetalDevice},
+    },
     random::Random,
     ray::Ray,
 };
-
-#[cfg(not(target_os = "cuda"))]
-use cust::DeviceCopy;
 use enum_dispatch::enum_dispatch;
+use gpu_builder::Builder;
 
 #[enum_dispatch]
 pub trait Material {
@@ -16,12 +18,14 @@ pub trait Material {
     fn scatter(&self, ray: &Ray, hit_record: HitRecord, rng: &mut Random) -> Option<(Ray, &Color)>;
 }
 
-#[cfg_attr(not(target_os = "cuda"), derive(Clone, Copy, DeviceCopy))]
+#[repr(C)]
+#[derive(Builder)]
+#[use_lifetime("'a")]
 #[enum_dispatch(Material)]
-pub enum MaterialKind {
-    Lambertian(Lambertian),
-    Metal(Metal),
-    Dielectric(Dielectric),
+pub enum MaterialKind<'a> {
+    Lambertian(Lambertian<'a>),
+    Metal(Metal<'a>),
+    Dielectric(Dielectric<'a>),
 }
 
 pub mod dielectric;

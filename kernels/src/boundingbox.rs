@@ -3,6 +3,7 @@ use core::ops::Range;
 #[cfg(not(target_os = "cuda"))]
 use cust::DeviceCopy;
 use enum_dispatch::enum_dispatch;
+use gpu_builder::DeviceCopyBuilder;
 
 use crate::{
     ray::Ray,
@@ -10,6 +11,8 @@ use crate::{
 };
 
 #[cfg_attr(not(target_os = "cuda"), derive(Clone, Copy, DeviceCopy, Debug))]
+#[repr(C)]
+#[derive(DeviceCopyBuilder)]
 pub struct BoundingBox {
     pub min: Point3,
     pub max: Point3,

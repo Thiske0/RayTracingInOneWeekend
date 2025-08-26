@@ -2,6 +2,7 @@ use core::ops;
 
 #[cfg(not(target_os = "cuda"))]
 use cust::DeviceCopy;
+use gpu_builder::DeviceCopyBuilder;
 #[cfg(not(target_os = "cuda"))]
 use image::Rgb;
 
@@ -14,7 +15,8 @@ use crate::{
 };
 
 #[cfg_attr(not(target_os = "cuda"), derive(Clone, Copy, DeviceCopy))]
-#[derive(PartialEq)]
+#[repr(C)]
+#[derive(DeviceCopyBuilder, PartialEq)]
 pub struct Color(pub(crate) Vec3);
 
 impl Color {

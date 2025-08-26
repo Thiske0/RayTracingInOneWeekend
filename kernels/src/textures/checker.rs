@@ -4,11 +4,14 @@ use crate::{
     textures::Texture,
     vec3::{Point3, Real},
 };
+use gpu_builder::DeviceCopyBuilder;
 
 #[cfg(not(target_os = "cuda"))]
 use cust::DeviceCopy;
 
+#[repr(C)]
 #[cfg_attr(not(target_os = "cuda"), derive(Clone, Copy, DeviceCopy))]
+#[derive(DeviceCopyBuilder)]
 pub struct CheckerTexture {
     odd: Color,
     even: Color,

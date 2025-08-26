@@ -4,23 +4,24 @@ use crate::{
     materials::{Material, MaterialKind},
     random::{Random, random_single},
     ray::Ray,
-    textures::{Texture, TextureKind, solid::SolidTexture},
+    textures::{Texture, TextureKind, TextureKindDevice, solid::SolidTexture},
     vec3::Real,
 };
+use gpu_builder::Builder;
 
 #[cfg(target_os = "cuda")]
 use cuda_std::GpuFloat;
-#[cfg(not(target_os = "cuda"))]
-use cust::DeviceCopy;
 
-#[cfg_attr(not(target_os = "cuda"), derive(Clone, Copy, DeviceCopy))]
-pub struct Dielectric {
+#[repr(C)]
+#[derive(Builder)]
+#[use_lifetime("'a")]
+pub struct Dielectric<'a> {
     refraction_index: Real,
-    texture: TextureKind,
+    texture: TextureKind<'a>,
 }
 
-impl Dielectric {
-    pub fn new(refraction_index: Real) -> MaterialKind {
+impl<'a> Dielectric<'a> {
+    pub fn new(refraction_index: Real) -> MaterialKind<'a> {
         MaterialKind::from(Dielectric {
             refraction_index,
             texture: SolidTexture::new(Color::white()).into(),
@@ -34,7 +35,7 @@ impl Dielectric {
         r0 + (1.0 - r0) * (1.0 - cosine).powi(5)
     }
 }
-impl Material for Dielectric {
+impl Material for Dielectric<'_> {
     fn scatter(&self, ray: &Ray, hit: HitRecord, rng: &mut Random) -> Option<(Ray, &Color)> {
         let ri = if hit.is_front_face {
             1.0 / self.refraction_index

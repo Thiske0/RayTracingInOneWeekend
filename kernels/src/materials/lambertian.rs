@@ -4,24 +4,25 @@ use crate::{
     materials::{Material, MaterialKind},
     random::Random,
     ray::Ray,
-    textures::{Texture, TextureKind},
+    textures::{Texture, TextureKind, TextureKindDevice},
     vec3::Vec3,
 };
 
-#[cfg(not(target_os = "cuda"))]
-use cust::DeviceCopy;
+use gpu_builder::Builder;
 
-#[cfg_attr(not(target_os = "cuda"), derive(Clone, Copy, DeviceCopy))]
-pub struct Lambertian {
-    texture: TextureKind,
+#[repr(C)]
+#[derive(Builder)]
+#[use_lifetime("'a")]
+pub struct Lambertian<'a> {
+    texture: TextureKind<'a>,
 }
 
-impl Lambertian {
+impl Lambertian<'_> {
     pub fn new(texture: TextureKind) -> MaterialKind {
         MaterialKind::from(Lambertian { texture })
     }
 }
-impl Material for Lambertian {
+impl Material for Lambertian<'_> {
     fn scatter(&self, ray: &Ray, hit: HitRecord, rng: &mut Random) -> Option<(Ray, &Color)> {
         let mut direction = &hit.normal + Vec3::random_unit(rng);
         if direction.near_zero() {

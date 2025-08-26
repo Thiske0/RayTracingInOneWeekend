@@ -3,25 +3,26 @@ use core::ops::Range;
 use crate::{
     boundingbox::{BoundingBox, IntoBoundingBox},
     hitable::{HitRecord, Hitable},
-    materials::MaterialKind,
+    materials::{MaterialKind, MaterialKindDevice},
     ray::Ray,
     vec3::{Point3, Real, Vec3},
 };
+use gpu_builder::Builder;
 
 #[cfg(target_os = "cuda")]
 use cuda_std::GpuFloat;
-#[cfg(not(target_os = "cuda"))]
-use cust::DeviceCopy;
 
-#[cfg_attr(not(target_os = "cuda"), derive(Clone, Copy, DeviceCopy))]
-pub struct Sphere {
+#[repr(C)]
+#[derive(Builder)]
+#[use_lifetime("'a")]
+pub struct Sphere<'a> {
     center: Ray,
     radius: Real,
-    mat: MaterialKind,
+    mat: MaterialKind<'a>,
 }
 
-impl Sphere {
-    pub fn new_static(center: Point3, radius: Real, material: MaterialKind) -> Self {
+impl<'a> Sphere<'a> {
+    pub fn new_static(center: Point3, radius: Real, material: MaterialKind<'a>) -> Self {
         Sphere {
             center: Ray::new(center, Vec3::zero(), 0.0),
             radius,
@@ -29,7 +30,12 @@ impl Sphere {
         }
     }
 
-    pub fn new_moving(start: Point3, end: Point3, radius: Real, material: MaterialKind) -> Self {
+    pub fn new_moving(
+        start: Point3,
+        end: Point3,
+        radius: Real,
+        material: MaterialKind<'a>,
+    ) -> Self {
         let velocity = end - &start;
         Sphere {
             center: Ray::new(start, velocity, 0.0),
@@ -48,7 +54,7 @@ impl Sphere {
     }
 }
 
-impl Hitable for Sphere {
+impl Hitable for Sphere<'_> {
     fn hit<'a>(&'a self, ray: &Ray, range: &Range<Real>) -> Option<HitRecord<'a>> {
         let actual_center = self.center.at(ray.time);
 
@@ -82,7 +88,7 @@ impl Hitable for Sphere {
     }
 }
 
-impl IntoBoundingBox for Sphere {
+impl IntoBoundingBox for Sphere<'_> {
     fn boundingbox(&self) -> BoundingBox {
         let start = self.center.at(0.0);
         let end = self.center.at(1.0);
