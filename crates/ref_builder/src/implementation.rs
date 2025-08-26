@@ -1,7 +1,7 @@
 use crate::{RefBuilder, RefBuilderDevice, SliceBuilder, SliceBuilderDevice};
 use cust::memory::DeviceBuffer;
 use gpu_builder::{BuildResult, Builder, DeviceBufferList};
-use std::collections::HashMap;
+use std::{collections::HashMap, mem};
 
 impl<'a, T: Builder<'a>> Builder<'a> for SliceBuilder<'a, T>
 where
@@ -55,34 +55,34 @@ where
             })
             .expect("Just inserted, should exist");
 
-        let (result, buffers): (*const T::Output, _) = if let Some(result) =
-            entry.get(&(self.reference as *const () as u64, self.size))
-        {
-            (*result, DeviceBufferList::new())
-        } else {
-            let mut result_buffers = DeviceBufferList::new();
-            let build_result = self
-                .as_slice()
-                .into_iter()
-                .map(|item| {
-                    let (result_device, _result_host, buffers) = unsafe { std::ptr::read(item) }
-                        .build_device_inner(stream, cache)?
-                        .split();
-                    result_buffers.combine(buffers);
-                    Ok(result_device)
-                })
-                .try_collect::<Vec<T::Output>>()?;
+        let (result, buffers): (*const T::Output, _) =
+            if let Some(result) = entry.get(&(self.reference as *const () as u64, self.size)) {
+                (*result, DeviceBufferList::new())
+            } else {
+                let mut result_buffers = DeviceBufferList::new();
+                let build_result = self
+                    .as_slice()
+                    .into_iter()
+                    .map(|item| {
+                        let (result_device, result_host, buffers) = unsafe { std::ptr::read(item) }
+                            .build_device_inner(stream, cache)?
+                            .split();
+                        mem::forget(result_host); // Prevent double free
+                        result_buffers.combine(buffers);
+                        Ok(result_device)
+                    })
+                    .try_collect::<Vec<T::Output>>()?;
 
-            let device_buffer = DeviceBuffer::from_slice(build_result.as_slice())?;
-            let result = device_buffer.as_device_ptr().as_ptr();
-            result_buffers.add(device_buffer);
-            cache
-                .get_mut::<HashMap<(u64, usize), *const T::Output>>()
-                .expect("Just inserted, should exist")
-                .insert((self.reference as *const () as u64, self.size), result);
+                let device_buffer = DeviceBuffer::from_slice(build_result.as_slice())?;
+                let result = device_buffer.as_device_ptr().as_ptr();
+                result_buffers.add(device_buffer);
+                cache
+                    .get_mut::<HashMap<(u64, usize), *const T::Output>>()
+                    .expect("Just inserted, should exist")
+                    .insert((self.reference as *const () as u64, self.size), result);
 
-            (result, result_buffers)
-        };
+                (result, result_buffers)
+            };
         Ok(BuildResult::new(
             SliceBuilderDevice {
                 reference: result,
@@ -166,9 +166,10 @@ impl<'a, T: Builder<'a>> Builder<'a> for RefBuilder<'a, T> {
             (*result, DeviceBufferList::new())
         } else {
             let mut result_buffers = DeviceBufferList::new();
-            let (build_result, _result_host, buffers) = unsafe { std::ptr::read(self.reference) }
+            let (build_result, result_host, buffers) = unsafe { std::ptr::read(self.reference) }
                 .build_device_inner(stream, cache)?
                 .split();
+            mem::forget(result_host); // Prevent double free
             result_buffers.combine(buffers);
 
             let device_buffer = DeviceBuffer::from_slice(&[build_result])?;
