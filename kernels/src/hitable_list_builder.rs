@@ -56,7 +56,7 @@ impl<'a> HitableListBuilder<'a> {
             mem::swap(&mut left_hitables, &mut right_hitables);
         }
 
-        if !right_hitables.is_empty() {
+        if right_hitables.is_empty() {
             (
                 HitableListBuilder {
                     hitables: left_hitables,
