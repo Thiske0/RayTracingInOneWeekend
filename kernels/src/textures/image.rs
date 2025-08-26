@@ -32,10 +32,24 @@ impl<'a> ImageTexture<'a> {
     pub fn from_file(path: &str) -> Result<GridND<'a, Color, 2>, Box<dyn std::error::Error>> {
         let image = ImageReader::open(path)?.decode()?;
 
-        Ok(GridND::<Color, 2>::new(
+        let mut image_grid = GridND::<Color, 2>::new(
             [image.height() as usize, image.width() as usize],
             Color::black(),
-        ))
+        );
+
+        for (y, mut row) in (&mut image_grid).into_iter().enumerate() {
+            for (x, pixel) in (&mut row).into_iter().enumerate() {
+                use image::GenericImageView;
+
+                let rgba = image.get_pixel(x as u32, image.height() - 1 - y as u32).0;
+                *pixel = Color::new(
+                    rgba[0] as f32 / 255.0,
+                    rgba[1] as f32 / 255.0,
+                    rgba[2] as f32 / 255.0,
+                );
+            }
+        }
+        Ok(image_grid)
     }
 }
 

@@ -49,6 +49,7 @@ fn generate_random_sphere<'a>(x: Real, y: Real, mut rng: ThreadRng) -> Option<Hi
     }
 }
 
+#[allow(unused)]
 fn bouncing_spheres<'a>() -> Result<HitableListBuilder<'a>> {
     let mut world = HitableListBuilder::new();
 
@@ -95,7 +96,7 @@ fn earth<'a>(
     let globe = Sphere::new_static(Point3::new(0.0, 0.0, 0.0), 2.0, earth_surface);
 
     options.vertical_fov = 20.0;
-    options.lookfrom = Point3::new(0.0, 0.0, 12.0);
+    options.lookfrom = Point3::new(12.0, 0.0, 0.0);
     options.lookat = Point3::new(0.0, 0.0, 0.0);
     options.vup = Vec3::new(0.0, 1.0, 0.0);
 
@@ -111,9 +112,9 @@ fn main() -> Result<()> {
     let mut options = Options::parse();
 
     // World setup
-    let mut world = bouncing_spheres()?;
+    //let mut world = bouncing_spheres()?;
     let earth_image = ImageTexture::from_file("data/earthmap.jpg")?;
-    let mut _world = earth(&mut options.render, &earth_image)?;
+    let mut world = earth(&mut options.render, &earth_image)?;
 
     // Camera setup
     let camera = Camera::new(options.render);
