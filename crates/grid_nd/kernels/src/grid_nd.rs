@@ -154,7 +154,7 @@ pub mod host_impls {
     use cust::{
         error::CudaResult,
         function::{BlockSize, GridSize},
-        memory::{AsyncCopyDestination, DeviceBox},
+        memory::{AsyncCopyDestination, CopyDestination, DeviceBox, DevicePointer},
         prelude::DeviceBuffer,
         stream::Stream,
     };
@@ -268,21 +268,15 @@ pub mod host_impls {
             ))
         }
 
-        fn copy_back(
-            &mut self,
-            device_grid: &DeviceBox<GridNDDevice<<T as Builder<'a>>::Output, N>>,
-        ) -> CudaResult<()> {
+        fn copy_back(&mut self, device_grid: &DeviceBox<GridNDDevice<T, N>>) -> CudaResult<()> {
             let grid = device_grid.as_host_value()?;
             assert_eq!(grid.dims, self.dims, "Dimensions mismatch after copy back");
             let total_elems = self.dims.iter().product::<usize>();
-            for i in 0..total_elems {
-                let value: DeviceBox<<T as Builder<'a>>::Output> =
-                    unsafe { DeviceBox::from_raw(grid.data.add(i) as u64) };
-                // Safety: We assume the data is valid and we can write to it
-                let data = unsafe { &mut *self.data.add(i) };
-                data.copy_back(&value)?;
-                mem::forget(value); // Prevent double free
-            }
+            let device_ptr: DevicePointer<T> = DevicePointer::from_raw(grid.data as u64);
+            let device_buffer = unsafe { DeviceBuffer::from_raw_parts(device_ptr, total_elems) };
+            let data = unsafe { std::slice::from_raw_parts_mut(self.data, total_elems) };
+            device_buffer.copy_to(data)?;
+            mem::forget(device_buffer); // Prevent double free
             Ok(())
         }
     }
