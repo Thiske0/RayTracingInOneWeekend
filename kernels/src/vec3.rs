@@ -1,17 +1,15 @@
 use core::ops::{self, Index, Range};
 
+use crate::random::RandomRange;
 #[cfg(not(target_os = "cuda"))]
 use cust::DeviceCopy;
 
-use crate::{
-    color::Color,
-    random::{Random, random_single},
-};
+use crate::{color::Color, random::Random};
 
 pub type Real = f32;
 
-#[cfg_attr(not(target_os = "cuda"), derive(DeviceCopy, Clone, Copy, Debug))]
-#[derive(PartialEq)]
+#[cfg_attr(not(target_os = "cuda"), derive(DeviceCopy, Copy, Debug))]
+#[derive(PartialEq, Clone)]
 pub struct Vec3 {
     pub x: Real,
     pub y: Real,
@@ -85,16 +83,16 @@ use cuda_std::GpuFloat;
 impl Vec3 {
     // Returns the vector to a random point in the [-.5,-.5]-[+.5,+.5] unit square.
     pub fn sample_square(rng: &mut Random) -> Vec3 {
-        let x = random_single(-0.5..0.5, rng);
-        let y = random_single(-0.5..0.5, rng);
+        let x = rng.random_range(-0.5..0.5);
+        let y = rng.random_range(-0.5..0.5);
         Vec3::new(x, y, 0.0)
     }
 
     pub fn random(interval: Range<Real>, rng: &mut Random) -> Self {
         Vec3::new(
-            random_single(interval.clone(), rng),
-            random_single(interval.clone(), rng),
-            random_single(interval, rng),
+            rng.random_range(interval.clone()),
+            rng.random_range(interval.clone()),
+            rng.random_range(interval),
         )
     }
 
@@ -262,6 +260,12 @@ impl ops::Mul<Real> for Vec3 {
 
     fn mul(self, scalar: Real) -> Self::Output {
         &self * scalar
+    }
+}
+
+impl ops::MulAssign<Real> for Vec3 {
+    fn mul_assign(&mut self, other: Real) {
+        *self = &*self * other;
     }
 }
 

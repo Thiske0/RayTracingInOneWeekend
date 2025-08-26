@@ -3,7 +3,7 @@ use crate::{
     color::Color,
     hitable::{HitKind, Hitable},
     materials::Material,
-    random::{Random, random_single},
+    random::Random,
     vec3::{Point3, Real, Vec3},
 };
 use gpu_builder::DeviceCopyBuilder;
@@ -18,6 +18,8 @@ pub struct Ray {
     pub direction: Vec3,
     pub time: Real,
 }
+
+use crate::random::RandomRange;
 
 impl Ray {
     pub fn new(origin: Point3, direction: Vec3, time: Real) -> Self {
@@ -92,6 +94,6 @@ impl Ray {
             };
 
         let ray_direction = pixel_sample - &ray_origin;
-        Ray::new(ray_origin, ray_direction, random_single(0.0..1.0, rng))
+        Ray::new(ray_origin, ray_direction, rng.random_range(0.0..1.0))
     }
 }

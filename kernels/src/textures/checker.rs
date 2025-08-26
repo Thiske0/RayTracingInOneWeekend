@@ -32,14 +32,14 @@ impl CheckerTexture {
 }
 
 impl Texture for CheckerTexture {
-    fn color<'a>(&'a self, _u: Real, _v: Real, p: &Point3, _rng: &mut Random) -> &'a Color {
+    fn color(&self, _u: Real, _v: Real, p: &Point3, _rng: &mut Random) -> Color {
         let x_integer = (self.inv_scale * p.x).floor() as i32;
         let y_integer = (self.inv_scale * p.y).floor() as i32;
         let z_integer = (self.inv_scale * p.z).floor() as i32;
         if (x_integer + y_integer + z_integer) % 2 == 0 {
-            &self.odd
+            self.odd.clone()
         } else {
-            &self.even
+            self.even.clone()
         }
     }
 }

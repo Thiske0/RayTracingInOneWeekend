@@ -1,3 +1,5 @@
+use core::panic;
+
 use clap::Parser;
 
 use grid_nd::GridND;
@@ -15,9 +17,11 @@ use simple_ray_tracer_kernels::{
     hitable::HitKind,
     hitable_list_builder::HitableListBuilder,
     materials::{dielectric::Dielectric, lambertian::Lambertian, metal::Metal},
-    random::random_single,
+    random::RandomRange,
     sphere::Sphere,
-    textures::{checker::CheckerTexture, image::ImageTexture, solid::SolidTexture},
+    textures::{
+        checker::CheckerTexture, image::ImageTexture, perlin::PerlinTexture, solid::SolidTexture,
+    },
     vec3::{Point3, Real, Vec3},
 };
 
@@ -31,12 +35,12 @@ fn generate_random_sphere<'a>(x: Real, y: Real, mut rng: ThreadRng) -> Option<Hi
             // diffuse
             let albedo = Color::random(&mut rng) * Color::random(&mut rng);
             let sphere_material = Lambertian::new(SolidTexture::new(albedo).into());
-            let end = center + Vec3::new(0.0, random_single(0.0..0.2, &mut rng), 0.0);
+            let end = center + Vec3::new(0.0, rng.random_range(0.0..0.2), 0.0);
             Some(Sphere::new_moving(center, end, 0.2, sphere_material).into())
         } else if choose_mat < 0.95 {
             // metal
             let albedo = Color::random(&mut rng) / 2.0 + 0.5;
-            let fuzz = random_single(0.0..0.5, &mut rng);
+            let fuzz = rng.random_range(0.0..0.5);
             let sphere_material = Metal::new(SolidTexture::new(albedo).into(), fuzz);
             Some(Sphere::new_static(center, 0.2, sphere_material).into())
         } else {
@@ -49,7 +53,6 @@ fn generate_random_sphere<'a>(x: Real, y: Real, mut rng: ThreadRng) -> Option<Hi
     }
 }
 
-#[allow(unused)]
 fn bouncing_spheres<'a>() -> Result<HitableListBuilder<'a>> {
     let mut world = HitableListBuilder::new();
 
@@ -90,7 +93,7 @@ fn bouncing_spheres<'a>() -> Result<HitableListBuilder<'a>> {
 fn earth<'a>(
     options: &mut RenderOptions,
     earth_image: &'a GridND<Color, 2>,
-) -> Result<HitableListBuilder<'a>> {
+) -> HitableListBuilder<'a> {
     let earth_texture = ImageTexture::new(&earth_image);
     let earth_surface = Lambertian::new(earth_texture.into());
     let globe = Sphere::new_static(Point3::new(0.0, 0.0, 0.0), 2.0, earth_surface);
@@ -102,19 +105,56 @@ fn earth<'a>(
 
     options.defocus_angle = 0.0;
 
-    let mut world = HitableListBuilder::new();
+    let mut world: HitableListBuilder<'_> = HitableListBuilder::new();
     world.add(globe.into());
-    Ok(world)
+    world
+}
+
+fn perlin_spheres<'a>(options: &mut RenderOptions) -> HitableListBuilder<'a> {
+    let mut world: HitableListBuilder<'_> = HitableListBuilder::new();
+
+    world.add(
+        Sphere::new_static(
+            Point3::new(0.0, -1000.0, 0.0),
+            1000.0,
+            Lambertian::new(PerlinTexture::new(4.0).into()),
+        )
+        .into(),
+    );
+    world.add(
+        Sphere::new_static(
+            Point3::new(0.0, 2.0, 0.0),
+            2.0,
+            Lambertian::new(PerlinTexture::new(8.0).into()),
+        )
+        .into(),
+    );
+
+    options.vertical_fov = 20.0;
+    options.lookfrom = Point3::new(13.0, 2.0, 3.0);
+    options.lookat = Point3::new(0.0, 0.0, 0.0);
+    options.vup = Vec3::new(0.0, 1.0, 0.0);
+
+    options.defocus_angle = 0.0;
+
+    world
 }
 
 fn main() -> Result<()> {
     // Parse command line options
     let mut options = Options::parse();
 
-    // World setup
-    //let mut world = bouncing_spheres()?;
     let earth_image = ImageTexture::from_file("data/earthmap.jpg")?;
-    let mut world = earth(&mut options.render, &earth_image)?;
+
+    let scene = 3;
+    let mut world = match scene {
+        1 => bouncing_spheres()?,
+        2 => earth(&mut options.render, &earth_image),
+        3 => perlin_spheres(&mut options.render),
+        _ => {
+            panic!("Unknown scene {}", scene);
+        }
+    };
 
     // Camera setup
     let camera = Camera::new(options.render);

@@ -10,6 +10,7 @@ enum_dispatch = "0.3.13"
 grid-nd = { path = "../crates/grid_nd" }
 ref-builder = { path = "../crates/ref_builder" }
 gpu-builder = { path = "../crates/gpu_builder" }
+rand_core = { version = "0.9" }
 
 [target.'cfg(not(target_os = "cuda"))'.dependencies]
 cust = { path = "../../Rust-CUDA/crates/cust" }

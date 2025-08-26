@@ -14,9 +14,9 @@ use crate::{
     vec3::{Real, Vec3},
 };
 
-#[cfg_attr(not(target_os = "cuda"), derive(Clone, Copy, DeviceCopy))]
+#[cfg_attr(not(target_os = "cuda"), derive(Copy, DeviceCopy))]
 #[repr(C)]
-#[derive(DeviceCopyBuilder, PartialEq)]
+#[derive(DeviceCopyBuilder, PartialEq, Clone)]
 pub struct Color(pub(crate) Vec3);
 
 impl Color {

@@ -23,7 +23,7 @@ impl SolidTexture {
 }
 
 impl Texture for SolidTexture {
-    fn color<'a>(&'a self, _u: Real, _v: Real, _p: &Point3, _rng: &mut Random) -> &'a Color {
-        &self.color
+    fn color(&self, _u: Real, _v: Real, _p: &Point3, _rng: &mut Random) -> Color {
+        self.color.clone()
     }
 }

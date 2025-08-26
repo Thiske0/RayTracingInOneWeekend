@@ -23,7 +23,7 @@ impl Lambertian<'_> {
     }
 }
 impl Material for Lambertian<'_> {
-    fn scatter(&self, ray: &Ray, hit: HitRecord, rng: &mut Random) -> Option<(Ray, &Color)> {
+    fn scatter(&self, ray: &Ray, hit: HitRecord, rng: &mut Random) -> Option<(Ray, Color)> {
         let mut direction = &hit.normal + Vec3::random_unit(rng);
         if direction.near_zero() {
             direction = hit.normal; // Handle near-zero direction to avoid NaN

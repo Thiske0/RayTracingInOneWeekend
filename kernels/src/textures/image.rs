@@ -54,9 +54,9 @@ impl<'a> ImageTexture<'a> {
 }
 
 impl<'a> Texture for ImageTexture<'a> {
-    fn color(&self, u: Real, v: Real, _p: &Point3, _rng: &mut Random) -> &Color {
+    fn color(&self, u: Real, v: Real, _p: &Point3, _rng: &mut Random) -> Color {
         let x = (u * self.image.shape()[1] as Real).floor() as usize;
         let y = (v * self.image.shape()[0] as Real).floor() as usize;
-        self.image.at(y).at(x)
+        self.image.at(y).at(x).clone()
     }
 }

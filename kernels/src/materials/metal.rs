@@ -24,7 +24,7 @@ impl Metal<'_> {
     }
 }
 impl Material for Metal<'_> {
-    fn scatter(&self, ray: &Ray, hit: HitRecord, rng: &mut Random) -> Option<(Ray, &Color)> {
+    fn scatter(&self, ray: &Ray, hit: HitRecord, rng: &mut Random) -> Option<(Ray, Color)> {
         let direction = ray.direction.reflect(&hit.normal).normalize()
             + Vec3::random_unit(rng) * self.fuzziness;
         if direction.near_zero() || direction.dot(&hit.normal) < 0.0 {

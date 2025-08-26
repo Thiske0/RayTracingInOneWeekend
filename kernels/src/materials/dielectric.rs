@@ -1,8 +1,9 @@
+use crate::random::RandomRange;
 use crate::{
     color::Color,
     hitable::HitRecord,
     materials::{Material, MaterialKind},
-    random::{Random, random_single},
+    random::Random,
     ray::Ray,
     textures::{Texture, TextureKind, TextureKindDevice, solid::SolidTexture},
     vec3::Real,
@@ -36,7 +37,7 @@ impl<'a> Dielectric<'a> {
     }
 }
 impl Material for Dielectric<'_> {
-    fn scatter(&self, ray: &Ray, hit: HitRecord, rng: &mut Random) -> Option<(Ray, &Color)> {
+    fn scatter(&self, ray: &Ray, hit: HitRecord, rng: &mut Random) -> Option<(Ray, Color)> {
         let ri = if hit.is_front_face {
             1.0 / self.refraction_index
         } else {
@@ -49,7 +50,7 @@ impl Material for Dielectric<'_> {
         let sin_theta = (1.0 - cos_theta * cos_theta).sqrt();
         let cannot_refract = ri * sin_theta > 1.0;
         let direction = if cannot_refract
-            || Dielectric::reflectance(cos_theta, ri) > random_single(0.0..1.0, rng)
+            || Dielectric::reflectance(cos_theta, ri) > rng.random_range(0.0..1.0)
         {
             // Reflect
             unit_direction.reflect(&hit.normal)

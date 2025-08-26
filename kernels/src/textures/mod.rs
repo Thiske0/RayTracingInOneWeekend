@@ -4,6 +4,7 @@ use crate::{
     textures::{
         checker::CheckerTexture,
         image::{ImageTexture, ImageTextureDevice},
+        perlin::{PerlinTexture, PerlinTextureDevice},
         solid::SolidTexture,
     },
     vec3::{Point3, Real},
@@ -15,7 +16,7 @@ use gpu_builder::Builder;
 #[enum_dispatch]
 pub trait Texture {
     /// Returns the color of the texture at the given UV coordinates and point.
-    fn color<'a>(&'a self, u: Real, v: Real, p: &Point3, rng: &mut Random) -> &'a Color;
+    fn color(&self, u: Real, v: Real, p: &Point3, rng: &mut Random) -> Color;
 }
 
 #[enum_dispatch(Texture)]
@@ -26,8 +27,10 @@ pub enum TextureKind<'b> {
     SolidTexture(SolidTexture),
     CheckerTexture(CheckerTexture),
     ImageTexture(ImageTexture<'b>),
+    PerlinTexture(PerlinTexture<'b>),
 }
 
 pub mod checker;
 pub mod image;
+pub mod perlin;
 pub mod solid;
