@@ -2,8 +2,8 @@ use std::mem;
 
 use crate::{
     boundingbox::{BoundingBox, IntoBoundingBox},
-    hitable::HitKind,
-    hitable_list::HitableList,
+    hitables::HitKind,
+    hitables::hitable_list::HitableList,
 };
 use enum_dispatch::enum_dispatch;
 

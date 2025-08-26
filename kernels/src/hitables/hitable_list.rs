@@ -2,7 +2,7 @@ use core::ops::Range;
 
 use crate::{
     boundingbox::{BoundingBox, IntoBoundingBox},
-    hitable::{HitKind, HitKindDevice, HitRecord, Hitable},
+    hitables::{HitKind, HitKindDevice, HitRecord, Hitable},
     ray::Ray,
     vec3::Real,
 };

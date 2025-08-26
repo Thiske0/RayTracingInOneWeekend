@@ -1,6 +1,6 @@
 use crate::{
     color::Color,
-    hitable::HitRecord,
+    hitables::HitRecord,
     materials::{Material, MaterialKind},
     random::Random,
     ray::Ray,

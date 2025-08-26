@@ -4,13 +4,20 @@ use enum_dispatch::enum_dispatch;
 
 use crate::{
     boundingbox::{BoundingBox, IntoBoundingBox},
-    hitable_list::{HitableList, HitableListDevice},
+    hitables::hitable_list::{HitableList, HitableListDevice},
+    hitables::sphere::{Sphere, SphereDevice},
     materials::MaterialKind,
     ray::Ray,
-    sphere::{Sphere, SphereDevice},
     vec3::{Point3, Real, Vec3},
 };
 use gpu_builder::Builder;
+
+pub mod hitable_list;
+pub mod planar;
+pub mod sphere;
+
+#[cfg(not(target_os = "cuda"))]
+pub mod hitable_list_builder;
 
 #[enum_dispatch]
 pub trait Hitable {

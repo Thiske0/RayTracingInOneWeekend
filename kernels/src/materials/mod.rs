@@ -1,6 +1,6 @@
 use crate::{
     color::Color,
-    hitable::HitRecord,
+    hitables::HitRecord,
     materials::{
         dielectric::{Dielectric, DielectricDevice},
         lambertian::{Lambertian, LambertianDevice},

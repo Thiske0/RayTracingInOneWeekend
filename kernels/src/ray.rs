@@ -1,7 +1,7 @@
 use crate::{
     ImageRenderOptions,
     color::Color,
-    hitable::{HitKind, Hitable},
+    hitables::{HitKind, Hitable},
     materials::Material,
     random::Random,
     vec3::{Point3, Real, Vec3},

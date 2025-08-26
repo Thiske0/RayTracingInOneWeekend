@@ -14,11 +14,11 @@ use simple_ray_tracer::{
 
 use simple_ray_tracer_kernels::{
     color::Color,
-    hitable::HitKind,
-    hitable_list_builder::HitableListBuilder,
+    hitables::HitKind,
+    hitables::hitable_list_builder::HitableListBuilder,
+    hitables::sphere::Sphere,
     materials::{dielectric::Dielectric, lambertian::Lambertian, metal::Metal},
     random::RandomRange,
-    sphere::Sphere,
     textures::{
         checker::CheckerTexture, image::ImageTexture, perlin::PerlinTexture, solid::SolidTexture,
     },

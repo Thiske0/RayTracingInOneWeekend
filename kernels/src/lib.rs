@@ -15,7 +15,7 @@ use gpu_rand::DefaultRand;
 
 use crate::random::Random;
 use crate::vec3::{Point3, Real, Vec3};
-use crate::{color::Color, hitable::HitKind};
+use crate::{color::Color, hitables::HitKind};
 use grid_nd::GridND;
 
 #[cfg(not(target_os = "cuda"))]
@@ -23,17 +23,12 @@ use indicatif::ProgressBar;
 
 pub mod boundingbox;
 pub mod color;
-pub mod hitable;
-pub mod hitable_list;
+pub mod hitables;
 pub mod materials;
 pub mod random;
 pub mod ray;
-pub mod sphere;
 pub mod textures;
 pub mod vec3;
-
-#[cfg(not(target_os = "cuda"))]
-pub mod hitable_list_builder;
 
 #[cfg_attr(not(target_os = "cuda"), derive(Clone, Copy, DeviceCopy))]
 #[repr(C)]
@@ -109,7 +104,7 @@ fn render_pixel(
     }
     pixel_color / options.samples_per_pixel as Real
 }
-use crate::hitable::Hitable;
+use crate::hitables::Hitable;
 use crate::materials::Material;
 
 /// This function is used to render the image using CUDA kernels.
