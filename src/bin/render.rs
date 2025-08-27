@@ -14,9 +14,7 @@ use simple_ray_tracer::{
 
 use simple_ray_tracer_kernels::{
     color::Color,
-    hitables::HitKind,
-    hitables::hitable_list_builder::HitableListBuilder,
-    hitables::sphere::Sphere,
+    hitables::{HitKind, hitable_list_builder::HitableListBuilder, planar::Quad, sphere::Sphere},
     materials::{dielectric::Dielectric, lambertian::Lambertian, metal::Metal},
     random::RandomRange,
     textures::{
@@ -140,17 +138,85 @@ fn perlin_spheres<'a>(options: &mut RenderOptions) -> HitableListBuilder<'a> {
     world
 }
 
+fn quads<'a>(options: &mut RenderOptions) -> HitableListBuilder<'a> {
+    let mut world: HitableListBuilder<'_> = HitableListBuilder::new();
+
+    // Materials
+    let left_red = Lambertian::new(SolidTexture::new(Color::new(1.0, 0.2, 0.2)).into());
+    let back_green = Lambertian::new(SolidTexture::new(Color::new(0.2, 1.0, 0.2)).into());
+    let right_blue = Lambertian::new(SolidTexture::new(Color::new(0.2, 0.2, 1.0)).into());
+    let upper_orange = Lambertian::new(SolidTexture::new(Color::new(1.0, 0.5, 0.0)).into());
+    let lower_teal = Lambertian::new(SolidTexture::new(Color::new(0.2, 0.8, 0.8)).into());
+
+    // Quads
+    world.add(
+        Quad::new(
+            Point3::new(-3.0, -2.0, 5.0),
+            Vec3::new(0.0, 0.0, -4.0),
+            Vec3::new(0.0, 4.0, 0.0),
+            left_red,
+        )
+        .into(),
+    );
+    world.add(
+        Quad::new(
+            Point3::new(-2.0, -2.0, 0.0),
+            Vec3::new(4.0, 0.0, 0.0),
+            Vec3::new(0.0, 4.0, 0.0),
+            back_green,
+        )
+        .into(),
+    );
+    world.add(
+        Quad::new(
+            Point3::new(3.0, -2.0, 1.0),
+            Vec3::new(0.0, 0.0, 4.0),
+            Vec3::new(0.0, 4.0, 0.0),
+            right_blue,
+        )
+        .into(),
+    );
+    world.add(
+        Quad::new(
+            Point3::new(-2.0, 3.0, 1.0),
+            Vec3::new(4.0, 0.0, 0.0),
+            Vec3::new(0.0, 0.0, 4.0),
+            upper_orange,
+        )
+        .into(),
+    );
+    world.add(
+        Quad::new(
+            Point3::new(-2.0, -3.0, 5.0),
+            Vec3::new(4.0, 0.0, 0.0),
+            Vec3::new(0.0, 0.0, -4.0),
+            lower_teal,
+        )
+        .into(),
+    );
+
+    options.vertical_fov = 80.0;
+    options.lookfrom = Point3::new(0.0, 0.0, 9.0);
+    options.lookat = Point3::new(0.0, 0.0, 0.0);
+    options.vup = Vec3::new(0.0, 1.0, 0.0);
+
+    options.defocus_angle = 0.0;
+
+    world
+}
+
 fn main() -> Result<()> {
     // Parse command line options
     let mut options = Options::parse();
 
     let earth_image = ImageTexture::from_file("data/earthmap.jpg")?;
 
-    let scene = 3;
+    let scene = 4;
     let mut world = match scene {
         1 => bouncing_spheres()?,
         2 => earth(&mut options.render, &earth_image),
         3 => perlin_spheres(&mut options.render),
+        4 => quads(&mut options.render),
         _ => {
             panic!("Unknown scene {}", scene);
         }

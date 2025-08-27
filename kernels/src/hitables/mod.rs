@@ -4,8 +4,11 @@ use enum_dispatch::enum_dispatch;
 
 use crate::{
     boundingbox::{BoundingBox, IntoBoundingBox},
-    hitables::hitable_list::{HitableList, HitableListDevice},
-    hitables::sphere::{Sphere, SphereDevice},
+    hitables::{
+        hitable_list::{HitableList, HitableListDevice},
+        planar::{Quad, QuadDevice},
+        sphere::{Sphere, SphereDevice},
+    },
     materials::MaterialKind,
     ray::Ray,
     vec3::{Point3, Real, Vec3},
@@ -27,19 +30,11 @@ pub trait Hitable {
 #[repr(C)]
 #[derive(Builder)]
 #[use_lifetime("'b")]
-#[enum_dispatch(Hitable)]
+#[enum_dispatch(Hitable, IntoBoundingBox)]
 pub enum HitKind<'b> {
     Sphere(Sphere<'b>),
+    Quad(Quad<'b>),
     HitableList(HitableList<'b>),
-}
-
-impl IntoBoundingBox for HitKind<'_> {
-    fn boundingbox(&self) -> BoundingBox {
-        match self {
-            HitKind::Sphere(sphere) => sphere.boundingbox(),
-            HitKind::HitableList(list) => list.boundingbox(),
-        }
-    }
 }
 
 pub struct HitRecord<'a> {

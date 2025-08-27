@@ -3,13 +3,15 @@ use core::ops::{self, Index, Range};
 use crate::random::RandomRange;
 #[cfg(not(target_os = "cuda"))]
 use cust::DeviceCopy;
+use gpu_builder::DeviceCopyBuilder;
 
 use crate::{color::Color, random::Random};
 
 pub type Real = f32;
 
+#[repr(C)]
 #[cfg_attr(not(target_os = "cuda"), derive(DeviceCopy, Copy, Debug))]
-#[derive(PartialEq, Clone)]
+#[derive(PartialEq, Clone, DeviceCopyBuilder)]
 pub struct Vec3 {
     pub x: Real,
     pub y: Real,

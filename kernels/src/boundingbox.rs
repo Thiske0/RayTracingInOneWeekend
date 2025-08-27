@@ -20,7 +20,17 @@ pub struct BoundingBox {
 
 impl BoundingBox {
     pub fn new(min: Point3, max: Point3) -> Self {
-        BoundingBox { min, max }
+        let mut result = BoundingBox { min, max };
+        result.pad_to_minimum();
+        result
+    }
+    pub fn new_point(p: Point3) -> Self {
+        let mut result = BoundingBox {
+            min: p.clone(),
+            max: p,
+        };
+        result.pad_to_minimum();
+        result
     }
 
     pub fn empty() -> Self {
@@ -31,7 +41,7 @@ impl BoundingBox {
     }
 
     pub fn merge(&self, other: &BoundingBox) -> BoundingBox {
-        BoundingBox {
+        let mut result = BoundingBox {
             min: Point3::new(
                 self.min.x.min(other.min.x),
                 self.min.y.min(other.min.y),
@@ -42,6 +52,25 @@ impl BoundingBox {
                 self.max.y.max(other.max.y),
                 self.max.z.max(other.max.z),
             ),
+        };
+        result.pad_to_minimum();
+        result
+    }
+
+    fn pad_to_minimum(&mut self) {
+        let min_size = 1e-6;
+
+        if (self.max.x - self.min.x).abs() < min_size {
+            self.max.x += min_size / 2.0;
+            self.min.x -= min_size / 2.0;
+        }
+        if (self.max.y - self.min.y).abs() < min_size {
+            self.max.y += min_size / 2.0;
+            self.min.y -= min_size / 2.0;
+        }
+        if (self.max.z - self.min.z).abs() < min_size {
+            self.max.z += min_size / 2.0;
+            self.min.z -= min_size / 2.0;
         }
     }
 
