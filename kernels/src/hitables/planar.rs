@@ -79,6 +79,63 @@ impl Plane {
 #[repr(C)]
 #[derive(Builder)]
 #[use_lifetime("'a")]
+pub struct Triangle<'a> {
+    origin: Point3,
+    u: Vec3,
+    v: Vec3,
+    plane: Plane,
+    mat: MaterialKind<'a>,
+}
+
+impl<'a> Triangle<'a> {
+    pub fn new(p1: Point3, p2: Point3, p3: Point3, mat: MaterialKind<'a>) -> Self {
+        let u = p2 - &p1;
+        let v = p3 - &p1;
+        let plane = Plane::from_uv(&p1, &u, &v);
+        Triangle {
+            origin: p1,
+            u,
+            v,
+            plane,
+            mat,
+        }
+    }
+}
+
+impl<'b> Hitable for Triangle<'b> {
+    fn hit<'a>(&'a self, ray: &Ray, t_range: &Range<Real>) -> Option<HitRecord<'a>> {
+        if let Some(hit) = self.plane.hit(ray, t_range) {
+            let (u, v) = self
+                .plane
+                .get_uv_coords(&hit.p, &self.origin, &self.u, &self.v);
+            if u >= 0.0 && v >= 0.0 && u + v <= 1.0 {
+                return Some(HitRecord {
+                    p: hit.p,
+                    normal: hit.normal,
+                    t: hit.t,
+                    is_front_face: hit.is_front_face,
+                    u,
+                    v,
+                    mat: &self.mat,
+                });
+            }
+        }
+        None
+    }
+}
+
+impl<'a> IntoBoundingBox for Triangle<'a> {
+    fn boundingbox(&self) -> BoundingBox {
+        // Compute the bounding box of all three vertices.
+        let bbox = BoundingBox::new_point(self.origin.clone());
+        let bbox = bbox.merge(&BoundingBox::new_point((&self.origin) + &self.u));
+        bbox.merge(&BoundingBox::new_point((&self.origin) + &self.v))
+    }
+}
+
+#[repr(C)]
+#[derive(Builder)]
+#[use_lifetime("'a")]
 pub struct Quad<'a> {
     origin: Point3,
     u: Vec3,

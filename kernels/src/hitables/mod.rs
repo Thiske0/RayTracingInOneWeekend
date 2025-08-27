@@ -6,7 +6,7 @@ use crate::{
     boundingbox::{BoundingBox, IntoBoundingBox},
     hitables::{
         hitable_list::{HitableList, HitableListDevice},
-        planar::{Quad, QuadDevice},
+        planar::{Quad, QuadDevice, Triangle, TriangleDevice},
         sphere::{Sphere, SphereDevice},
     },
     materials::MaterialKind,
@@ -34,6 +34,7 @@ pub trait Hitable {
 pub enum HitKind<'b> {
     Sphere(Sphere<'b>),
     Quad(Quad<'b>),
+    Triangle(Triangle<'b>),
     HitableList(HitableList<'b>),
 }
 

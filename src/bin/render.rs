@@ -14,7 +14,12 @@ use simple_ray_tracer::{
 
 use simple_ray_tracer_kernels::{
     color::Color,
-    hitables::{HitKind, hitable_list_builder::HitableListBuilder, planar::Quad, sphere::Sphere},
+    hitables::{
+        HitKind,
+        hitable_list_builder::HitableListBuilder,
+        planar::{Quad, Triangle},
+        sphere::Sphere,
+    },
     materials::{dielectric::Dielectric, lambertian::Lambertian, metal::Metal},
     random::RandomRange,
     textures::{
@@ -138,7 +143,7 @@ fn perlin_spheres<'a>(options: &mut RenderOptions) -> HitableListBuilder<'a> {
     world
 }
 
-fn quads<'a>(options: &mut RenderOptions) -> HitableListBuilder<'a> {
+fn planar<'a>(options: &mut RenderOptions) -> HitableListBuilder<'a> {
     let mut world: HitableListBuilder<'_> = HitableListBuilder::new();
 
     // Materials
@@ -146,6 +151,8 @@ fn quads<'a>(options: &mut RenderOptions) -> HitableListBuilder<'a> {
     let back_green = Lambertian::new(SolidTexture::new(Color::new(0.2, 1.0, 0.2)).into());
     let right_blue = Lambertian::new(SolidTexture::new(Color::new(0.2, 0.2, 1.0)).into());
     let upper_orange = Lambertian::new(SolidTexture::new(Color::new(1.0, 0.5, 0.0)).into());
+    let upper_teal = Lambertian::new(SolidTexture::new(Color::new(0.2, 0.8, 0.8)).into());
+    let lower_orange = Lambertian::new(SolidTexture::new(Color::new(1.0, 0.5, 0.0)).into());
     let lower_teal = Lambertian::new(SolidTexture::new(Color::new(0.2, 0.8, 0.8)).into());
 
     // Quads
@@ -177,20 +184,38 @@ fn quads<'a>(options: &mut RenderOptions) -> HitableListBuilder<'a> {
         .into(),
     );
     world.add(
-        Quad::new(
+        Triangle::new(
+            Point3::new(-2.0, 3.0, 5.0),
+            Point3::new(2.0, 3.0, 5.0),
+            Point3::new(2.0, 3.0, 1.0),
+            upper_teal,
+        )
+        .into(),
+    );
+    world.add(
+        Triangle::new(
+            Point3::new(-2.0, 3.0, 5.0),
+            Point3::new(2.0, 3.0, 1.0),
             Point3::new(-2.0, 3.0, 1.0),
-            Vec3::new(4.0, 0.0, 0.0),
-            Vec3::new(0.0, 0.0, 4.0),
             upper_orange,
         )
         .into(),
     );
     world.add(
-        Quad::new(
+        Triangle::new(
             Point3::new(-2.0, -3.0, 5.0),
-            Vec3::new(4.0, 0.0, 0.0),
-            Vec3::new(0.0, 0.0, -4.0),
+            Point3::new(2.0, -3.0, 5.0),
+            Point3::new(-2.0, -3.0, 1.0),
             lower_teal,
+        )
+        .into(),
+    );
+    world.add(
+        Triangle::new(
+            Point3::new(2.0, -3.0, 5.0),
+            Point3::new(2.0, -3.0, 1.0),
+            Point3::new(-2.0, -3.0, 1.0),
+            lower_orange,
         )
         .into(),
     );
@@ -216,7 +241,7 @@ fn main() -> Result<()> {
         1 => bouncing_spheres()?,
         2 => earth(&mut options.render, &earth_image),
         3 => perlin_spheres(&mut options.render),
-        4 => quads(&mut options.render),
+        4 => planar(&mut options.render),
         _ => {
             panic!("Unknown scene {}", scene);
         }
