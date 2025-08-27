@@ -20,7 +20,9 @@ use simple_ray_tracer_kernels::{
         planar::{Quad, Triangle},
         sphere::Sphere,
     },
-    materials::{dielectric::Dielectric, lambertian::Lambertian, metal::Metal},
+    materials::{
+        dielectric::Dielectric, diffuse_light::DiffuseLight, lambertian::Lambertian, metal::Metal,
+    },
     random::RandomRange,
     textures::{
         checker::CheckerTexture, image::ImageTexture, perlin::PerlinTexture, solid::SolidTexture,
@@ -56,7 +58,7 @@ fn generate_random_sphere<'a>(x: Real, y: Real, mut rng: ThreadRng) -> Option<Hi
     }
 }
 
-fn bouncing_spheres<'a>() -> Result<HitableListBuilder<'a>> {
+fn bouncing_spheres<'a>(options: &mut RenderOptions) -> Result<HitableListBuilder<'a>> {
     let mut world = HitableListBuilder::new();
 
     let checker_texture =
@@ -90,6 +92,9 @@ fn bouncing_spheres<'a>() -> Result<HitableListBuilder<'a>> {
 
     let material3 = Metal::new(SolidTexture::new(Color::new(0.7, 0.6, 0.5)).into(), 0.0);
     world.add(Sphere::new_static(Point3::new(4.0, 1.0, 0.0), 1.0, material3).into());
+
+    options.background = Color::new(0.7, 0.8, 1.0);
+
     Ok(world)
 }
 
@@ -107,6 +112,7 @@ fn earth<'a>(
     options.vup = Vec3::new(0.0, 1.0, 0.0);
 
     options.defocus_angle = 0.0;
+    options.background = Color::new(0.7, 0.8, 1.0);
 
     let mut world: HitableListBuilder<'_> = HitableListBuilder::new();
     world.add(globe.into());
@@ -139,6 +145,7 @@ fn perlin_spheres<'a>(options: &mut RenderOptions) -> HitableListBuilder<'a> {
     options.vup = Vec3::new(0.0, 1.0, 0.0);
 
     options.defocus_angle = 0.0;
+    options.background = Color::new(0.7, 0.8, 1.0);
 
     world
 }
@@ -226,6 +233,27 @@ fn planar<'a>(options: &mut RenderOptions) -> HitableListBuilder<'a> {
     options.vup = Vec3::new(0.0, 1.0, 0.0);
 
     options.defocus_angle = 0.0;
+    options.background = Color::new(0.7, 0.8, 1.0);
+
+    world
+}
+
+fn lights<'a>(options: &mut RenderOptions) -> HitableListBuilder<'a> {
+    let mut world = perlin_spheres(options);
+
+    let difflight = DiffuseLight::new(SolidTexture::new(Color::new(4.0, 4.0, 4.0)).into());
+    world.add(
+        Quad::new(
+            Point3::new(3.0, 1.0, -2.0),
+            Vec3::new(2.0, 0.0, 0.0),
+            Vec3::new(0.0, 2.0, 0.0),
+            difflight,
+        )
+        .into(),
+    );
+
+    options.lookfrom = Point3::new(26.0, 3.0, 6.0);
+    options.background = Color::black();
 
     world
 }
@@ -236,12 +264,13 @@ fn main() -> Result<()> {
 
     let earth_image = ImageTexture::from_file("data/earthmap.jpg")?;
 
-    let scene = 4;
+    let scene = 5;
     let mut world = match scene {
-        1 => bouncing_spheres()?,
+        1 => bouncing_spheres(&mut options.render)?,
         2 => earth(&mut options.render, &earth_image),
         3 => perlin_spheres(&mut options.render),
         4 => planar(&mut options.render),
+        5 => lights(&mut options.render),
         _ => {
             panic!("Unknown scene {}", scene);
         }

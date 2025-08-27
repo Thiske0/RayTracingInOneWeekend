@@ -37,6 +37,7 @@ pub struct ImageRenderOptions {
     pub samples_per_pixel: usize,
     pub origin: Point3,
     pub max_depth: usize,
+    pub background: Color,
 
     pub defocus_angle: Real,
     pub defocus_disk_u: Vec3,
@@ -100,7 +101,7 @@ fn render_pixel(
     let mut pixel_color = Color::black();
     for _ in 0..options.samples_per_pixel {
         let ray = Ray::get_ray(i, j, options, rng);
-        pixel_color += ray.color(options.max_depth, world, rng);
+        pixel_color += ray.color(world, options, rng);
     }
     pixel_color / options.samples_per_pixel as Real
 }
@@ -133,6 +134,7 @@ fn render_pixel_v2(
         }
 
         if let Some(hit) = world.hit(&current_ray, &(1e-12..Real::INFINITY)) {
+            pixel_color += (&current_color) * hit.mat.emission(&hit, rng);
             if let Some((mut scattered_ray, attenuation)) = hit.mat.scatter(&current_ray, hit, rng)
             {
                 // Improve the scattered ray's direction and origin.
@@ -156,13 +158,8 @@ fn render_pixel_v2(
                 cur_sample += 1;
             }
         } else {
-            let unit_direction = current_ray.direction.normalize();
-            let blue = Color::new(0.5, 0.7, 1.0);
-            let white = Color::new(1.0, 1.0, 1.0);
-            let t = 0.5 * (unit_direction.y + 1.0);
-
             // update color
-            pixel_color += white.lerp(&blue, t) * &current_color;
+            pixel_color += (&options.background) * &current_color;
             cur_depth = 0;
             cur_sample += 1;
         }

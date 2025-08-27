@@ -14,7 +14,7 @@ use crate::{
     vec3::{Real, Vec3},
 };
 
-#[cfg_attr(not(target_os = "cuda"), derive(Copy, DeviceCopy))]
+#[cfg_attr(not(target_os = "cuda"), derive(Copy, DeviceCopy, Debug))]
 #[repr(C)]
 #[derive(DeviceCopyBuilder, PartialEq, Clone)]
 pub struct Color(pub(crate) Vec3);
@@ -245,5 +245,30 @@ impl ops::Div<Real> for Color {
 
     fn div(self, scalar: Real) -> Self::Output {
         Color(&self.0 / scalar)
+    }
+}
+
+#[cfg(not(target_os = "cuda"))]
+use core::str::FromStr;
+
+#[cfg(not(target_os = "cuda"))]
+impl FromStr for Color {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let parts: Vec<&str> = s.split(',').collect();
+        if parts.len() != 3 {
+            return Err("Expected three comma-separated values".to_string());
+        }
+        let r = parts[0]
+            .parse()
+            .map_err(|_| "Invalid r value".to_string())?;
+        let g = parts[1]
+            .parse()
+            .map_err(|_| "Invalid g value".to_string())?;
+        let b = parts[2]
+            .parse()
+            .map_err(|_| "Invalid b value".to_string())?;
+        Ok(Color::new(r, g, b))
     }
 }

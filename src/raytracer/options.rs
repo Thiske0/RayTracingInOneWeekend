@@ -1,6 +1,9 @@
 use clap::{Args, Parser};
 
-use simple_ray_tracer_kernels::vec3::{Point3, Real, Vec3};
+use simple_ray_tracer_kernels::{
+    color::Color,
+    vec3::{Point3, Real, Vec3},
+};
 
 /// Rendering options for the ray tracer.
 #[derive(Debug, Args)]
@@ -45,6 +48,9 @@ pub struct RenderOptions {
     /// Render on GPU
     #[arg(short = 'g', long = "gpu", default_value_t = true)]
     pub gpu_render: bool,
+
+    #[arg(short = 'b', long = "background", default_value = "0,0,0")]
+    pub background: Color,
 }
 
 impl RenderOptions {

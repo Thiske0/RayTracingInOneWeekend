@@ -34,4 +34,8 @@ impl Material for Metal<'_> {
         let new_ray = Ray::new(hit.p, direction, ray.time);
         Some((new_ray, color))
     }
+
+    fn emission(&self, _hit_record: &HitRecord, _rng: &mut Random) -> Color {
+        Color::black()
+    }
 }

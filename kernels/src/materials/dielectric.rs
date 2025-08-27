@@ -63,4 +63,8 @@ impl Material for Dielectric<'_> {
         let scattered = Ray::new(hit.p, direction, ray.time);
         Some((scattered, color))
     }
+
+    fn emission(&self, _hit_record: &HitRecord, _rng: &mut Random) -> Color {
+        Color::black()
+    }
 }

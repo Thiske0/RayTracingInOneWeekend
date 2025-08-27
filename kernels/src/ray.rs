@@ -41,17 +41,19 @@ impl Ray {
     pub fn at(&self, t: Real) -> Point3 {
         &self.origin + &self.direction * t
     }
-    pub fn color(self, depth: usize, hitable: &HitKind, rng: &mut Random) -> Color {
+    pub fn color(self, hitable: &HitKind, options: &ImageRenderOptions, rng: &mut Random) -> Color {
         // If we've exceeded the ray bounce limit, no more light is gathered.
-        if depth <= 0 {
+        if options.max_depth <= 0 {
             return Color::black();
         }
 
         let mut current_color = Color::white();
+        let mut final_color = Color::black();
         let mut current_ray = self;
 
-        for _ in 0..depth {
+        for _ in 0..options.max_depth {
             if let Some(hit) = hitable.hit(&current_ray, &(1e-12..Real::INFINITY)) {
+                final_color += (&current_color) * hit.mat.emission(&hit, rng);
                 if let Some((mut scattered_ray, attenuation)) =
                     hit.mat.scatter(&current_ray, hit, rng)
                 {
@@ -64,18 +66,14 @@ impl Ray {
                     current_ray = scattered_ray;
                     current_color = current_color * attenuation;
                 } else {
-                    return Color::black(); // Ray was absorbed
+                    return final_color;
                 }
             } else {
-                let unit_direction = current_ray.direction.normalize();
-                let blue = Color::new(0.5, 0.7, 1.0);
-                let white = Color::new(1.0, 1.0, 1.0);
-                let t = 0.5 * (unit_direction.y + 1.0);
-                return white.lerp(&blue, t) * current_color;
+                return (&options.background) * current_color + final_color;
             }
         }
         // no more light is gathered
-        Color::black()
+        final_color
     }
 
     pub fn get_ray(i: usize, j: usize, options: &ImageRenderOptions, rng: &mut Random) -> Ray {

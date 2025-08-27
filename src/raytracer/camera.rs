@@ -70,6 +70,7 @@ impl Camera {
                 samples_per_pixel: self.render_options.samples_per_pixel,
                 origin,
                 max_depth: self.render_options.max_depth,
+                background: self.render_options.background,
                 defocus_angle: self.render_options.defocus_angle,
                 defocus_disk_u,
                 defocus_disk_v,
