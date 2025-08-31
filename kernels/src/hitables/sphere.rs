@@ -2,19 +2,18 @@ use core::ops::Range;
 
 use crate::{
     boundingbox::{BoundingBox, IntoBoundingBox},
-    hitables::{HitRecord, Hitable},
+    hitables::{HitKind, HitRecord, Hitable},
     materials::{MaterialKind, MaterialKindDevice},
     ray::Ray,
     vec3::{Point3, Real, Vec3},
 };
-use gpu_builder::Builder;
+use gpu_builder::derive_builder;
 
 #[cfg(target_os = "cuda")]
 use cuda_std::GpuFloat;
 
 #[repr(C)]
-#[derive(Builder)]
-#[use_lifetime("'a")]
+#[derive_builder('a)]
 pub struct Sphere<'a> {
     center: Ray,
     radius: Real,
@@ -22,12 +21,13 @@ pub struct Sphere<'a> {
 }
 
 impl<'a> Sphere<'a> {
-    pub fn new_static(center: Point3, radius: Real, material: MaterialKind<'a>) -> Self {
+    pub fn new_static(center: Point3, radius: Real, material: MaterialKind<'a>) -> HitKind<'a> {
         Sphere {
             center: Ray::new(center, Vec3::zero(), 0.0),
             radius,
             mat: material,
         }
+        .into()
     }
 
     pub fn new_moving(
@@ -35,13 +35,14 @@ impl<'a> Sphere<'a> {
         end: Point3,
         radius: Real,
         material: MaterialKind<'a>,
-    ) -> Self {
+    ) -> HitKind<'a> {
         let velocity = end - &start;
         Sphere {
             center: Ray::new(start, velocity, 0.0),
             radius,
             mat: material,
         }
+        .into()
     }
 
     fn get_uv(p: &Point3) -> (Real, Real) {

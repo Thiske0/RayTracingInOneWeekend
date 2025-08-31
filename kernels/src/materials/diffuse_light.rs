@@ -7,11 +7,11 @@ use crate::{
     textures::{Texture, TextureKind, TextureKindDevice},
 };
 
-use gpu_builder::Builder;
+use gpu_builder::derive_builder;
 
 #[repr(C)]
-#[derive(Builder)]
-#[use_lifetime("'a")]
+#[cfg_attr(not(target_os = "cuda"), derive(Clone))]
+#[derive_builder('a)]
 pub struct DiffuseLight<'a> {
     texture: TextureKind<'a>,
 }

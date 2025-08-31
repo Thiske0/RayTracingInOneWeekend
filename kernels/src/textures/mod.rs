@@ -11,7 +11,7 @@ use crate::{
 };
 
 use enum_dispatch::enum_dispatch;
-use gpu_builder::Builder;
+use gpu_builder::derive_builder;
 
 #[enum_dispatch]
 pub trait Texture {
@@ -20,8 +20,8 @@ pub trait Texture {
 }
 
 #[enum_dispatch(Texture)]
-#[derive(Builder)]
-#[use_lifetime("'b")]
+#[cfg_attr(not(target_os = "cuda"), derive(Clone))]
+#[derive_builder('b)]
 #[repr(C)]
 pub enum TextureKind<'b> {
     SolidTexture(SolidTexture),

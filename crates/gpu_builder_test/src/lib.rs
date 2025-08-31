@@ -3,7 +3,7 @@
 mod device_struct_struct {
     #[allow(unused)]
     #[repr(C)]
-    #[derive(gpu_builder::DeviceStruct)]
+    #[gpu_builder::derive_device_struct]
     struct A<'a, T: gpu_builder::Builder<'a>>
     where
         T: cust::memory::DeviceCopy,
@@ -22,9 +22,10 @@ mod device_struct_struct {
 
     #[allow(unused)]
     #[repr(C)]
-    #[derive(gpu_builder::DeviceStruct)]
+    #[gpu_builder::derive_device_struct]
     struct C<'a, T: gpu_builder::Builder<'a>> {
         z: T,
+        #[host_only]
         _marker: core::marker::PhantomData<&'a ()>,
     }
 
@@ -115,8 +116,7 @@ mod device_struct_struct {
 mod builder_struct {
     #[allow(unused)]
     #[repr(C)]
-    #[derive(gpu_builder::Builder)]
-    #[use_lifetime("'a")]
+    #[gpu_builder::derive_builder('a)]
     struct D<'a, T: gpu_builder::Builder<'a>>
     where
         T: cust::memory::DeviceCopy,
@@ -224,30 +224,30 @@ mod builder_struct {
 }
 mod device_struct_enum {
     #[repr(C)]
-    #[derive(gpu_builder::Builder)]
-    #[use_lifetime("'a")]
+    #[gpu_builder::derive_builder('a)]
     struct Wrapper<'a, T: gpu_builder::Builder<'a>> {
         x: T,
+        #[no_copy]
         _marker: core::marker::PhantomData<&'a ()>,
     }
 
     #[allow(unused)]
     #[repr(C)]
-    #[derive(gpu_builder::DeviceStruct)]
+    #[gpu_builder::derive_device_struct]
     enum Enum1<'a, T: gpu_builder::Builder<'a>> {
         T(Wrapper<'a, T>),
     }
 
     #[allow(unused)]
     #[repr(C)]
-    #[derive(gpu_builder::DeviceStruct)]
+    #[gpu_builder::derive_device_struct]
     enum Enum2 {
         T = 3,
     }
 
     #[allow(unused)]
     #[repr(C)]
-    #[derive(gpu_builder::DeviceStruct)]
+    #[gpu_builder::derive_device_struct]
     enum Enum3<'a, T: gpu_builder::Builder<'a>> {
         Quit,
         Move { x: Wrapper<'a, T>, y: i32 }, // Struct variant
@@ -256,7 +256,7 @@ mod device_struct_enum {
 
     #[allow(unused)]
     #[repr(C)]
-    #[derive(gpu_builder::DeviceStruct)]
+    #[gpu_builder::derive_device_struct]
     enum Enum4 {
         A(i32, i32),
         B(i32),
@@ -347,34 +347,31 @@ mod device_struct_enum {
 }
 
 mod builder_enum {
-    #[allow(unused)]
     #[repr(C)]
-    #[derive(gpu_builder::Builder)]
-    #[use_lifetime("'a")]
+    #[gpu_builder::derive_builder('a)]
     struct Wrapper<'a, T: gpu_builder::Builder<'a>> {
         x: T,
+        #[no_copy]
         _marker: core::marker::PhantomData<&'a ()>,
     }
 
     #[allow(unused)]
     #[repr(C)]
-    #[derive(gpu_builder::Builder)]
-    #[use_lifetime("'a")]
+    #[gpu_builder::derive_builder('a)]
     enum Enum1<'a, T: gpu_builder::Builder<'a>> {
         T(Wrapper<'a, T>),
     }
 
     #[allow(unused)]
     #[repr(C)]
-    #[derive(gpu_builder::Builder)]
+    #[gpu_builder::derive_builder]
     enum Enum2 {
         T = 3,
     }
 
     #[allow(unused)]
     #[repr(C)]
-    #[derive(gpu_builder::Builder)]
-    #[use_lifetime("'a")]
+    #[gpu_builder::derive_builder('a)]
     enum Enum3<'a, T: gpu_builder::Builder<'a>> {
         Quit,
         Move { x: Wrapper<'a, T>, y: i32 }, // Struct variant
@@ -383,7 +380,7 @@ mod builder_enum {
 
     #[allow(unused)]
     #[repr(C)]
-    #[derive(gpu_builder::Builder)]
+    #[gpu_builder::derive_builder]
     enum Enum4 {
         A(i32, i32),
         B(i32),
@@ -396,10 +393,11 @@ mod test {
     use gpu_builder::{Builder, NiceBuilder};
 
     #[repr(C)]
-    #[derive(Builder, PartialEq, Debug, Clone)]
-    #[use_lifetime("'a")]
+    #[derive(PartialEq, Debug, Clone)]
+    #[gpu_builder::derive_builder('a)]
     struct TestStruct<'a, T: Builder<'a>> {
         x: T,
+        #[no_copy]
         _marker: core::marker::PhantomData<&'a ()>,
     }
 

@@ -1,6 +1,7 @@
 use core::ops::{self, Index, Range};
 
 use crate::random::RandomRange;
+use approx::{AbsDiffEq, RelativeEq};
 #[cfg(not(target_os = "cuda"))]
 use cust::DeviceCopy;
 use gpu_builder::DeviceCopyBuilder;
@@ -129,6 +130,59 @@ impl Vec3 {
                 return v / length_squared.sqrt();
             }
         }
+    }
+
+    pub fn rotate(&self, axis: &Axis, angle_rad: Real) -> Self {
+        let cos_theta = angle_rad.cos();
+        let sin_theta = angle_rad.sin();
+        match axis {
+            Axis::X => Vec3::new(
+                self.x,
+                self.y * cos_theta - self.z * sin_theta,
+                self.y * sin_theta + self.z * cos_theta,
+            ),
+            Axis::Y => Vec3::new(
+                self.x * cos_theta + self.z * sin_theta,
+                self.y,
+                -self.x * sin_theta + self.z * cos_theta,
+            ),
+            Axis::Z => Vec3::new(
+                self.x * cos_theta - self.y * sin_theta,
+                self.x * sin_theta + self.y * cos_theta,
+                self.z,
+            ),
+        }
+    }
+}
+
+#[cfg(test)]
+mod rotation_tests {
+    use super::*;
+    use approx::assert_relative_eq;
+
+    #[test]
+    fn test_rotate_x() {
+        let vec = Vec3::new(0.0, 1.0, 0.0);
+        let rotated = vec.rotate(&Axis::X, 90.0_f32.to_radians());
+        assert_relative_eq!(rotated, Vec3::new(0.0, 0.0, 1.0));
+        let rotated = vec.rotate(&Axis::X, -90.0_f32.to_radians());
+        assert_relative_eq!(rotated, Vec3::new(0.0, 0.0, -1.0));
+    }
+    #[test]
+    fn test_rotate_y() {
+        let vec = Vec3::new(0.0, 0.0, 1.0);
+        let rotated = vec.rotate(&Axis::Y, 90.0_f32.to_radians());
+        assert_relative_eq!(rotated, Vec3::new(1.0, 0.0, 0.0));
+        let rotated = vec.rotate(&Axis::Y, -90.0_f32.to_radians());
+        assert_relative_eq!(rotated, Vec3::new(-1.0, 0.0, 0.0));
+    }
+    #[test]
+    fn test_rotate_z() {
+        let vec = Vec3::new(1.0, 0.0, 0.0);
+        let rotated = vec.rotate(&Axis::Z, 90.0_f32.to_radians());
+        assert_relative_eq!(rotated, Vec3::new(0.0, 1.0, 0.0));
+        let rotated = vec.rotate(&Axis::Z, -90.0_f32.to_radians());
+        assert_relative_eq!(rotated, Vec3::new(0.0, -1.0, 0.0));
     }
 }
 
@@ -328,6 +382,9 @@ impl FromStr for Vec3 {
     }
 }
 
+#[repr(C)]
+#[cfg_attr(not(target_os = "cuda"), derive(Debug, Clone, Copy, DeviceCopy))]
+#[derive(DeviceCopyBuilder)]
 pub enum Axis {
     X,
     Y,
@@ -357,5 +414,31 @@ impl Index<Axis> for &Vec3 {
 
     fn index(&self, index: Axis) -> &Real {
         self.index(&index)
+    }
+}
+
+impl RelativeEq for Vec3 {
+    fn relative_eq(&self, other: &Self, epsilon: Self::Epsilon, max_relative: Real) -> bool {
+        self.x.relative_eq(&other.x, epsilon, max_relative)
+            && self.y.relative_eq(&other.y, epsilon, max_relative)
+            && self.z.relative_eq(&other.z, epsilon, max_relative)
+    }
+
+    fn default_max_relative() -> Self::Epsilon {
+        Real::default_max_relative()
+    }
+}
+
+impl AbsDiffEq for Vec3 {
+    type Epsilon = Real;
+
+    fn default_epsilon() -> Self::Epsilon {
+        Real::default_epsilon()
+    }
+
+    fn abs_diff_eq(&self, other: &Self, epsilon: Self::Epsilon) -> bool {
+        self.x.abs_diff_eq(&other.x, epsilon)
+            && self.y.abs_diff_eq(&other.y, epsilon)
+            && self.z.abs_diff_eq(&other.z, epsilon)
     }
 }

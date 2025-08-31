@@ -23,6 +23,7 @@ simple-ray-tracer-kernels = { path = "kernels" }
 gpu_rand = { path = "../Rust-CUDA/crates/gpu_rand" }
 gpu-builder = { path = "crates/gpu_builder" }
 ref-builder = { path = "crates/ref_builder" }
+typed-arena = "2.0.2"
 
 [build-dependencies]
 cuda_builder = { path = "../Rust-CUDA/crates/cuda_builder" }

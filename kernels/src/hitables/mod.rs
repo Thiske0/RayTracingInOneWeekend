@@ -7,17 +7,21 @@ use crate::{
     hitables::{
         hitable_list::{HitableList, HitableListDevice},
         planar::{Quad, QuadDevice, Triangle, TriangleDevice},
+        rotate::{Rotate, RotateDevice},
         sphere::{Sphere, SphereDevice},
+        translate::{Translate, TranslateDevice},
     },
     materials::MaterialKind,
     ray::Ray,
     vec3::{Point3, Real, Vec3},
 };
-use gpu_builder::Builder;
+use gpu_builder::derive_builder;
 
 pub mod hitable_list;
 pub mod planar;
+pub mod rotate;
 pub mod sphere;
+pub mod translate;
 
 #[cfg(not(target_os = "cuda"))]
 pub mod hitable_list_builder;
@@ -28,14 +32,40 @@ pub trait Hitable {
 }
 
 #[repr(C)]
-#[derive(Builder)]
-#[use_lifetime("'b")]
+#[derive_builder('b)]
 #[enum_dispatch(Hitable, IntoBoundingBox)]
 pub enum HitKind<'b> {
     Sphere(Sphere<'b>),
     Quad(Quad<'b>),
     Triangle(Triangle<'b>),
+    HitKindRecursive(HitKindRecursive<'b>),
+}
+
+#[repr(C)]
+#[derive_builder('b)]
+#[enum_dispatch(Hitable, IntoBoundingBox)]
+pub enum HitKindRecursive<'b> {
     HitableList(HitableList<'b>),
+    Translate(Translate<'b>),
+    Rotate(Rotate<'b>),
+}
+
+impl<'a> From<HitableList<'a>> for HitKind<'a> {
+    fn from(value: HitableList<'a>) -> Self {
+        HitKind::HitKindRecursive(HitKindRecursive::HitableList(value))
+    }
+}
+
+impl<'a> From<Rotate<'a>> for HitKind<'a> {
+    fn from(value: Rotate<'a>) -> Self {
+        HitKind::HitKindRecursive(HitKindRecursive::Rotate(value))
+    }
+}
+
+impl<'a> From<Translate<'a>> for HitKind<'a> {
+    fn from(value: Translate<'a>) -> Self {
+        HitKind::HitKindRecursive(HitKindRecursive::Translate(value))
+    }
 }
 
 pub struct HitRecord<'a> {

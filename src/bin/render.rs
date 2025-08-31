@@ -1,6 +1,5 @@
-use core::panic;
-
 use clap::Parser;
+use core::panic;
 
 use grid_nd::GridND;
 use rand::rngs::ThreadRng;
@@ -17,8 +16,10 @@ use simple_ray_tracer_kernels::{
     hitables::{
         HitKind,
         hitable_list_builder::HitableListBuilder,
-        planar::{Quad, Triangle},
+        planar::{Quad, Triangle, make_box},
+        rotate::Rotate,
         sphere::Sphere,
+        translate::Translate,
     },
     materials::{
         dielectric::Dielectric, diffuse_light::DiffuseLight, lambertian::Lambertian, metal::Metal,
@@ -27,7 +28,7 @@ use simple_ray_tracer_kernels::{
     textures::{
         checker::CheckerTexture, image::ImageTexture, perlin::PerlinTexture, solid::SolidTexture,
     },
-    vec3::{Point3, Real, Vec3},
+    vec3::{Axis, Point3, Real, Vec3},
 };
 
 fn generate_random_sphere<'a>(x: Real, y: Real, mut rng: ThreadRng) -> Option<HitKind<'a>> {
@@ -58,7 +59,7 @@ fn generate_random_sphere<'a>(x: Real, y: Real, mut rng: ThreadRng) -> Option<Hi
     }
 }
 
-fn bouncing_spheres<'a>(options: &mut RenderOptions) -> Result<HitableListBuilder<'a>> {
+fn bouncing_spheres<'a>(options: &mut RenderOptions) -> HitableListBuilder<'a> {
     let mut world = HitableListBuilder::new();
 
     let checker_texture =
@@ -95,7 +96,7 @@ fn bouncing_spheres<'a>(options: &mut RenderOptions) -> Result<HitableListBuilde
 
     options.background = Color::new(0.7, 0.8, 1.0);
 
-    Ok(world)
+    world
 }
 
 fn earth<'a>(
@@ -103,7 +104,7 @@ fn earth<'a>(
     earth_image: &'a GridND<Color, 2>,
 ) -> HitableListBuilder<'a> {
     let earth_texture = ImageTexture::new(&earth_image);
-    let earth_surface = Lambertian::new(earth_texture.into());
+    let earth_surface = Lambertian::new(earth_texture);
     let globe = Sphere::new_static(Point3::new(0.0, 0.0, 0.0), 2.0, earth_surface);
 
     options.vertical_fov = 20.0;
@@ -122,22 +123,16 @@ fn earth<'a>(
 fn perlin_spheres<'a>(options: &mut RenderOptions) -> HitableListBuilder<'a> {
     let mut world: HitableListBuilder<'_> = HitableListBuilder::new();
 
-    world.add(
-        Sphere::new_static(
-            Point3::new(0.0, -1000.0, 0.0),
-            1000.0,
-            Lambertian::new(PerlinTexture::new(4.0).into()),
-        )
-        .into(),
-    );
-    world.add(
-        Sphere::new_static(
-            Point3::new(0.0, 2.0, 0.0),
-            2.0,
-            Lambertian::new(PerlinTexture::new(8.0).into()),
-        )
-        .into(),
-    );
+    world.add(Sphere::new_static(
+        Point3::new(0.0, -1000.0, 0.0),
+        1000.0,
+        Lambertian::new(PerlinTexture::new(4.0).into()),
+    ));
+    world.add(Sphere::new_static(
+        Point3::new(0.0, 2.0, 0.0),
+        2.0,
+        Lambertian::new(PerlinTexture::new(8.0).into()),
+    ));
 
     options.vertical_fov = 20.0;
     options.lookfrom = Point3::new(13.0, 2.0, 3.0);
@@ -154,78 +149,55 @@ fn planar<'a>(options: &mut RenderOptions) -> HitableListBuilder<'a> {
     let mut world: HitableListBuilder<'_> = HitableListBuilder::new();
 
     // Materials
-    let left_red = Lambertian::new(SolidTexture::new(Color::new(1.0, 0.2, 0.2)).into());
-    let back_green = Lambertian::new(SolidTexture::new(Color::new(0.2, 1.0, 0.2)).into());
-    let right_blue = Lambertian::new(SolidTexture::new(Color::new(0.2, 0.2, 1.0)).into());
-    let upper_orange = Lambertian::new(SolidTexture::new(Color::new(1.0, 0.5, 0.0)).into());
-    let upper_teal = Lambertian::new(SolidTexture::new(Color::new(0.2, 0.8, 0.8)).into());
-    let lower_orange = Lambertian::new(SolidTexture::new(Color::new(1.0, 0.5, 0.0)).into());
-    let lower_teal = Lambertian::new(SolidTexture::new(Color::new(0.2, 0.8, 0.8)).into());
+    let red = Lambertian::new(SolidTexture::new(Color::new(1.0, 0.2, 0.2)).into());
+    let green = Lambertian::new(SolidTexture::new(Color::new(0.2, 1.0, 0.2)).into());
+    let blue = Lambertian::new(SolidTexture::new(Color::new(0.2, 0.2, 1.0)).into());
+    let orange = Lambertian::new(SolidTexture::new(Color::new(1.0, 0.5, 0.0)).into());
+    let teal = Lambertian::new(SolidTexture::new(Color::new(0.2, 0.8, 0.8)).into());
 
     // Quads
-    world.add(
-        Quad::new(
-            Point3::new(-3.0, -2.0, 5.0),
-            Vec3::new(0.0, 0.0, -4.0),
-            Vec3::new(0.0, 4.0, 0.0),
-            left_red,
-        )
-        .into(),
-    );
-    world.add(
-        Quad::new(
-            Point3::new(-2.0, -2.0, 0.0),
-            Vec3::new(4.0, 0.0, 0.0),
-            Vec3::new(0.0, 4.0, 0.0),
-            back_green,
-        )
-        .into(),
-    );
-    world.add(
-        Quad::new(
-            Point3::new(3.0, -2.0, 1.0),
-            Vec3::new(0.0, 0.0, 4.0),
-            Vec3::new(0.0, 4.0, 0.0),
-            right_blue,
-        )
-        .into(),
-    );
-    world.add(
-        Triangle::new(
-            Point3::new(-2.0, 3.0, 5.0),
-            Point3::new(2.0, 3.0, 5.0),
-            Point3::new(2.0, 3.0, 1.0),
-            upper_teal,
-        )
-        .into(),
-    );
-    world.add(
-        Triangle::new(
-            Point3::new(-2.0, 3.0, 5.0),
-            Point3::new(2.0, 3.0, 1.0),
-            Point3::new(-2.0, 3.0, 1.0),
-            upper_orange,
-        )
-        .into(),
-    );
-    world.add(
-        Triangle::new(
-            Point3::new(-2.0, -3.0, 5.0),
-            Point3::new(2.0, -3.0, 5.0),
-            Point3::new(-2.0, -3.0, 1.0),
-            lower_teal,
-        )
-        .into(),
-    );
-    world.add(
-        Triangle::new(
-            Point3::new(2.0, -3.0, 5.0),
-            Point3::new(2.0, -3.0, 1.0),
-            Point3::new(-2.0, -3.0, 1.0),
-            lower_orange,
-        )
-        .into(),
-    );
+    world.add(Quad::new(
+        Point3::new(-3.0, -2.0, 5.0),
+        Vec3::new(0.0, 0.0, -4.0),
+        Vec3::new(0.0, 4.0, 0.0),
+        red,
+    ));
+    world.add(Quad::new(
+        Point3::new(-2.0, -2.0, 0.0),
+        Vec3::new(4.0, 0.0, 0.0),
+        Vec3::new(0.0, 4.0, 0.0),
+        green,
+    ));
+    world.add(Quad::new(
+        Point3::new(3.0, -2.0, 1.0),
+        Vec3::new(0.0, 0.0, 4.0),
+        Vec3::new(0.0, 4.0, 0.0),
+        blue,
+    ));
+    world.add(Triangle::new(
+        Point3::new(-2.0, 3.0, 5.0),
+        Point3::new(2.0, 3.0, 5.0),
+        Point3::new(2.0, 3.0, 1.0),
+        teal.clone(),
+    ));
+    world.add(Triangle::new(
+        Point3::new(-2.0, 3.0, 5.0),
+        Point3::new(2.0, 3.0, 1.0),
+        Point3::new(-2.0, 3.0, 1.0),
+        orange.clone(),
+    ));
+    world.add(Triangle::new(
+        Point3::new(-2.0, -3.0, 5.0),
+        Point3::new(2.0, -3.0, 5.0),
+        Point3::new(-2.0, -3.0, 1.0),
+        teal,
+    ));
+    world.add(Triangle::new(
+        Point3::new(2.0, -3.0, 5.0),
+        Point3::new(2.0, -3.0, 1.0),
+        Point3::new(-2.0, -3.0, 1.0),
+        orange,
+    ));
 
     options.vertical_fov = 80.0;
     options.lookfrom = Point3::new(0.0, 0.0, 9.0);
@@ -241,19 +213,107 @@ fn planar<'a>(options: &mut RenderOptions) -> HitableListBuilder<'a> {
 fn lights<'a>(options: &mut RenderOptions) -> HitableListBuilder<'a> {
     let mut world = perlin_spheres(options);
 
-    let difflight = DiffuseLight::new(SolidTexture::new(Color::new(4.0, 4.0, 4.0)).into());
-    world.add(
-        Quad::new(
-            Point3::new(3.0, 1.0, -2.0),
-            Vec3::new(2.0, 0.0, 0.0),
-            Vec3::new(0.0, 2.0, 0.0),
-            difflight,
-        )
-        .into(),
-    );
+    let difflight = DiffuseLight::new(SolidTexture::new(Color::new(4.0, 4.0, 4.0)));
+    world.add(Quad::new(
+        Point3::new(3.0, 1.0, -2.0),
+        Vec3::new(2.0, 0.0, 0.0),
+        Vec3::new(0.0, 2.0, 0.0),
+        difflight,
+    ));
 
     options.lookfrom = Point3::new(26.0, 3.0, 6.0);
     options.background = Color::black();
+
+    world
+}
+
+fn cornell_box<'a>(options: &mut RenderOptions) -> HitableListBuilder<'a> {
+    let mut world = HitableListBuilder::new();
+
+    let red = Lambertian::new(SolidTexture::new(Color::new(0.65, 0.05, 0.05)));
+    let green = Lambertian::new(SolidTexture::new(Color::new(0.12, 0.45, 0.15)));
+    let light = DiffuseLight::new(SolidTexture::new(Color::new(15.0, 15.0, 15.0)));
+    let white = Lambertian::new(SolidTexture::new(Color::new(0.73, 0.73, 0.73)));
+
+    world.add(Quad::new(
+        Point3::new(555.0, 0.0, 0.0),
+        Vec3::new(0.0, 555.0, 0.0),
+        Vec3::new(0.0, 0.0, 555.0),
+        green,
+    ));
+    world.add(Quad::new(
+        Point3::new(0.0, 0.0, 0.0),
+        Vec3::new(0.0, 555.0, 0.0),
+        Vec3::new(0.0, 0.0, 555.0),
+        red,
+    ));
+    world.add(Quad::new(
+        Point3::new(343.0, 554.0, 332.0),
+        Vec3::new(-130.0, 0.0, 0.0),
+        Vec3::new(0.0, 0.0, -105.0),
+        light,
+    ));
+    world.add(Quad::new(
+        Point3::new(0.0, 0.0, 0.0),
+        Vec3::new(555.0, 0.0, 0.0),
+        Vec3::new(0.0, 0.0, 555.0),
+        white.clone(),
+    ));
+    world.add(Quad::new(
+        Point3::new(555.0, 555.0, 555.0),
+        Vec3::new(-555.0, 0.0, 0.0),
+        Vec3::new(0.0, 0.0, -555.0),
+        white.clone(),
+    ));
+    world.add(Quad::new(
+        Point3::new(0.0, 0.0, 555.0),
+        Vec3::new(555.0, 0.0, 0.0),
+        Vec3::new(0.0, 555.0, 0.0),
+        white.clone(),
+    ));
+
+    world.add(Translate::new_owned(
+        Vec3::new(265.0, 0.0, 295.0),
+        Rotate::new_owned(
+            Axis::Y,
+            15.0_f32.to_radians(),
+            make_box(
+                Point3::new(0.0, 0.0, 0.0),
+                Point3::new(165.0, 330.0, 165.0),
+                white.clone(),
+            )
+            .into(),
+        ),
+    ));
+
+    world.add(Translate::new_owned(
+        Vec3::new(130.0, 0.0, 65.0),
+        Rotate::new_owned(
+            Axis::Y,
+            -18.0_f32.to_radians(),
+            make_box(
+                Point3::new(0.0, 0.0, 0.0),
+                Point3::new(165.0, 165.0, 165.0),
+                white.clone(),
+            )
+            .into(),
+        ),
+    ));
+
+    world.add_unrolled(make_box(
+        Point3::new(265.0, 0.0, 295.0),
+        Point3::new(430.0, 330.0, 460.0),
+        white,
+    ));
+
+    options.vertical_fov = 40.0;
+    options.lookfrom = Point3::new(278.0, 278.0, -800.0);
+    options.lookat = Point3::new(278.0, 278.0, 0.0);
+    options.vup = Vec3::new(0.0, 1.0, 0.0);
+    options.width = options.height;
+    options.samples_per_pixel = 200;
+
+    options.defocus_angle = 0.0;
 
     world
 }
@@ -264,13 +324,14 @@ fn main() -> Result<()> {
 
     let earth_image = ImageTexture::from_file("data/earthmap.jpg")?;
 
-    let scene = 5;
-    let mut world = match scene {
-        1 => bouncing_spheres(&mut options.render)?,
+    let scene = 6;
+    let world = match scene {
+        1 => bouncing_spheres(&mut options.render),
         2 => earth(&mut options.render, &earth_image),
         3 => perlin_spheres(&mut options.render),
         4 => planar(&mut options.render),
         5 => lights(&mut options.render),
+        6 => cornell_box(&mut options.render),
         _ => {
             panic!("Unknown scene {}", scene);
         }
@@ -282,7 +343,7 @@ fn main() -> Result<()> {
     // Time duration
     let start = std::time::Instant::now();
 
-    camera.render((&mut world).into())?;
+    camera.render(world.into())?;
 
     let duration = start.elapsed();
     println!("Render time: {:?}", duration);

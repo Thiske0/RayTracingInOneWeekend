@@ -1,4 +1,6 @@
 use crate::random::RandomRange;
+#[cfg(not(target_os = "cuda"))]
+use crate::textures::TextureKind;
 use crate::vec3::Vec3;
 use crate::{
     color::Color,
@@ -6,7 +8,7 @@ use crate::{
     textures::Texture,
     vec3::{Point3, Real},
 };
-use gpu_builder::{Builder, DeviceCopyBuilder};
+use gpu_builder::{DeviceCopyBuilder, derive_builder};
 use ref_builder::{RefBuilder, RefBuilderDevice};
 
 #[cfg(not(target_os = "cuda"))]
@@ -20,8 +22,8 @@ use cuda_std::GpuFloat;
 type TextureNoise = PerlinNoise<8>;
 
 #[repr(C)]
-#[derive(Builder)]
-#[use_lifetime("'a")]
+#[cfg_attr(not(target_os = "cuda"), derive(Clone))]
+#[derive_builder('a)]
 pub struct PerlinTexture<'a> {
     scale: Real,
     noise: RefBuilder<'a, TextureNoise>,
@@ -31,12 +33,13 @@ pub struct PerlinTexture<'a> {
 static NOISE: LazyLock<TextureNoise> = LazyLock::new(|| TextureNoise::new(&mut rand::rng()));
 
 #[cfg(not(target_os = "cuda"))]
-impl PerlinTexture<'_> {
-    pub fn new(scale: Real) -> Self {
+impl<'a> PerlinTexture<'a> {
+    pub fn new(scale: Real) -> TextureKind<'a> {
         PerlinTexture {
             scale,
             noise: RefBuilder::new(LazyLock::force(&NOISE)),
         }
+        .into()
     }
 }
 

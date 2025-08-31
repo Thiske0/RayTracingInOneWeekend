@@ -2,22 +2,15 @@ use core::marker::PhantomData;
 
 use crate::{Assert, IsTrue};
 
-use gpu_builder::{BuildResultType, Builder, DeviceImpl};
+use gpu_builder::{BuildResultType, Builder, derive_device_struct};
 
 #[repr(C)]
+#[derive_device_struct]
 pub struct GridND<'a, T: Builder<'a>, const N: usize> {
     data: *mut T,
     dims: [usize; N],
+    #[no_copy]
     _marker: PhantomData<&'a T>,
-}
-
-#[repr(C)]
-#[derive(DeviceImpl)]
-#[builder(GridND)]
-#[use_lifetime("'a")]
-pub struct GridNDDevice<T: BuildResultType, const N: usize> {
-    data: *mut T,
-    dims: [usize; N],
 }
 
 #[repr(C)]
@@ -251,18 +244,12 @@ pub mod host_impls {
             };
             let device_ptr = device_buffer.as_device_ptr().as_mut_ptr();
             device_buffers.add(device_buffer);
-            let inner_host = GridND {
-                data: self.data,
-                dims: self.dims,
-                _marker: PhantomData,
-            };
-            mem::forget(self); // Prevent double free
             Ok(BuildResult::new(
                 GridNDDevice {
                     data: device_ptr,
-                    dims: inner_host.dims,
+                    dims: self.dims,
                 },
-                inner_host,
+                self,
                 stream,
                 device_buffers,
             ))

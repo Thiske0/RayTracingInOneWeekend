@@ -8,14 +8,14 @@ use crate::{
     textures::{Texture, TextureKind, TextureKindDevice, solid::SolidTexture},
     vec3::Real,
 };
-use gpu_builder::Builder;
+use gpu_builder::derive_builder;
 
 #[cfg(target_os = "cuda")]
 use cuda_std::GpuFloat;
 
 #[repr(C)]
-#[derive(Builder)]
-#[use_lifetime("'a")]
+#[cfg_attr(not(target_os = "cuda"), derive(Clone))]
+#[derive_builder('a)]
 pub struct Dielectric<'a> {
     refraction_index: Real,
     texture: TextureKind<'a>,

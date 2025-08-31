@@ -83,16 +83,19 @@ where
 
                 (result, result_buffers)
             };
+        let result_host = SliceBuilder {
+            reference: self.reference,
+            size: self.size,
+            _marker: core::marker::PhantomData,
+            owned: self.owned,
+        };
+        mem::forget(self); // Prevent double free
         Ok(BuildResult::new(
             SliceBuilderDevice {
                 reference: result,
-                size: self.size,
+                size: result_host.size,
             },
-            SliceBuilder {
-                reference: self.reference,
-                size: self.size,
-                _marker: core::marker::PhantomData,
-            },
+            result_host,
             stream,
             buffers,
         ))
@@ -113,6 +116,32 @@ impl<'a, T: Builder<'a>> SliceBuilder<'a, T> {
             reference: reference.as_ptr(),
             size: reference.len(),
             _marker: core::marker::PhantomData,
+            owned: false,
+        }
+    }
+}
+
+impl<'a, T: Builder<'a>> SliceBuilder<'a, T> {
+    pub fn new_owned(owned_reference: Vec<T>) -> Self {
+        let size = owned_reference.len();
+        let reference = owned_reference.as_ptr();
+        core::mem::forget(owned_reference);
+
+        SliceBuilder {
+            reference,
+            size,
+            _marker: core::marker::PhantomData,
+            owned: true,
+        }
+    }
+}
+
+impl<'a, T: Builder<'a>> Drop for SliceBuilder<'a, T> {
+    fn drop(&mut self) {
+        if self.owned {
+            unsafe {
+                let _ = Vec::from_raw_parts(self.reference as *mut T, self.size, self.size);
+            }
         }
     }
 }
@@ -182,12 +211,15 @@ impl<'a, T: Builder<'a>> Builder<'a> for RefBuilder<'a, T> {
 
             (result, result_buffers)
         };
+        let result_host = RefBuilder {
+            reference: self.reference,
+            _marker: core::marker::PhantomData,
+            owned: self.owned,
+        };
+        mem::forget(self); // Prevent double free
         Ok(BuildResult::new(
             RefBuilderDevice { reference: result },
-            RefBuilder {
-                reference: self.reference,
-                _marker: core::marker::PhantomData,
-            },
+            result_host,
             stream,
             buffers,
         ))
@@ -207,6 +239,27 @@ impl<'a, T: Builder<'a>> RefBuilder<'a, T> {
         RefBuilder {
             reference,
             _marker: core::marker::PhantomData,
+            owned: false,
+        }
+    }
+}
+
+impl<'a, T: Builder<'a>> RefBuilder<'a, T> {
+    pub fn new_owned(owned_reference: T) -> Self {
+        RefBuilder {
+            reference: Box::leak(Box::new(owned_reference)),
+            _marker: core::marker::PhantomData,
+            owned: true,
+        }
+    }
+}
+
+impl<'a, T: Builder<'a>> Drop for RefBuilder<'a, T> {
+    fn drop(&mut self) {
+        if self.owned {
+            unsafe {
+                let _ = Box::from_raw(self.reference as *mut T);
+            }
         }
     }
 }

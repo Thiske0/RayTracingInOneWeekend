@@ -5,7 +5,6 @@ use crate::{
     hitables::HitKind,
     hitables::hitable_list::HitableList,
 };
-use enum_dispatch::enum_dispatch;
 
 impl<'a> IntoBoundingBox for HitableListBuilder<'a> {
     fn boundingbox(&self) -> BoundingBox {
@@ -17,16 +16,9 @@ impl<'a> IntoBoundingBox for HitableListBuilder<'a> {
     }
 }
 
-#[enum_dispatch(IntoBoundingBox)]
-enum HitableListBuilderKind<'a> {
-    Leaf(HitKind<'a>),
-    Node(HitableListBuilder<'a>),
-}
-
 #[cfg(not(target_os = "cuda"))]
 pub struct HitableListBuilder<'a> {
-    hitables: Vec<HitableListBuilderKind<'a>>,
-    build_result: Vec<HitKind<'a>>,
+    hitables: Vec<HitKind<'a>>,
 }
 
 #[cfg(not(target_os = "cuda"))]
@@ -34,7 +26,6 @@ impl<'a> HitableListBuilder<'a> {
     pub fn new() -> Self {
         HitableListBuilder {
             hitables: Vec::new(),
-            build_result: Vec::new(),
         }
     }
 
@@ -44,13 +35,11 @@ impl<'a> HitableListBuilder<'a> {
         let axis = bounding_box.longest_axis();
         let average_along_axis = (&bounding_box.center())[&axis];
 
-        let (mut left_hitables, mut right_hitables): (
-            Vec<HitableListBuilderKind>,
-            Vec<HitableListBuilderKind>,
-        ) = self.hitables.into_iter().partition(|h| {
-            let center = h.boundingbox().center();
-            (&center)[&axis] < average_along_axis
-        });
+        let (mut left_hitables, mut right_hitables): (Vec<HitKind<'a>>, Vec<HitKind<'a>>) =
+            self.hitables.into_iter().partition(|h| {
+                let center = h.boundingbox().center();
+                (&center)[&axis] < average_along_axis
+            });
 
         if left_hitables.len() < right_hitables.len() {
             mem::swap(&mut left_hitables, &mut right_hitables);
@@ -60,7 +49,6 @@ impl<'a> HitableListBuilder<'a> {
             (
                 HitableListBuilder {
                     hitables: left_hitables,
-                    build_result: Vec::new(),
                 },
                 None,
             )
@@ -68,11 +56,9 @@ impl<'a> HitableListBuilder<'a> {
             (
                 HitableListBuilder {
                     hitables: left_hitables,
-                    build_result: Vec::new(),
                 },
                 Some(HitableListBuilder {
                     hitables: right_hitables,
-                    build_result: Vec::new(),
                 }),
             )
         }
@@ -101,17 +87,21 @@ impl<'a> HitableListBuilder<'a> {
 
         let builders = divided
             .into_iter()
-            .map(|builder| HitableListBuilderKind::Node(builder.subdivide(&divisions[1..])))
+            .map(|builder| builder.subdivide(&divisions[1..]))
             .collect::<Vec<_>>();
 
+        if builders.len() == 1 {
+            let first = builders.into_iter().next().unwrap();
+            return first;
+        }
+
         HitableListBuilder {
-            hitables: builders,
-            build_result: Vec::new(),
+            hitables: builders.into_iter().map(|b| b.into()).collect(),
         }
     }
 
     pub fn add(&mut self, hitable: HitKind<'a>) {
-        self.hitables.push(HitableListBuilderKind::Leaf(hitable));
+        self.hitables.push(hitable);
     }
 
     pub fn add_unrolled(&mut self, other: HitableListBuilder<'a>) {
@@ -119,22 +109,14 @@ impl<'a> HitableListBuilder<'a> {
     }
 }
 
-impl<'a> From<&'a mut HitableListBuilder<'a>> for HitableList<'a> {
-    fn from(builder: &'a mut HitableListBuilder<'a>) -> Self {
-        builder.build_result = builder
-            .hitables
-            .iter_mut()
-            .map(|h| match h {
-                HitableListBuilderKind::Leaf(h) => unsafe { std::ptr::read(h) },
-                HitableListBuilderKind::Node(b) => HitKind::from(b),
-            })
-            .collect();
-        HitableList::new(builder.build_result.as_slice())
+impl<'a> From<&'a HitableListBuilder<'a>> for HitKind<'a> {
+    fn from(builder: &'a HitableListBuilder<'a>) -> Self {
+        HitableList::new(builder.hitables.as_slice()).into()
     }
 }
 
-impl<'a> From<&'a mut HitableListBuilder<'a>> for HitKind<'a> {
-    fn from(builder: &'a mut HitableListBuilder<'a>) -> Self {
-        Into::<HitableList<'a>>::into(builder).into()
+impl<'a> From<HitableListBuilder<'a>> for HitKind<'a> {
+    fn from(builder: HitableListBuilder<'a>) -> Self {
+        HitableList::new_owned(builder.hitables).into()
     }
 }

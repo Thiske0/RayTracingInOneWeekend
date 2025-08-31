@@ -7,12 +7,12 @@ use gpu_builder::DeviceCopyBuilder;
 
 use crate::{
     ray::Ray,
-    vec3::{Axis, Point3, Real},
+    vec3::{Axis, Point3, Real, Vec3},
 };
 
-#[cfg_attr(not(target_os = "cuda"), derive(Clone, Copy, DeviceCopy, Debug))]
+#[cfg_attr(not(target_os = "cuda"), derive(Copy, DeviceCopy, Debug))]
 #[repr(C)]
-#[derive(DeviceCopyBuilder)]
+#[derive(DeviceCopyBuilder, Clone)]
 pub struct BoundingBox {
     pub min: Point3,
     pub max: Point3,
@@ -114,6 +114,34 @@ impl BoundingBox {
 
     pub fn center(&self) -> Point3 {
         (&self.min + &self.max) / 2.0
+    }
+
+    pub fn translate(&self, offset: &Vec3) -> Self {
+        BoundingBox {
+            min: &self.min + offset,
+            max: &self.max + offset,
+        }
+    }
+
+    pub fn corners(&self) -> [Point3; 8] {
+        [
+            Point3::new(self.min.x, self.min.y, self.min.z),
+            Point3::new(self.min.x, self.min.y, self.max.z),
+            Point3::new(self.min.x, self.max.y, self.min.z),
+            Point3::new(self.min.x, self.max.y, self.max.z),
+            Point3::new(self.max.x, self.min.y, self.min.z),
+            Point3::new(self.max.x, self.min.y, self.max.z),
+            Point3::new(self.max.x, self.max.y, self.min.z),
+            Point3::new(self.max.x, self.max.y, self.max.z),
+        ]
+    }
+
+    pub fn from_corners<const N: usize>(corners: &[Point3; N]) -> Self {
+        let mut bbox = BoundingBox::empty();
+        for corner in corners {
+            bbox = bbox.merge(&BoundingBox::new_point(corner.clone()));
+        }
+        bbox
     }
 }
 

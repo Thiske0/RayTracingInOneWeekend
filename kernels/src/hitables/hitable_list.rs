@@ -6,12 +6,11 @@ use crate::{
     ray::Ray,
     vec3::Real,
 };
-use gpu_builder::Builder;
+use gpu_builder::derive_builder;
 use ref_builder::{SliceBuilder, SliceBuilderDevice};
 
 #[repr(C)]
-#[derive(Builder)]
-#[use_lifetime("'a")]
+#[derive_builder('a)]
 pub struct HitableList<'a> {
     hitables: SliceBuilder<'a, HitKind<'a>>,
     bounding_box: BoundingBox,
@@ -25,6 +24,16 @@ impl<'a> HitableList<'a> {
         });
         HitableList {
             hitables: SliceBuilder::new(hitables),
+            bounding_box,
+        }
+    }
+
+    pub fn new_owned(hitables: Vec<HitKind<'a>>) -> Self {
+        let bounding_box = hitables.iter().fold(BoundingBox::empty(), |acc, hitable| {
+            acc.merge(&hitable.boundingbox())
+        });
+        HitableList {
+            hitables: SliceBuilder::new_owned(hitables),
             bounding_box,
         }
     }

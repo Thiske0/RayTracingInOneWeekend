@@ -1,7 +1,7 @@
-use gpu_builder::{Builder, DeviceCopyBuilder};
+use gpu_builder::{DeviceCopyBuilder, derive_builder};
 
 use crate::{
-    hitables::{BoundingBox, HitRecord, Hitable, IntoBoundingBox},
+    hitables::{BoundingBox, HitKind, HitRecord, Hitable, IntoBoundingBox},
     materials::{MaterialKind, MaterialKindDevice},
     ray::Ray,
     vec3::{Point3, Real, Vec3},
@@ -77,8 +77,7 @@ impl Plane {
 }
 
 #[repr(C)]
-#[derive(Builder)]
-#[use_lifetime("'a")]
+#[derive_builder('a)]
 pub struct Triangle<'a> {
     origin: Point3,
     u: Vec3,
@@ -88,7 +87,7 @@ pub struct Triangle<'a> {
 }
 
 impl<'a> Triangle<'a> {
-    pub fn new(p1: Point3, p2: Point3, p3: Point3, mat: MaterialKind<'a>) -> Self {
+    pub fn new(p1: Point3, p2: Point3, p3: Point3, mat: MaterialKind<'a>) -> HitKind<'a> {
         let u = p2 - &p1;
         let v = p3 - &p1;
         let plane = Plane::from_uv(&p1, &u, &v);
@@ -99,6 +98,7 @@ impl<'a> Triangle<'a> {
             plane,
             mat,
         }
+        .into()
     }
 }
 
@@ -134,8 +134,7 @@ impl<'a> IntoBoundingBox for Triangle<'a> {
 }
 
 #[repr(C)]
-#[derive(Builder)]
-#[use_lifetime("'a")]
+#[derive_builder('a)]
 pub struct Quad<'a> {
     origin: Point3,
     u: Vec3,
@@ -145,7 +144,7 @@ pub struct Quad<'a> {
 }
 
 impl<'a> Quad<'a> {
-    pub fn new(origin: Point3, u: Vec3, v: Vec3, mat: MaterialKind<'a>) -> Self {
+    pub fn new(origin: Point3, u: Vec3, v: Vec3, mat: MaterialKind<'a>) -> HitKind<'a> {
         let plane = Plane::from_uv(&origin, &u, &v);
         Quad {
             origin,
@@ -154,6 +153,7 @@ impl<'a> Quad<'a> {
             plane,
             mat,
         }
+        .into()
     }
 }
 
@@ -187,4 +187,64 @@ impl<'a> IntoBoundingBox for Quad<'a> {
         let bbox = bbox.merge(&BoundingBox::new_point((&self.origin) + &self.v));
         bbox.merge(&BoundingBox::new_point((&self.origin) + &self.u + &self.v))
     }
+}
+
+#[cfg(not(target_os = "cuda"))]
+use crate::hitables::hitable_list_builder::HitableListBuilder;
+
+#[cfg(not(target_os = "cuda"))]
+pub fn make_box<'a>(a: Point3, b: Point3, mat: MaterialKind<'a>) -> HitableListBuilder<'a> {
+    // Returns the 3D box (six sides) that contains the two opposite vertices a & b.
+
+    let mut sides = HitableListBuilder::new();
+
+    // Construct the two opposite vertices with the minimum and maximum coordinates.
+    let min = Point3::new(
+        Real::min(a.x, b.x),
+        Real::min(a.y, b.y),
+        Real::min(a.z, b.z),
+    );
+    let max = Point3::new(
+        Real::max(a.x, b.x),
+        Real::max(a.y, b.y),
+        Real::max(a.z, b.z),
+    );
+
+    let dx = Vec3::new(max.x - min.x, 0.0, 0.0);
+    let dy = Vec3::new(0.0, max.y - min.y, 0.0);
+    let dz = Vec3::new(0.0, 0.0, max.z - min.z);
+
+    sides.add(Quad::new(
+        Point3::new(min.x, min.y, max.z),
+        dx,
+        dy,
+        mat.clone(),
+    )); // front
+    sides.add(Quad::new(
+        Point3::new(max.x, min.y, max.z),
+        -dz,
+        dy,
+        mat.clone(),
+    )); // right
+    sides.add(Quad::new(
+        Point3::new(max.x, min.y, min.z),
+        -dx,
+        dy,
+        mat.clone(),
+    )); // back
+    sides.add(Quad::new(
+        Point3::new(min.x, min.y, min.z),
+        dz,
+        dy,
+        mat.clone(),
+    )); // left
+    sides.add(Quad::new(
+        Point3::new(min.x, max.y, max.z),
+        dx,
+        -dz,
+        mat.clone(),
+    )); // top
+    sides.add(Quad::new(Point3::new(min.x, min.y, min.z), dx, dz, mat)); // bottom
+
+    sides
 }

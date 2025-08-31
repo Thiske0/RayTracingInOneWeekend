@@ -11,7 +11,7 @@ use crate::{
     ray::Ray,
 };
 use enum_dispatch::enum_dispatch;
-use gpu_builder::Builder;
+use gpu_builder::derive_builder;
 
 #[enum_dispatch]
 pub trait Material {
@@ -21,8 +21,8 @@ pub trait Material {
 }
 
 #[repr(C)]
-#[derive(Builder)]
-#[use_lifetime("'a")]
+#[cfg_attr(not(target_os = "cuda"), derive(Clone))]
+#[derive_builder('a)]
 #[enum_dispatch(Material)]
 pub enum MaterialKind<'a> {
     Lambertian(Lambertian<'a>),

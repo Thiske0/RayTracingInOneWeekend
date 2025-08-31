@@ -1,7 +1,7 @@
 use crate::{
     color::Color,
     random::Random,
-    textures::Texture,
+    textures::{Texture, TextureKind},
     vec3::{Point3, Real},
 };
 use gpu_builder::DeviceCopyBuilder;
@@ -17,8 +17,8 @@ pub struct SolidTexture {
 }
 
 impl SolidTexture {
-    pub fn new(color: Color) -> Self {
-        SolidTexture { color }
+    pub fn new<'a>(color: Color) -> TextureKind<'a> {
+        SolidTexture { color }.into()
     }
 }
 

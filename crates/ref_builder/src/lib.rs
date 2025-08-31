@@ -1,23 +1,20 @@
 #![feature(iterator_try_collect)]
 
 use core::ops::Deref;
-use gpu_builder::{BuildResultType, Builder, DeviceImpl};
+use gpu_builder::{derive_device_struct, Builder};
 
 #[cfg(not(target_os = "cuda"))]
 mod implementation;
 
+#[cfg_attr(not(target_os = "cuda"), derive(Clone))]
+#[derive_device_struct]
 #[repr(C)]
 pub struct RefBuilder<'a, T: Builder<'a>> {
     reference: *const T,
+    #[no_copy]
     _marker: core::marker::PhantomData<&'a T>,
-}
-
-#[repr(C)]
-#[derive(DeviceImpl)]
-#[builder(RefBuilder)]
-#[use_lifetime("'a")]
-pub struct RefBuilderDevice<T: BuildResultType> {
-    reference: *const T,
+    #[host_only]
+    owned: bool,
 }
 
 impl<'a, T: Builder<'a>> RefBuilder<'a, T> {
@@ -35,19 +32,15 @@ impl<'a, T: Builder<'a>> Deref for RefBuilder<'a, T> {
 }
 
 #[repr(C)]
+#[cfg_attr(not(target_os = "cuda"), derive(Clone))]
+#[derive_device_struct]
 pub struct SliceBuilder<'a, T: Builder<'a>> {
     reference: *const T,
     size: usize,
+    #[no_copy]
     _marker: core::marker::PhantomData<&'a [T]>,
-}
-
-#[repr(C)]
-#[derive(DeviceImpl)]
-#[builder(SliceBuilder)]
-#[use_lifetime("'a")]
-pub struct SliceBuilderDevice<T: BuildResultType> {
-    reference: *const T,
-    size: usize,
+    #[host_only]
+    owned: bool,
 }
 
 impl<'a, T: Builder<'a>> SliceBuilder<'a, T> {
