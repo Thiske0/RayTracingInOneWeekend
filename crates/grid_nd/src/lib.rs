@@ -20,18 +20,6 @@ mod tests {
     }
 
     #[test]
-    fn verify_same() {
-        let orig = GridND::<f32, 1>::new_random([10]);
-        let build: &GridND<'static, f32, 1> = (&orig.clone().build()).into();
-        assert_eq!(build.shape(), orig.shape());
-        assert_eq!(build.at(0), orig.at(0));
-
-        let build: &mut GridND<'static, f32, 1> = (&mut orig.clone().build()).into();
-        assert_eq!(build.shape(), orig.shape());
-        assert_eq!(build.at(0), orig.at(0));
-    }
-
-    #[test]
     fn cuda_grid_1d() -> Result<(), Box<dyn Error>> {
         let dims = [1023];
 
@@ -54,11 +42,6 @@ mod tests {
         let rhs_device = unsafe { rhs.clone().build_device(&stream)? };
         let result = GridND::<f32, 1>::new_zeroed(dims);
         let mut result_device = unsafe { result.clone().build_device(&stream)? };
-
-        let temp: &GridND<'static, f32, 1> = (&rhs.clone().build()).into();
-        for i in 0..dims[0] {
-            assert_eq!(temp.at(i), rhs.at(i));
-        }
 
         let vecadd = module.get_function("vecadd_1d_f32")?;
 

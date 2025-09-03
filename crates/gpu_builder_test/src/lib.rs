@@ -32,12 +32,6 @@ mod device_struct_struct {
     impl<'a, T: gpu_builder::Builder<'a>> gpu_builder::Builder<'a> for C<'a, T> {
         type Output = CDevice<T::Output>;
 
-        fn build_inner(self, cache: &mut gpu_builder::Cache<'a>) -> Self::Output {
-            CDevice {
-                z: self.z.build_inner(cache),
-            }
-        }
-
         unsafe fn build_device_inner(
             self,
             stream: &'a cust::stream::Stream,
@@ -82,10 +76,6 @@ mod device_struct_struct {
 
     impl<'a> gpu_builder::Builder<'a> for &'a B {
         type Output = *const B;
-
-        fn build_inner(self, _cache: &mut gpu_builder::Cache<'a>) -> Self::Output {
-            self
-        }
 
         unsafe fn build_device_inner(
             self,
@@ -154,12 +144,6 @@ mod builder_struct {
     impl<'a, T: gpu_builder::Builder<'a>> gpu_builder::Builder<'a> for F<'a, T> {
         type Output = FDevice<T::Output>;
 
-        fn build_inner(self, cache: &mut gpu_builder::Cache<'a>) -> Self::Output {
-            FDevice {
-                y: self.z.build_inner(cache),
-            }
-        }
-
         unsafe fn build_device_inner(
             self,
             stream: &'a cust::stream::Stream,
@@ -192,10 +176,6 @@ mod builder_struct {
 
     impl<'a> gpu_builder::Builder<'a> for &'a E {
         type Output = *const E;
-
-        fn build_inner(self, _cache: &mut gpu_builder::Cache<'a>) -> Self::Output {
-            self
-        }
 
         unsafe fn build_device_inner(
             self,
@@ -265,14 +245,6 @@ mod device_struct_enum {
 
     impl<'a> gpu_builder::Builder<'a> for Enum4 {
         type Output = Enum4Device;
-
-        fn build_inner(self, cache: &mut gpu_builder::Cache<'a>) -> Self::Output {
-            match self {
-                Enum4::A(x, y) => Enum4Device::A(x.build_inner(cache), y.build_inner(cache)),
-                Enum4::B(x) => Enum4Device::B(x.build_inner(cache)),
-                Enum4::C() => Enum4Device::C(),
-            }
-        }
 
         unsafe fn build_device_inner(
             self,
@@ -385,50 +357,5 @@ mod builder_enum {
         A(i32, i32),
         B(i32),
         C(),
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use gpu_builder::{Builder, NiceBuilder};
-
-    #[repr(C)]
-    #[derive(PartialEq, Debug, Clone)]
-    #[gpu_builder::derive_builder('a)]
-    struct TestStruct<'a, T: Builder<'a>> {
-        x: T,
-        #[no_copy]
-        _marker: core::marker::PhantomData<&'a ()>,
-    }
-
-    #[test]
-    fn test_device_struct() {
-        let test_struct = TestStruct {
-            x: 42,
-            _marker: core::marker::PhantomData,
-        };
-        let _result = test_struct.build();
-
-        match std::panic::catch_unwind(|| {
-            let test_struct = TestStruct {
-                x: &42 as *const _,
-                _marker: core::marker::PhantomData,
-            };
-            let _result = test_struct.clone().build();
-        }) {
-            Ok(_) => panic!("Expected panic, but expression executed successfully"),
-            Err(_) => (), // Expected behavior - panic occurred
-        }
-
-        match std::panic::catch_unwind(|| {
-            let test_struct = TestStruct {
-                x: &mut 42 as *mut _,
-                _marker: core::marker::PhantomData,
-            };
-            let _result = test_struct.clone().build();
-        }) {
-            Ok(_) => panic!("Expected panic, but expression executed successfully"),
-            Err(_) => (), // Expected behavior - panic occurred
-        }
     }
 }

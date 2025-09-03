@@ -218,14 +218,6 @@ pub mod host_impls {
         Self: 'a,
     {
         type Output = GridNDDevice<T, N>;
-        fn build_inner(self, _cache: &mut Cache) -> GridNDDevice<T, N> {
-            let result = GridNDDevice {
-                data: self.data,
-                dims: self.dims,
-            };
-            mem::forget(self); // Prevent double free
-            result
-        }
 
         unsafe fn build_device_inner(
             self,

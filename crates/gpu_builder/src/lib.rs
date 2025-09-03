@@ -32,7 +32,6 @@ mod host_impls {
 
     pub trait Builder<'a>: Sized + 'a {
         type Output: BuildResultType;
-        fn build_inner(self, cache: &mut Cache<'a>) -> Self::Output;
         unsafe fn build_device_inner(
             self,
             stream: &'a Stream,
@@ -42,16 +41,10 @@ mod host_impls {
     }
 
     pub trait NiceBuilder<'a>: Builder<'a> {
-        fn build(self) -> Self::Output;
         unsafe fn build_device(self, stream: &'a Stream) -> CudaResult<BuildResult<'a, Self>>;
     }
 
     impl<'a, T: Builder<'a>> NiceBuilder<'a> for T {
-        fn build(self) -> Self::Output {
-            let mut cache = Cache::new();
-            let output = self.build_inner(&mut cache);
-            output
-        }
         unsafe fn build_device(self, stream: &'a Stream) -> CudaResult<BuildResult<'a, Self>> {
             let mut cache = Cache::new();
             self.build_device_inner(stream, &mut cache)
@@ -163,13 +156,6 @@ mod host_impls {
 
     impl<'a, T: BuildResultType + Any> Builder<'a> for T {
         type Output = T;
-
-        fn build_inner(self, _cache: &mut Cache<'_>) -> Self::Output {
-            if is_pointer::<Self>() {
-                panic!("Cannot build a pointer directly. Use a builder instead.");
-            }
-            self
-        }
 
         unsafe fn build_device_inner(
             self,

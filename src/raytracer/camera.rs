@@ -186,11 +186,7 @@ impl Camera {
         image_render_options: &ImageRenderOptions,
         callback: impl FnOnce(&GridND<Color, 2>) -> Result<()>,
     ) -> Result<()> {
-        simple_ray_tracer_kernels::render_image(
-            image_grid,
-            (&world.build()).into(),
-            image_render_options,
-        );
+        simple_ray_tracer_kernels::render_image(image_grid, &world, image_render_options);
         callback(image_grid)?;
         Ok(())
     }

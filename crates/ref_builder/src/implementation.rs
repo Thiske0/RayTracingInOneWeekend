@@ -9,37 +9,6 @@ where
 {
     type Output = SliceBuilderDevice<T::Output>;
 
-    fn build_inner(self, cache: &mut gpu_builder::Cache<'a>) -> Self::Output {
-        let entry = cache
-            .get_mut::<HashMap<(u64, usize), Vec<T::Output>>>()
-            .or_else(|| {
-                cache
-                    .insert::<HashMap<(u64, usize), Vec<T::Output>>>(HashMap::new())
-                    .ok()?;
-                cache.get_mut::<HashMap<(u64, usize), Vec<T::Output>>>()
-            })
-            .expect("Just inserted, should exist");
-        let result: &Vec<T::Output> =
-            if let Some(result) = entry.get(&(self.reference as u64, self.size)) {
-                result
-            } else {
-                let build_result = self
-                    .as_slice()
-                    .into_iter()
-                    .map(|item| unsafe { std::ptr::read(item) }.build_inner(cache))
-                    .collect::<Vec<T::Output>>();
-
-                entry.insert((self.reference as u64, self.size), build_result);
-                entry
-                    .get(&(self.reference as u64, self.size))
-                    .expect("Just inserted, should exist")
-            };
-        SliceBuilderDevice {
-            reference: result.as_ptr() as *const T::Output,
-            size: self.size,
-        }
-    }
-
     unsafe fn build_device_inner(
         self,
         stream: &'a cust::prelude::Stream,
@@ -148,31 +117,6 @@ impl<'a, T: Builder<'a>> Drop for SliceBuilder<'a, T> {
 
 impl<'a, T: Builder<'a>> Builder<'a> for RefBuilder<'a, T> {
     type Output = RefBuilderDevice<T::Output>;
-
-    fn build_inner(self, cache: &mut gpu_builder::Cache<'a>) -> Self::Output {
-        let entry = cache
-            .get_mut::<HashMap<u64, Vec<T::Output>>>()
-            .or_else(|| {
-                cache
-                    .insert::<HashMap<u64, Vec<T::Output>>>(HashMap::new())
-                    .ok()?;
-                cache.get_mut::<HashMap<u64, Vec<T::Output>>>()
-            })
-            .expect("Just inserted, should exist");
-        let result: &Vec<T::Output> = if let Some(result) = entry.get(&(self.reference as u64)) {
-            result
-        } else {
-            let build_result = vec![unsafe { std::ptr::read(self.reference) }.build_inner(cache)];
-
-            entry.insert(self.reference as u64, build_result);
-            entry
-                .get(&(self.reference as u64))
-                .expect("Just inserted, should exist")
-        };
-        RefBuilderDevice {
-            reference: result.as_ptr() as *const T::Output,
-        }
-    }
 
     unsafe fn build_device_inner(
         self,

@@ -130,13 +130,6 @@ pub fn derive_builder_struct(
         })
         .collect::<Vec<_>>();
 
-    let build_fields = fields.iter().map(|field| {
-        let field_name = &field.ident;
-        quote! {
-            let #field_name = self.#field_name.build_inner(cache);
-        }
-    });
-
     let build_device_fields = fields.iter().zip(fields_device).map(|(field, field_device)| {
                 let field_name = &field.ident;
                 quote! {
@@ -158,12 +151,6 @@ pub fn derive_builder_struct(
         #[cfg(not(target_os = "cuda"))]
         impl #impl_generics gpu_builder::Builder<#new_lifetime> for #name #ty_generics #where_clause {
             type Output = #device_name #device_generics_ty;
-            fn build_inner(self, cache: &mut gpu_builder::Cache<#new_lifetime>) -> <Self as gpu_builder::Builder<#new_lifetime>>::Output {
-                #(#build_fields)*
-                #device_name {
-                    #(#struct_fields)*
-                }
-            }
             unsafe fn build_device_inner(
                 self,
                 stream: &#new_lifetime cust::stream::Stream,
@@ -213,17 +200,6 @@ pub fn derive_builder_enum(attrs: BuilderAttributes, input: &ItemEnum) -> syn::R
         lifetime
     };
 
-    let variants_build = make_variants(&input.variants, |field_names, make_enum| {
-        let build_fields = field_names
-            .iter()
-            .map(|field_name| {
-                quote! {
-                    #field_name.build_inner(cache)
-                }
-            })
-            .collect::<Vec<_>>();
-        make_enum(&device_name, build_fields)
-    });
     let variants_build_device = make_variants(&input.variants, |field_names, make_enum| {
         let field_device_names = &field_names
             .iter()
@@ -333,11 +309,6 @@ pub fn derive_builder_enum(attrs: BuilderAttributes, input: &ItemEnum) -> syn::R
         #[cfg(not(target_os = "cuda"))]
         impl #impl_generics gpu_builder::Builder<#new_lifetime> for #name #ty_generics #where_clause {
             type Output = #device_name #device_generics_ty;
-            fn build_inner(self, cache: &mut gpu_builder::Cache<#new_lifetime>) -> <Self as gpu_builder::Builder<#new_lifetime>>::Output {
-                match self {
-                    #(#variants_build)*
-                }
-            }
             unsafe fn build_device_inner(
                 self,
                 stream: &#new_lifetime cust::stream::Stream,
