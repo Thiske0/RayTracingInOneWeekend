@@ -1,7 +1,7 @@
 use crate::{
     ImageRenderOptions,
     color::Color,
-    hitables::{HitKind, Hitable},
+    hitables::HitKind,
     materials::Material,
     random::Random,
     vec3::{Point3, Real, Vec3},
@@ -10,9 +10,9 @@ use gpu_builder::DeviceCopyBuilder;
 
 #[cfg(not(target_os = "cuda"))]
 use cust::DeviceCopy;
-#[cfg_attr(not(target_os = "cuda"), derive(Clone, Copy, DeviceCopy))]
+#[cfg_attr(not(target_os = "cuda"), derive(Copy, DeviceCopy))]
 #[repr(C)]
-#[derive(DeviceCopyBuilder)]
+#[derive(DeviceCopyBuilder, Clone)]
 pub struct Ray {
     pub origin: Point3,
     pub direction: Vec3,
@@ -52,7 +52,7 @@ impl Ray {
         let mut current_ray = self;
 
         for _ in 0..options.max_depth {
-            if let Some(hit) = hitable.hit(&current_ray, &(1e-12..Real::INFINITY)) {
+            if let Some(hit) = hitable.hit(current_ray.clone(), 1e-12..Real::INFINITY) {
                 final_color += (&current_color) * hit.mat.emission(&hit, rng);
                 if let Some((mut scattered_ray, attenuation)) =
                     hit.mat.scatter(&current_ray, hit, rng)

@@ -2,7 +2,7 @@ use core::ops::Range;
 
 use crate::{
     boundingbox::{BoundingBox, IntoBoundingBox},
-    hitables::{HitKind, HitKindDevice, HitRecord, Hitable},
+    hitables::{HitKind, HitKindDevice, HitRecord, RecursiveHitable},
     ray::Ray,
     vec3::{Real, Vec3},
 };
@@ -35,14 +35,32 @@ impl<'a> Translate<'a> {
     }
 }
 
-impl Hitable for Translate<'_> {
-    fn hit<'a>(&'a self, ray: &Ray, range: &Range<Real>) -> Option<HitRecord<'a>> {
-        let moved_ray = Ray::new(&ray.origin - &self.offset, ray.direction.clone(), ray.time);
-        if let Some(mut rec) = self.inner.hit(&moved_ray, range) {
-            rec.p += &self.offset;
-            return Some(rec);
+impl RecursiveHitable for Translate<'_> {
+    fn hit_recursive<'a>(
+        &'a self,
+        ray: &mut Ray,
+        _range: &Range<Real>,
+        hit_record: &mut Option<HitRecord<'a>>,
+        count: usize,
+    ) -> Option<(&'a HitKind<'a>, usize)> {
+        if count == 0 {
+            if let Some(rec) = hit_record {
+                rec.p -= &self.offset;
+            }
+            *ray = Ray::new(&ray.origin - &self.offset, ray.direction.clone(), ray.time);
+            Some((
+                &self.inner,
+                1, // Increment count to avoid infinite recursion
+            ))
+        } else if count == 1 {
+            if let Some(rec) = hit_record {
+                rec.p += &self.offset;
+            }
+            *ray = Ray::new(&ray.origin + &self.offset, ray.direction.clone(), ray.time);
+            None
+        } else {
+            unreachable!()
         }
-        None
     }
 }
 

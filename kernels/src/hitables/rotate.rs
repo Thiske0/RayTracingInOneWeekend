@@ -2,7 +2,7 @@ use core::ops::Range;
 
 use crate::{
     boundingbox::{BoundingBox, IntoBoundingBox},
-    hitables::{HitKind, HitKindDevice, HitRecord, Hitable},
+    hitables::{HitKind, HitKindDevice, HitRecord, RecursiveHitable},
     ray::Ray,
     vec3::{Axis, Real},
 };
@@ -50,30 +50,49 @@ impl<'a> Rotate<'a> {
     }
 }
 
-impl Hitable for Rotate<'_> {
-    fn hit<'a>(&'a self, ray: &Ray, range: &Range<Real>) -> Option<HitRecord<'a>> {
-        if !self.bounding_box.hit(ray, range) {
-            return None;
-        }
+impl RecursiveHitable for Rotate<'_> {
+    fn hit_recursive<'a>(
+        &'a self,
+        ray: &mut Ray,
+        range: &Range<Real>,
+        hit_record: &mut Option<HitRecord<'a>>,
+        count: usize,
+    ) -> Option<(&'a HitKind<'a>, usize)> {
+        if count == 0 {
+            if !self.bounding_box.hit(ray, range) {
+                return None;
+            }
 
-        let rotated_ray = Ray::new(
-            ray.origin.rotate(&self.axis, -self.angle_rad),
-            ray.direction.rotate(&self.axis, -self.angle_rad),
-            ray.time,
-        );
-        if let Some(mut rec) = self.inner.hit(&rotated_ray, range) {
-            rec.p = rec.p.rotate(&self.axis, self.angle_rad);
-            rec.normal = rec.normal.rotate(&self.axis, self.angle_rad);
-            return Some(rec);
+            if let Some(rec) = hit_record {
+                rec.p = rec.p.rotate(&self.axis, -self.angle_rad);
+                rec.normal = rec.normal.rotate(&self.axis, -self.angle_rad);
+            }
+
+            *ray = Ray::new(
+                ray.origin.rotate(&self.axis, -self.angle_rad),
+                ray.direction.rotate(&self.axis, -self.angle_rad),
+                ray.time,
+            );
+            Some((&self.inner, 1))
+        } else if count == 1 {
+            if let Some(rec) = hit_record {
+                rec.p = rec.p.rotate(&self.axis, self.angle_rad);
+                rec.normal = rec.normal.rotate(&self.axis, self.angle_rad);
+            }
+            *ray = Ray::new(
+                ray.origin.rotate(&self.axis, self.angle_rad),
+                ray.direction.rotate(&self.axis, self.angle_rad),
+                ray.time,
+            );
+            None
+        } else {
+            unreachable!()
         }
-        None
     }
 }
 
 impl IntoBoundingBox for Rotate<'_> {
     fn boundingbox(&self) -> BoundingBox {
-        let inner_box = self.inner.boundingbox();
-        let corners = inner_box.corners();
         self.bounding_box.clone()
     }
 }

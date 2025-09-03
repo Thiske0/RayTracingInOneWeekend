@@ -157,14 +157,6 @@ impl Camera {
             let image_render_options_device = DeviceBox::new_async(image_render_options, &stream)?;
             let mut image_grid_device = image_grid.build_device(&stream)?;
 
-            // Set larger stack size (per thread) before launching
-            unsafe {
-                cust_raw::driver_sys::cuCtxSetLimit(
-                    cust_raw::driver_sys::CUlimit::CU_LIMIT_STACK_SIZE,
-                    4096, // Stack size in bytes (default is usually 1024)
-                );
-            }
-
             launch!(
                 render_image<<<blocks, threads, 0, stream>>>(
                     image_grid_device.as_device_ptr()?.as_mut_ptr(),

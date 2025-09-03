@@ -2,7 +2,7 @@ use core::ops::Range;
 
 use crate::{
     boundingbox::{BoundingBox, IntoBoundingBox},
-    hitables::{HitKind, HitKindDevice, HitRecord, Hitable},
+    hitables::{HitKind, HitKindDevice, HitRecord, RecursiveHitable},
     ray::Ray,
     vec3::Real,
 };
@@ -45,22 +45,20 @@ impl IntoBoundingBox for HitableList<'_> {
     }
 }
 
-impl Hitable for HitableList<'_> {
-    fn hit<'a>(&'a self, ray: &Ray, interval: &Range<Real>) -> Option<HitRecord<'a>> {
+impl RecursiveHitable for HitableList<'_> {
+    fn hit_recursive<'a>(
+        &'a self,
+        ray: &mut Ray,
+        interval: &Range<Real>,
+        _hit_record: &mut Option<HitRecord<'a>>,
+        count: usize,
+    ) -> Option<(&'a HitKind<'a>, usize)> {
         if !self.bounding_box.hit(ray, interval) {
             return None;
         }
-
-        let mut closest_hit: Option<HitRecord> = None;
-        let mut closest_interval = interval.clone();
-
-        for hitable in self.hitables.as_slice() {
-            if let Some(hit_record) = hitable.hit(ray, &closest_interval) {
-                closest_interval = closest_interval.start..hit_record.t;
-                closest_hit = Some(hit_record);
-            }
+        if count >= self.hitables.len() {
+            return None;
         }
-
-        closest_hit
+        Some((&self.hitables[count], count + 1))
     }
 }

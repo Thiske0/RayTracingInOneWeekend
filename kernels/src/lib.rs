@@ -105,7 +105,6 @@ fn render_pixel(
     }
     pixel_color / options.samples_per_pixel as Real
 }
-use crate::hitables::Hitable;
 use crate::materials::Material;
 
 /// This function is used to render the image using CUDA kernels.
@@ -133,7 +132,7 @@ fn render_pixel_v2(
             current_color = Color::white();
         }
 
-        if let Some(hit) = world.hit(&current_ray, &(1e-12..Real::INFINITY)) {
+        if let Some(hit) = world.hit(current_ray.clone(), 1e-12..Real::INFINITY) {
             pixel_color += (&current_color) * hit.mat.emission(&hit, rng);
             if let Some((mut scattered_ray, attenuation)) = hit.mat.scatter(&current_ray, hit, rng)
             {
