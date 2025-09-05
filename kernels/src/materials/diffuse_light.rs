@@ -22,7 +22,7 @@ impl DiffuseLight<'_> {
     }
 }
 impl Material for DiffuseLight<'_> {
-    fn scatter(&self, _ray: &Ray, _hit: HitRecord, _rng: &mut Random) -> Option<(Ray, Color)> {
+    fn scatter(&self, _ray: &Ray, _hit: &HitRecord, _rng: &mut Random) -> Option<(Ray, Color)> {
         None
     }
 

@@ -37,7 +37,7 @@ impl<'a> Dielectric<'a> {
     }
 }
 impl Material for Dielectric<'_> {
-    fn scatter(&self, ray: &Ray, hit: HitRecord, rng: &mut Random) -> Option<(Ray, Color)> {
+    fn scatter(&self, ray: &Ray, hit: &HitRecord, rng: &mut Random) -> Option<(Ray, Color)> {
         let ri = if hit.is_front_face {
             1.0 / self.refraction_index
         } else {
@@ -60,7 +60,7 @@ impl Material for Dielectric<'_> {
         };
 
         let color = self.texture.color(hit.u, hit.v, &hit.p, rng);
-        let scattered = Ray::new(hit.p, direction, ray.time);
+        let scattered = Ray::new(hit.p.clone(), direction, ray.time);
         Some((scattered, color))
     }
 

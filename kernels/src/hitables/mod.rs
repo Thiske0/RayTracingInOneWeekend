@@ -41,7 +41,7 @@ pub trait RecursiveHitable {
     fn hit_recursive<'a>(
         &'a self,
         ray: &mut Ray,
-        range: &Range<Real>,
+        range: &mut Range<Real>,
         hit_record: &mut Option<HitRecord<'a>>,
         count: usize,
     ) -> Option<(&'a HitKind<'a>, usize)>;
@@ -55,9 +55,9 @@ pub enum HitKind<'b> {
     HitKindRecursive(HitKindRecursive<'b>),
 }
 
-const STACK_SIZE: usize = 16;
+pub const STACK_SIZE: usize = 16;
 
-struct StackEntry<'a> {
+pub struct StackEntry<'a> {
     pub hitkind: &'a HitKindRecursive<'a>,
     pub next_count: usize,
 }
@@ -71,7 +71,18 @@ impl<'a> StackEntry<'a> {
     }
 }
 
-fn init_stack<'a, const SIZE: usize>(hitkind: &'a HitKindRecursive<'a>) -> [StackEntry<'a>; SIZE] {
+pub fn init_stack<'a, const SIZE: usize>(hitkind: &'a HitKind<'a>) -> [StackEntry<'a>; SIZE] {
+    let mut stack: [StackEntry<'a>; SIZE] =
+        unsafe { core::mem::MaybeUninit::uninit().assume_init() };
+    if let HitKind::HitKindRecursive(hitkind) = hitkind {
+        stack[0] = StackEntry::new(hitkind);
+    }
+    stack
+}
+
+fn init_stack_for_recursive<'a, const SIZE: usize>(
+    hitkind: &'a HitKindRecursive<'a>,
+) -> [StackEntry<'a>; SIZE] {
     let mut stack: [StackEntry<'a>; SIZE] =
         unsafe { core::mem::MaybeUninit::uninit().assume_init() };
     stack[0] = StackEntry::new(hitkind);
@@ -91,7 +102,7 @@ impl HitKind<'_> {
         ray: Ray,
         range: Range<Real>,
     ) -> Option<HitRecord<'a>> {
-        let mut stack = init_stack::<STACK_SIZE>(hitkind);
+        let mut stack = init_stack_for_recursive::<STACK_SIZE>(hitkind);
         let mut stack_ptr = 1;
 
         let mut hit_record: Option<HitRecord<'a>> = None;
@@ -103,11 +114,12 @@ impl HitKind<'_> {
                 panic!("Stack overflow in hit_recursive");
             }
             let current = &mut stack[stack_ptr - 1];
-            if let Some((inner_hitkind, next_count)) =
-                current
-                    .hitkind
-                    .hit_recursive(&mut ray, &range, &mut hit_record, current.next_count)
-            {
+            if let Some((inner_hitkind, next_count)) = current.hitkind.hit_recursive(
+                &mut ray,
+                &mut range,
+                &mut hit_record,
+                current.next_count,
+            ) {
                 current.next_count = next_count;
                 match inner_hitkind {
                     HitKind::HitKindNonRecursive(inner_hitkind) => {

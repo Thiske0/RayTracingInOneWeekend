@@ -55,7 +55,7 @@ impl Ray {
             if let Some(hit) = hitable.hit(current_ray.clone(), 1e-12..Real::INFINITY) {
                 final_color += (&current_color) * hit.mat.emission(&hit, rng);
                 if let Some((mut scattered_ray, attenuation)) =
-                    hit.mat.scatter(&current_ray, hit, rng)
+                    hit.mat.scatter(&current_ray, &hit, rng)
                 {
                     // Improve the scattered ray's direction and origin.
                     // This is to avoid precision issues with re-intersection.

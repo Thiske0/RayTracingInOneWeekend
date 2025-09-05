@@ -16,7 +16,7 @@ use gpu_builder::derive_builder;
 #[enum_dispatch]
 pub trait Material {
     /// Returns the scattered ray and the attenuation color.
-    fn scatter(&self, ray: &Ray, hit_record: HitRecord, rng: &mut Random) -> Option<(Ray, Color)>;
+    fn scatter(&self, ray: &Ray, hit_record: &HitRecord, rng: &mut Random) -> Option<(Ray, Color)>;
     fn emission(&self, hit_record: &HitRecord, rng: &mut Random) -> Color;
 }
 

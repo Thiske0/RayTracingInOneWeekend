@@ -39,7 +39,7 @@ impl RecursiveHitable for Translate<'_> {
     fn hit_recursive<'a>(
         &'a self,
         ray: &mut Ray,
-        _range: &Range<Real>,
+        _range: &mut Range<Real>,
         hit_record: &mut Option<HitRecord<'a>>,
         count: usize,
     ) -> Option<(&'a HitKind<'a>, usize)> {

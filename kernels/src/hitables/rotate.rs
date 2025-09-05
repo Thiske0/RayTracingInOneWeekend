@@ -54,7 +54,7 @@ impl RecursiveHitable for Rotate<'_> {
     fn hit_recursive<'a>(
         &'a self,
         ray: &mut Ray,
-        range: &Range<Real>,
+        range: &mut Range<Real>,
         hit_record: &mut Option<HitRecord<'a>>,
         count: usize,
     ) -> Option<(&'a HitKind<'a>, usize)> {

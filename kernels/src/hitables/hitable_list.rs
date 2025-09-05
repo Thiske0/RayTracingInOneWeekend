@@ -49,7 +49,7 @@ impl RecursiveHitable for HitableList<'_> {
     fn hit_recursive<'a>(
         &'a self,
         ray: &mut Ray,
-        interval: &Range<Real>,
+        interval: &mut Range<Real>,
         _hit_record: &mut Option<HitRecord<'a>>,
         count: usize,
     ) -> Option<(&'a HitKind<'a>, usize)> {
