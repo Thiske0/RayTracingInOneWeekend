@@ -63,6 +63,7 @@ where
             SliceBuilderDevice {
                 reference: result,
                 size: result_host.size,
+                _marker: Default::default(),
             },
             result_host,
             stream,
@@ -162,7 +163,10 @@ impl<'a, T: Builder<'a>> Builder<'a> for RefBuilder<'a, T> {
         };
         mem::forget(self); // Prevent double free
         Ok(BuildResult::new(
-            RefBuilderDevice { reference: result },
+            RefBuilderDevice {
+                reference: result,
+                _marker: Default::default(),
+            },
             result_host,
             stream,
             buffers,

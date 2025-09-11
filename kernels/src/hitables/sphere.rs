@@ -4,6 +4,7 @@ use crate::{
     boundingbox::{BoundingBox, IntoBoundingBox},
     hitables::{HitKind, HitRecord, Hitable},
     materials::{MaterialKind, MaterialKindDevice},
+    random::Random,
     ray::Ray,
     vec3::{Point3, Real, Vec3},
 };
@@ -56,7 +57,12 @@ impl<'a> Sphere<'a> {
 }
 
 impl Hitable for Sphere<'_> {
-    fn hit<'a>(&'a self, ray: &Ray, range: &Range<Real>) -> Option<HitRecord<'a>> {
+    fn hit<'a>(
+        &'a self,
+        ray: &Ray,
+        range: &Range<Real>,
+        _rng: &mut Random,
+    ) -> Option<HitRecord<'a>> {
         let actual_center = self.center.at(ray.time);
 
         let oc = &actual_center - &ray.origin;

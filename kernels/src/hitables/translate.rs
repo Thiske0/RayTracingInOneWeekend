@@ -3,6 +3,7 @@ use core::ops::Range;
 use crate::{
     boundingbox::{BoundingBox, IntoBoundingBox},
     hitables::{HitKind, HitKindDevice, HitRecord, RecursiveHitable},
+    random::Random,
     ray::Ray,
     vec3::{Real, Vec3},
 };
@@ -42,6 +43,7 @@ impl RecursiveHitable for Translate<'_> {
         _range: &mut Range<Real>,
         hit_record: &mut Option<HitRecord<'a>>,
         count: usize,
+        _rng: &mut Random,
     ) -> Option<(&'a HitKind<'a>, usize)> {
         if count == 0 {
             if let Some(rec) = hit_record {

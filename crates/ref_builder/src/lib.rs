@@ -1,4 +1,6 @@
 #![feature(iterator_try_collect)]
+#![feature(generic_const_exprs)]
+#![allow(incomplete_features)]
 
 use core::ops::Deref;
 use gpu_builder::{derive_device_struct, Builder};

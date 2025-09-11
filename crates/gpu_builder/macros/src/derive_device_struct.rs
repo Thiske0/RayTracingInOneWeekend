@@ -7,7 +7,7 @@ use quote::{quote, ToTokens};
 use syn::{
     parse_macro_input, parse_quote, punctuated::Punctuated, token::Comma, Attribute, Fields,
     GenericArgument, GenericParam, Generics, Ident, Item, ItemEnum, ItemStruct, Lifetime,
-    PathArguments, Result, Type,
+    PathArguments, Result, Type, TypePath,
 };
 
 pub fn derive_device_struct(
@@ -21,7 +21,7 @@ pub fn derive_device_struct(
 
 pub fn derive_device_struct_inner(input: Item) -> syn::Result<TokenStream> {
     #[allow(unused)]
-    let struct_impl = match &input {
+    let (struct_impl, extra) = match &input {
         Item::Struct(s) => derive_device_struct_struct(s)?,
         Item::Enum(e) => derive_device_struct_enum(e)?,
         _ => Err(syn::Error::new_spanned(
@@ -34,6 +34,7 @@ pub fn derive_device_struct_inner(input: Item) -> syn::Result<TokenStream> {
         derive_device_impl_inner(create_device_impl_attributes(&input)?, &parsed_struct_impl)?;
     let fixed_input = replace_host_only(input);
     Ok(quote! {
+        #extra
         #fixed_input
         #parsed_struct_impl
         #device_impl
@@ -151,11 +152,12 @@ fn filter_attributes(attributes: Vec<Attribute>) -> Vec<Attribute> {
         .collect()
 }
 
-fn derive_device_struct_struct(input: &ItemStruct) -> Result<TokenStream> {
+fn derive_device_struct_struct(input: &ItemStruct) -> Result<(TokenStream, TokenStream)> {
     require_repr(&input.attrs)?;
     let attributes = filter_attributes(input.attrs.clone());
     let visibility = &input.vis;
     let device_name = Ident::new(&format!("{}Device", input.ident), Span::mixed_site());
+    let padding_name = Ident::new(&format!("{}Padding", input.ident), Span::mixed_site());
 
     let (device_generics, changed_types) = device_generics_from_host(&input.generics);
     let device_where_clause = device_generics.where_clause.clone();
@@ -172,7 +174,7 @@ fn derive_device_struct_struct(input: &ItemStruct) -> Result<TokenStream> {
         .iter()
         .filter(|field| {
             for attr in &field.attrs {
-                if attr.path().is_ident("host_only") || attr.path().is_ident("no_copy") {
+                if attr.path().is_ident("host_only") {
                     return false;
                 }
             }
@@ -180,9 +182,49 @@ fn derive_device_struct_struct(input: &ItemStruct) -> Result<TokenStream> {
         })
         .collect();
 
+    let fields_no_copy: Punctuated<_, Comma> = fields
+        .iter()
+        .filter(|field| {
+            for attr in &field.attrs {
+                if attr.path().is_ident("no_copy") {
+                    return true;
+                }
+            }
+            false
+        })
+        .collect();
+
+    let const_fields: Vec<_> = fields_no_copy
+        .iter()
+        .map(|field| {
+            let const_field_name = Ident::new(
+                &format!("{}Const{}", field.ident.clone().unwrap(), input.ident),
+                Span::mixed_site(),
+            );
+            let field_type = no_copy_field_type(&field.ty);
+            quote! {
+                const #const_field_name: usize = core::mem::size_of::<#field_type>();
+            }
+        })
+        .collect();
+
     let struct_fields = fields.iter().map(|field| {
         let field_name = &field.ident;
-        let device_field_ty = device_field_type(&field.ty, &changed_types);
+        let is_no_copy = field
+            .attrs
+            .iter()
+            .any(|attr| attr.path().is_ident("no_copy"));
+
+        let device_field_ty = if is_no_copy {
+            let const_field_name = Ident::new(
+                &format!("{}Const{}", field.ident.clone().unwrap(), input.ident),
+                Span::mixed_site(),
+            );
+            quote! { #padding_name <#const_field_name> }
+        } else {
+            device_field_type(&field.ty, &changed_types)
+        };
+
         quote! {
             #field_name: #device_field_ty
         }
@@ -194,10 +236,26 @@ fn derive_device_struct_struct(input: &ItemStruct) -> Result<TokenStream> {
             #(#struct_fields),*
         }
     };
-    Ok(impl_block)
+
+    let extra = quote! {
+        #[repr(C)]
+        #[derive(Clone, Copy)]
+        struct #padding_name <const SIZE: usize> {
+            _data: [u8; SIZE],
+        }
+        impl<const SIZE: usize> Default for #padding_name <SIZE> {
+            fn default() -> Self {
+                Self { _data: [0u8; SIZE] }
+            }
+        }
+
+        #(#const_fields)*
+    };
+
+    Ok((impl_block, extra))
 }
 
-fn derive_device_struct_enum(input: &ItemEnum) -> Result<TokenStream> {
+fn derive_device_struct_enum(input: &ItemEnum) -> Result<(TokenStream, TokenStream)> {
     require_repr(&input.attrs)?;
     let attributes = filter_attributes(input.attrs.clone());
     let visibility = &input.vis;
@@ -252,7 +310,10 @@ fn derive_device_struct_enum(input: &ItemEnum) -> Result<TokenStream> {
             #(#variants),*
         }
     };
-    Ok(impl_block)
+
+    let extra = quote! {};
+
+    Ok((impl_block, extra))
 }
 
 fn device_field_type(field_ty: &Type, changed_types: &[Type]) -> TokenStream {
@@ -304,31 +365,7 @@ fn device_field_type(field_ty: &Type, changed_types: &[Type]) -> TokenStream {
                     &format!("{}Device", path.path.segments[0].ident),
                     Span::mixed_site(),
                 );
-                if let PathArguments::AngleBracketed(ref mut args) =
-                    new_type.path.segments[0].arguments
-                {
-                    args.args = args
-                        .args
-                        .clone()
-                        .into_iter()
-                        .filter(|arg| {
-                            if let GenericArgument::Lifetime(_lifetime) = arg {
-                                false
-                            } else {
-                                true
-                            }
-                        })
-                        .map(|mut arg| {
-                            if let GenericArgument::Type(ref mut ty) = arg {
-                                let device_type = device_field_type(ty, changed_types);
-                                *ty = parse_quote! { #device_type };
-                            }
-                            arg
-                        })
-                        .collect();
-                } else {
-                    panic!("Expected angle bracketed arguments");
-                };
+                fix_type_args(&mut new_type);
                 quote! {
                    #new_type
                 }
@@ -343,4 +380,106 @@ fn device_field_type(field_ty: &Type, changed_types: &[Type]) -> TokenStream {
             }
         }
     }
+}
+
+fn no_copy_field_type(field_ty: &Type) -> TokenStream {
+    if let Type::Reference(_type_reference) = field_ty {
+        quote! {
+            *const ()
+        }
+    } else if let Type::Ptr(type_ptr) = field_ty {
+        let elem = &type_ptr.elem;
+        let ptr = if type_ptr.mutability.is_some() {
+            quote! { *mut }
+        } else {
+            quote! { *const }
+        };
+        let elem_ty = no_copy_field_type(elem);
+        quote! {
+            #ptr #elem_ty
+        }
+    } else if let Type::Path(path) = field_ty {
+        if path.path.segments.iter().any(|segment| {
+            if let PathArguments::AngleBracketed(args) = &segment.arguments {
+                args.args.iter().any(|arg| {
+                    if let GenericArgument::Lifetime(_lifetime) = arg {
+                        true
+                    } else {
+                        false
+                    }
+                })
+            } else {
+                false
+            }
+        }) {
+            //covert Ident to device version and remove all lifetime arguments
+            let mut new_type = path.clone();
+            if path.path.segments.len() != 1 {
+                panic!("Only single segment types with lifetimes are supported");
+            }
+            new_type.path.segments[0].ident = Ident::new(
+                &format!("{}Device", path.path.segments[0].ident),
+                Span::mixed_site(),
+            );
+            fix_type_args(&mut new_type);
+            quote! {
+                #new_type
+            }
+        } else if is_phantom_data_path(&path) {
+            let mut new_type = path.clone();
+            fix_type_args(&mut new_type);
+            quote! {
+                #new_type
+            }
+        } else {
+            quote! {
+                #path
+            }
+        }
+    } else {
+        quote! {
+            #field_ty
+        }
+    }
+}
+
+fn fix_type_args(new_type: &mut TypePath) {
+    if let PathArguments::AngleBracketed(ref mut args) =
+        new_type.path.segments.last_mut().unwrap().arguments
+    {
+        args.args = args
+            .args
+            .clone()
+            .into_iter()
+            .filter(|arg| {
+                if let GenericArgument::Lifetime(_lifetime) = arg {
+                    false
+                } else {
+                    true
+                }
+            })
+            .map(|mut arg| {
+                if let GenericArgument::Type(ref mut ty) = arg {
+                    let device_type = no_copy_field_type(ty);
+                    *ty = parse_quote! { #device_type };
+                }
+                arg
+            })
+            .collect();
+    } else {
+        panic!("Expected angle bracketed arguments");
+    };
+}
+
+fn is_phantom_data_path(path: &TypePath) -> bool {
+    for segment in &path.path.segments {
+        if segment.ident == "PhantomData" {
+            return true;
+        } else if segment.ident == "marker" || segment.ident == "core" {
+            continue;
+        } else {
+            return false;
+        }
+    }
+    false
 }

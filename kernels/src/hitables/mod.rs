@@ -5,6 +5,7 @@ use enum_dispatch::enum_dispatch;
 use crate::{
     boundingbox::{BoundingBox, IntoBoundingBox},
     hitables::{
+        constant_medium::{ConstantMedium, ConstantMediumDevice},
         hitable_list::{HitableList, HitableListDevice},
         planar::{Quad, QuadDevice, Triangle, TriangleDevice},
         rotate::{Rotate, RotateDevice},
@@ -12,11 +13,13 @@ use crate::{
         translate::{Translate, TranslateDevice},
     },
     materials::MaterialKind,
+    random::Random,
     ray::Ray,
     vec3::{Point3, Real, Vec3},
 };
 use gpu_builder::derive_builder;
 
+pub mod constant_medium;
 pub mod hitable_list;
 pub mod planar;
 pub mod rotate;
@@ -28,7 +31,8 @@ pub mod hitable_list_builder;
 
 #[enum_dispatch]
 pub trait Hitable {
-    fn hit<'a>(&'a self, ray: &Ray, range: &Range<Real>) -> Option<HitRecord<'a>>;
+    fn hit<'a>(&'a self, ray: &Ray, range: &Range<Real>, rng: &mut Random)
+    -> Option<HitRecord<'a>>;
 }
 
 #[enum_dispatch]
@@ -44,6 +48,7 @@ pub trait RecursiveHitable {
         range: &mut Range<Real>,
         hit_record: &mut Option<HitRecord<'a>>,
         count: usize,
+        rng: &mut Random,
     ) -> Option<(&'a HitKind<'a>, usize)>;
 }
 
@@ -57,13 +62,13 @@ pub enum HitKind<'b> {
 
 pub const STACK_SIZE: usize = 16;
 
-pub struct StackEntry<'a> {
-    pub hitkind: &'a HitKindRecursive<'a>,
+pub struct StackEntry<'a, 'b> {
+    pub hitkind: &'a HitKindRecursive<'b>,
     pub next_count: usize,
 }
 
-impl<'a> StackEntry<'a> {
-    pub fn new(hitkind: &'a HitKindRecursive<'a>) -> Self {
+impl<'a, 'b> StackEntry<'a, 'b> {
+    pub fn new(hitkind: &'a HitKindRecursive<'b>) -> Self {
         StackEntry {
             hitkind,
             next_count: 0,
@@ -71,8 +76,10 @@ impl<'a> StackEntry<'a> {
     }
 }
 
-pub fn init_stack<'a, const SIZE: usize>(hitkind: &'a HitKind<'a>) -> [StackEntry<'a>; SIZE] {
-    let mut stack: [StackEntry<'a>; SIZE] =
+pub fn init_stack<'a, 'b, const SIZE: usize>(
+    hitkind: &'a HitKind<'b>,
+) -> [StackEntry<'a, 'b>; SIZE] {
+    let mut stack: [StackEntry<'a, 'b>; SIZE] =
         unsafe { core::mem::MaybeUninit::uninit().assume_init() };
     if let HitKind::HitKindRecursive(hitkind) = hitkind {
         stack[0] = StackEntry::new(hitkind);
@@ -80,20 +87,25 @@ pub fn init_stack<'a, const SIZE: usize>(hitkind: &'a HitKind<'a>) -> [StackEntr
     stack
 }
 
-fn init_stack_for_recursive<'a, const SIZE: usize>(
-    hitkind: &'a HitKindRecursive<'a>,
-) -> [StackEntry<'a>; SIZE] {
-    let mut stack: [StackEntry<'a>; SIZE] =
+fn init_stack_for_recursive<'a, 'b, const SIZE: usize>(
+    hitkind: &'a HitKindRecursive<'b>,
+) -> [StackEntry<'a, 'b>; SIZE] {
+    let mut stack: [StackEntry<'a, 'b>; SIZE] =
         unsafe { core::mem::MaybeUninit::uninit().assume_init() };
     stack[0] = StackEntry::new(hitkind);
     stack
 }
 
 impl HitKind<'_> {
-    pub fn hit<'a>(&'a self, ray: Ray, range: Range<Real>) -> Option<HitRecord<'a>> {
+    pub fn hit<'a>(
+        &'a self,
+        ray: Ray,
+        range: Range<Real>,
+        rng: &mut Random,
+    ) -> Option<HitRecord<'a>> {
         match self {
-            HitKind::HitKindNonRecursive(h) => h.hit(&ray, &range),
-            HitKind::HitKindRecursive(h) => Self::hit_recursive(h, ray, range),
+            HitKind::HitKindNonRecursive(h) => h.hit(&ray, &range, rng),
+            HitKind::HitKindRecursive(h) => Self::hit_recursive(h, ray, range, rng),
         }
     }
 
@@ -101,6 +113,7 @@ impl HitKind<'_> {
         hitkind: &'a HitKindRecursive<'a>,
         ray: Ray,
         range: Range<Real>,
+        rng: &mut Random,
     ) -> Option<HitRecord<'a>> {
         let mut stack = init_stack_for_recursive::<STACK_SIZE>(hitkind);
         let mut stack_ptr = 1;
@@ -119,11 +132,12 @@ impl HitKind<'_> {
                 &mut range,
                 &mut hit_record,
                 current.next_count,
+                rng,
             ) {
                 current.next_count = next_count;
                 match inner_hitkind {
                     HitKind::HitKindNonRecursive(inner_hitkind) => {
-                        if let Some(rec) = inner_hitkind.hit(&ray, &range) {
+                        if let Some(rec) = inner_hitkind.hit(&ray, &range, rng) {
                             if let Some(current_rec) = &hit_record {
                                 if rec.t < current_rec.t {
                                     range = range.start..rec.t;
@@ -175,8 +189,8 @@ macro_rules! impl_into_hitkind_non_recursive {
 }
 
 #[repr(C)]
-#[derive_builder('b)]
 #[enum_dispatch(Hitable, IntoBoundingBox)]
+#[derive_builder('b)]
 pub enum HitKindNonRecursive<'b> {
     Sphere(Sphere<'b>),
     Quad(Quad<'b>),
@@ -185,15 +199,34 @@ pub enum HitKindNonRecursive<'b> {
 impl_into_hitkind_non_recursive!(Sphere, Quad, Triangle);
 
 #[repr(C)]
+#[enum_dispatch(IntoBoundingBox)]
 #[derive_builder('b)]
-#[enum_dispatch(RecursiveHitable, IntoBoundingBox)]
 pub enum HitKindRecursive<'b> {
     HitableList(HitableList<'b>),
     Translate(Translate<'b>),
     Rotate(Rotate<'b>),
+    ConstantMedium(ConstantMedium<'b>),
 }
 
-impl_into_hitkind_recursive!(HitableList, Translate, Rotate);
+impl_into_hitkind_recursive!(HitableList, Translate, Rotate, ConstantMedium);
+
+impl RecursiveHitable for HitKindRecursive<'_> {
+    fn hit_recursive<'a>(
+        &'a self,
+        ray: &mut Ray,
+        range: &mut Range<Real>,
+        hit_record: &mut Option<HitRecord<'a>>,
+        count: usize,
+        rng: &mut Random,
+    ) -> Option<(&'a HitKind<'a>, usize)> {
+        match self {
+            HitKindRecursive::HitableList(h) => h.hit_recursive(ray, range, hit_record, count, rng),
+            HitKindRecursive::Translate(h) => h.hit_recursive(ray, range, hit_record, count, rng),
+            HitKindRecursive::Rotate(h) => h.hit_recursive(ray, range, hit_record, count, rng),
+            _ => None,
+        }
+    }
+}
 
 #[derive(Clone)]
 pub struct HitRecord<'a> {

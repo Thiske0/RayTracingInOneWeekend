@@ -41,7 +41,12 @@ impl Ray {
     pub fn at(&self, t: Real) -> Point3 {
         &self.origin + &self.direction * t
     }
-    pub fn color(self, hitable: &HitKind, options: &ImageRenderOptions, rng: &mut Random) -> Color {
+    pub fn color<'a>(
+        self,
+        hitable: &HitKind<'a>,
+        options: &ImageRenderOptions,
+        rng: &mut Random,
+    ) -> Color {
         // If we've exceeded the ray bounce limit, no more light is gathered.
         if options.max_depth <= 0 {
             return Color::black();
@@ -52,7 +57,7 @@ impl Ray {
         let mut current_ray = self;
 
         for _ in 0..options.max_depth {
-            if let Some(hit) = hitable.hit(current_ray.clone(), 1e-12..Real::INFINITY) {
+            if let Some(hit) = hitable.hit(current_ray.clone(), 1e-12..Real::INFINITY, rng) {
                 final_color += (&current_color) * hit.mat.emission(&hit, rng);
                 if let Some((mut scattered_ray, attenuation)) =
                     hit.mat.scatter(&current_ray, &hit, rng)

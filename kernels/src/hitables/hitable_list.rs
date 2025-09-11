@@ -3,6 +3,7 @@ use core::ops::Range;
 use crate::{
     boundingbox::{BoundingBox, IntoBoundingBox},
     hitables::{HitKind, HitKindDevice, HitRecord, RecursiveHitable},
+    random::Random,
     ray::Ray,
     vec3::Real,
 };
@@ -52,6 +53,7 @@ impl RecursiveHitable for HitableList<'_> {
         interval: &mut Range<Real>,
         _hit_record: &mut Option<HitRecord<'a>>,
         count: usize,
+        _rng: &mut Random,
     ) -> Option<(&'a HitKind<'a>, usize)> {
         if !self.bounding_box.hit(ray, interval) {
             return None;

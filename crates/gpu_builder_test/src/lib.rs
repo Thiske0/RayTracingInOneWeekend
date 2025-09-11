@@ -1,4 +1,6 @@
 #![feature(offset_of_enum)]
+#![feature(generic_const_exprs)]
+#![allow(incomplete_features)]
 
 mod device_struct_struct {
     #[allow(unused)]

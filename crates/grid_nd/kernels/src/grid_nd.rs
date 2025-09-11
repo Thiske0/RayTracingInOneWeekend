@@ -2,7 +2,10 @@ use core::marker::PhantomData;
 
 use crate::{Assert, IsTrue};
 
-use gpu_builder::{BuildResultType, Builder, derive_device_struct};
+use gpu_builder::{Builder, derive_device_struct};
+
+#[cfg(not(target_os = "cuda"))]
+use gpu_builder::BuildResultType;
 
 #[repr(C)]
 #[derive_device_struct]
@@ -240,6 +243,7 @@ pub mod host_impls {
                 GridNDDevice {
                     data: device_ptr,
                     dims: self.dims,
+                    _marker: Default::default(),
                 },
                 self,
                 stream,

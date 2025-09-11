@@ -54,9 +54,9 @@ pub struct ImageRenderOptions {
 #[cfg(target_os = "cuda")]
 #[kernel]
 #[cfg(target_os = "cuda")]
-pub unsafe fn render_image(
+pub unsafe fn render_image<'a>(
     grid: *mut GridND<Color, 2>,
-    world: &HitKind,
+    world: &'a HitKind<'a>,
     options: &ImageRenderOptions,
     rand_states: *mut DefaultRand,
 ) {
@@ -79,7 +79,11 @@ pub unsafe fn render_image(
 use crate::ray::Ray;
 
 #[cfg(not(target_os = "cuda"))]
-pub fn render_image(grid: &mut GridND<Color, 2>, world: &HitKind, options: &ImageRenderOptions) {
+pub fn render_image<'a, 'b: 'a>(
+    grid: &mut GridND<Color, 2>,
+    world: &'b HitKind<'a>,
+    options: &ImageRenderOptions,
+) {
     // Set up the progress bar
 
     let progress = ProgressBar::new(grid.shape().iter().product::<usize>() as u64);
@@ -94,11 +98,11 @@ pub fn render_image(grid: &mut GridND<Color, 2>, world: &HitKind, options: &Imag
     progress.finish();
 }
 
-fn render_pixel(
+fn render_pixel<'a>(
     i: usize,
     j: usize,
     options: &ImageRenderOptions,
-    world: &HitKind,
+    world: &HitKind<'a>,
     rng: &mut Random,
 ) -> Color {
     let mut pixel_color = Color::black();
@@ -114,11 +118,11 @@ use crate::materials::Material;
 /// It functions the same way as `render_image`, but has its inner loop unrolled to improve thread divergence.
 /// Improves performance by 40%.
 #[allow(unused)]
-fn render_pixel_v2(
+fn render_pixel_v2<'a>(
     i: usize,
     j: usize,
     options: &ImageRenderOptions,
-    world: &HitKind,
+    world: &HitKind<'a>,
     rng: &mut Random,
 ) -> Color {
     let mut pixel_color = Color::black();
@@ -135,7 +139,7 @@ fn render_pixel_v2(
             current_color = Color::white();
         }
 
-        if let Some(hit) = world.hit(current_ray.clone(), 1e-12..Real::INFINITY) {
+        if let Some(hit) = world.hit(current_ray.clone(), 1e-12..Real::INFINITY, rng) {
             pixel_color += (&current_color) * hit.mat.emission(&hit, rng);
             if let Some((mut scattered_ray, attenuation)) = hit.mat.scatter(&current_ray, &hit, rng)
             {
@@ -188,7 +192,7 @@ fn render_pixel_v3<'a>(
     let mut cur_depth = 0;
 
     let mut stack_ptr = 0;
-    let mut stack: [StackEntry<'a>; STACK_SIZE] = init_stack::<STACK_SIZE>(world);
+    let mut stack: [StackEntry<'a, '_>; STACK_SIZE] = init_stack::<STACK_SIZE>(world);
     let mut hit_record: Option<HitRecord<'a>> = None;
     let mut range = 1e-12..Real::INFINITY;
 
@@ -206,7 +210,7 @@ fn render_pixel_v3<'a>(
             range = 1e-12..Real::INFINITY;
             match world {
                 HitKind::HitKindNonRecursive(h) => {
-                    hit_record = h.hit(&current_ray, &range);
+                    hit_record = h.hit(&current_ray, &range, rng);
                 }
                 HitKind::HitKindRecursive(h) => {
                     stack[0].next_count = 0; // reset next_count
@@ -228,11 +232,12 @@ fn render_pixel_v3<'a>(
                 &mut range,
                 &mut hit_record,
                 current.next_count,
+                rng,
             ) {
                 current.next_count = next_count;
                 match inner_hitkind {
                     HitKind::HitKindNonRecursive(inner_hitkind) => {
-                        if let Some(rec) = inner_hitkind.hit(&current_ray, &range) {
+                        if let Some(rec) = inner_hitkind.hit(&current_ray, &range, rng) {
                             if let Some(current_rec) = &hit_record {
                                 if rec.t < current_rec.t {
                                     range = range.start..rec.t;

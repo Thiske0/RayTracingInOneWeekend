@@ -318,6 +318,98 @@ fn cornell_box<'a>(options: &mut RenderOptions) -> HitableListBuilder<'a> {
     world
 }
 
+fn cornell_box_smoke<'a>(options: &mut RenderOptions) -> HitableListBuilder<'a> {
+    let mut world = HitableListBuilder::new();
+
+    let red = Lambertian::new(SolidTexture::new(Color::new(0.65, 0.05, 0.05)));
+    let green = Lambertian::new(SolidTexture::new(Color::new(0.12, 0.45, 0.15)));
+    let light = DiffuseLight::new(SolidTexture::new(Color::new(15.0, 15.0, 15.0)));
+    let white = Lambertian::new(SolidTexture::new(Color::new(0.73, 0.73, 0.73)));
+    let smoke = Dielectric::new(1.5);
+
+    world.add(Quad::new(
+        Point3::new(555.0, 0.0, 0.0),
+        Vec3::new(0.0, 555.0, 0.0),
+        Vec3::new(0.0, 0.0, 555.0),
+        green,
+    ));
+    world.add(Quad::new(
+        Point3::new(0.0, 0.0, 0.0),
+        Vec3::new(0.0, 555.0, 0.0),
+        Vec3::new(0.0, 0.0, 555.0),
+        red,
+    ));
+    world.add(Quad::new(
+        Point3::new(343.0, 554.0, 332.0),
+        Vec3::new(-130.0, 0.0, 0.0),
+        Vec3::new(0.0, 0.0, -105.0),
+        light,
+    ));
+    world.add(Quad::new(
+        Point3::new(0.0, 0.0, 0.0),
+        Vec3::new(555.0, 0.0, 0.0),
+        Vec3::new(0.0, 0.0, 555.0),
+        white.clone(),
+    ));
+    world.add(Quad::new(
+        Point3::new(555.0, 555.0, 555.0),
+        Vec3::new(-555.0, 0.0, 0.0),
+        Vec3::new(0.0, 0.0, -555.0),
+        white.clone(),
+    ));
+    world.add(Quad::new(
+        Point3::new(0.0, 0.0, 555.0),
+        Vec3::new(555.0, 0.0, 0.0),
+        Vec3::new(0.0, 555.0, 0.0),
+        white.clone(),
+    ));
+
+    world.add(Translate::new_owned(
+        Vec3::new(265.0, 0.0, 295.0),
+        Rotate::new_owned(
+            Axis::Y,
+            15.0_f32.to_radians(),
+            make_box(
+                Point3::new(0.0, 0.0, 0.0),
+                Point3::new(165.0, 330.0, 165.0),
+                smoke.clone(),
+            )
+            .into(),
+        ),
+    ));
+
+    world.add(Translate::new_owned(
+        Vec3::new(130.0, 0.0, 65.0),
+        Rotate::new_owned(
+            Axis::Y,
+            -18.0_f32.to_radians(),
+            make_box(
+                Point3::new(0.0, 0.0, 0.0),
+                Point3::new(165.0, 165.0, 165.0),
+                smoke.clone(),
+            )
+            .into(),
+        ),
+    ));
+
+    world.add_unrolled(make_box(
+        Point3::new(265.0, 0.0, 295.0),
+        Point3::new(430.0, 330.0, 460.0),
+        white,
+    ));
+
+    options.vertical_fov = 40.0;
+    options.lookfrom = Point3::new(278.0, 278.0, -800.0);
+    options.lookat = Point3::new(278.0, 278.0, 0.0);
+    options.vup = Vec3::new(0.0, 1.0, 0.0);
+    options.width = options.height;
+    options.samples_per_pixel = 200;
+
+    options.defocus_angle = 0.0;
+
+    world
+}
+
 fn main() -> Result<()> {
     // Parse command line options
     let mut options = Options::parse();
@@ -332,6 +424,7 @@ fn main() -> Result<()> {
         4 => planar(&mut options.render),
         5 => lights(&mut options.render),
         6 => cornell_box(&mut options.render),
+        7 => cornell_box_smoke(&mut options.render),
         _ => {
             panic!("Unknown scene {}", scene);
         }

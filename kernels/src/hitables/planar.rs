@@ -3,6 +3,7 @@ use gpu_builder::{DeviceCopyBuilder, derive_builder};
 use crate::{
     hitables::{BoundingBox, HitKind, HitRecord, Hitable, IntoBoundingBox},
     materials::{MaterialKind, MaterialKindDevice},
+    random::Random,
     ray::Ray,
     vec3::{Point3, Real, Vec3},
 };
@@ -103,7 +104,12 @@ impl<'a> Triangle<'a> {
 }
 
 impl<'b> Hitable for Triangle<'b> {
-    fn hit<'a>(&'a self, ray: &Ray, t_range: &Range<Real>) -> Option<HitRecord<'a>> {
+    fn hit<'a>(
+        &'a self,
+        ray: &Ray,
+        t_range: &Range<Real>,
+        _rng: &mut Random,
+    ) -> Option<HitRecord<'a>> {
         if let Some(hit) = self.plane.hit(ray, t_range) {
             let (u, v) = self
                 .plane
@@ -158,7 +164,12 @@ impl<'a> Quad<'a> {
 }
 
 impl<'b> Hitable for Quad<'b> {
-    fn hit<'a>(&'a self, ray: &Ray, t_range: &Range<Real>) -> Option<HitRecord<'a>> {
+    fn hit<'a>(
+        &'a self,
+        ray: &Ray,
+        t_range: &Range<Real>,
+        _rng: &mut Random,
+    ) -> Option<HitRecord<'a>> {
         if let Some(hit) = self.plane.hit(ray, t_range) {
             let (u, v) = self
                 .plane

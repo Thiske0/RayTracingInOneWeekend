@@ -112,9 +112,8 @@ pub fn derive_builder_struct(
         .iter()
         .map(|field| {
             let field_name = &field.ident;
-            let field_ty = &field.ty;
             quote! {
-                #field_name: <#field_ty>::default(),
+                #field_name: Default::default(),
             }
         })
         .collect::<Vec<_>>();
@@ -129,6 +128,7 @@ pub fn derive_builder_struct(
             }
         })
         .collect::<Vec<_>>();
+    let struct_fields_no_copy_device = struct_fields_no_copy.clone();
 
     let build_device_fields = fields.iter().zip(fields_device).map(|(field, field_device)| {
                 let field_name = &field.ident;
@@ -160,6 +160,7 @@ pub fn derive_builder_struct(
                 #(#build_device_fields)*
                 let result_device = #device_name {
                     #(#struct_fields_device)*
+                    #(#struct_fields_no_copy_device)*
                 };
                 let result_host = #name {
                     #(#struct_fields)*
