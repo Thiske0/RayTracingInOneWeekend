@@ -302,12 +302,6 @@ fn cornell_box<'a>(options: &mut RenderOptions) -> HitableListBuilder<'a> {
         ),
     ));
 
-    world.add_unrolled(make_box(
-        Point3::new(265.0, 0.0, 295.0),
-        Point3::new(430.0, 330.0, 460.0),
-        white,
-    ));
-
     options.vertical_fov = 40.0;
     options.lookfrom = Point3::new(278.0, 278.0, -800.0);
     options.lookat = Point3::new(278.0, 278.0, 0.0);
@@ -325,7 +319,7 @@ fn cornell_box_smoke<'a>(options: &mut RenderOptions) -> HitableListBuilder<'a> 
 
     let red = Lambertian::new(SolidTexture::new(Color::new(0.65, 0.05, 0.05)));
     let green = Lambertian::new(SolidTexture::new(Color::new(0.12, 0.45, 0.15)));
-    let light = DiffuseLight::new(SolidTexture::new(Color::new(15.0, 15.0, 15.0)));
+    let light = DiffuseLight::new(SolidTexture::new(Color::new(7.0, 7.0, 7.0)));
     let white = Lambertian::new(SolidTexture::new(Color::new(0.73, 0.73, 0.73)));
     let smoke = Dielectric::new(1.5);
 
@@ -366,7 +360,7 @@ fn cornell_box_smoke<'a>(options: &mut RenderOptions) -> HitableListBuilder<'a> 
         white.clone(),
     ));
 
-    world.add(Translate::new_owned(
+    let smoke_box_1 = Translate::new_owned(
         Vec3::new(265.0, 0.0, 295.0),
         Rotate::new_owned(
             Axis::Y,
@@ -378,9 +372,15 @@ fn cornell_box_smoke<'a>(options: &mut RenderOptions) -> HitableListBuilder<'a> 
             )
             .into(),
         ),
+    );
+
+    world.add(ConstantMedium::new_owned(
+        0.01,
+        smoke_box_1,
+        Isotropic::new(Color::black()),
     ));
 
-    let smoke_box = Translate::new_owned(
+    let smoke_box_2 = Translate::new_owned(
         Vec3::new(130.0, 1.0, 65.0),
         Rotate::new_owned(
             Axis::Y,
@@ -395,15 +395,9 @@ fn cornell_box_smoke<'a>(options: &mut RenderOptions) -> HitableListBuilder<'a> 
     );
 
     world.add(ConstantMedium::new_owned(
-        0.05,
-        smoke_box,
-        Isotropic::new(Color::new(0.0, 0.0, 0.0)),
-    ));
-
-    world.add_unrolled(make_box(
-        Point3::new(265.0, 0.0, 295.0),
-        Point3::new(430.0, 330.0, 460.0),
-        white,
+        0.01,
+        smoke_box_2,
+        Isotropic::new(Color::white()),
     ));
 
     options.vertical_fov = 40.0;

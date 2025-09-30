@@ -66,7 +66,7 @@ impl ConstantMedium<'_> {
         if hit_distance > distance_inside_boundary {
             return None;
         }
-        let t = start_t + hit_distance;
+        let t = start_t + hit_distance / ray.direction.length();
         let normal = Vec3::new(1.0, 0.0, 0.0); // arbitrary
         let (u, v) = (0.0, 0.0); // arbitrary
         Some(HitRecord {
@@ -95,8 +95,6 @@ impl RecursiveHitable for ConstantMedium<'_> {
             if !self.boundingbox().hit(ray, range) {
                 return None;
             }
-            //TD: fix this shit
-            return None;
 
             extra_stack
                 .push::<(Range<Real>, Option<HitRecord<'a>>)>((range.clone(), hit_record.take()));
@@ -105,7 +103,7 @@ impl RecursiveHitable for ConstantMedium<'_> {
             if let Some(first_hit) = hit_record.take() {
                 if first_hit.is_front_face {
                     // get second hit for back face
-                    *range = (1e-3 + first_hit.t)..range.end;
+                    *range = (1e-3 + first_hit.t)..Real::INFINITY;
                     return Some((&self.boundary, 2));
                 } else {
                     *hit_record = self.make_record(&ray, range.start, first_hit.t, rng);
@@ -116,7 +114,8 @@ impl RecursiveHitable for ConstantMedium<'_> {
             let end_t = if let Some(second_hit) = hit_record.take() {
                 second_hit.t
             } else {
-                range.end
+                // no second hit, this means we are really close to the boundary
+                start_t
             };
             *hit_record = self.make_record(&ray, start_t, end_t, rng);
         } else {
