@@ -15,6 +15,7 @@ use crate::{
     materials::MaterialKind,
     random::Random,
     ray::Ray,
+    stack::Stack,
     vec3::{Point3, Real, Vec3},
 };
 use gpu_builder::derive_builder;
@@ -49,6 +50,7 @@ pub trait RecursiveHitable {
         hit_record: &mut Option<HitRecord<'a>>,
         count: usize,
         rng: &mut Random,
+        extra_stack: &mut Stack,
     ) -> Option<(&'a HitKind<'a>, usize)>;
 }
 
@@ -115,6 +117,7 @@ impl HitKind<'_> {
         range: Range<Real>,
         rng: &mut Random,
     ) -> Option<HitRecord<'a>> {
+        let mut extra_stack = Stack::new();
         let mut stack = init_stack_for_recursive::<STACK_SIZE>(hitkind);
         let mut stack_ptr = 1;
 
@@ -133,6 +136,7 @@ impl HitKind<'_> {
                 &mut hit_record,
                 current.next_count,
                 rng,
+                &mut extra_stack,
             ) {
                 current.next_count = next_count;
                 match inner_hitkind {
@@ -218,12 +222,21 @@ impl RecursiveHitable for HitKindRecursive<'_> {
         hit_record: &mut Option<HitRecord<'a>>,
         count: usize,
         rng: &mut Random,
+        extra_stack: &mut Stack,
     ) -> Option<(&'a HitKind<'a>, usize)> {
         match self {
-            HitKindRecursive::HitableList(h) => h.hit_recursive(ray, range, hit_record, count, rng),
-            HitKindRecursive::Translate(h) => h.hit_recursive(ray, range, hit_record, count, rng),
-            HitKindRecursive::Rotate(h) => h.hit_recursive(ray, range, hit_record, count, rng),
-            _ => None,
+            HitKindRecursive::HitableList(h) => {
+                h.hit_recursive(ray, range, hit_record, count, rng, extra_stack)
+            }
+            HitKindRecursive::Translate(h) => {
+                h.hit_recursive(ray, range, hit_record, count, rng, extra_stack)
+            }
+            HitKindRecursive::Rotate(h) => {
+                h.hit_recursive(ray, range, hit_record, count, rng, extra_stack)
+            }
+            HitKindRecursive::ConstantMedium(h) => {
+                h.hit_recursive(ray, range, hit_record, count, rng, extra_stack)
+            }
         }
     }
 }

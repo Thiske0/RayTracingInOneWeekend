@@ -5,6 +5,7 @@ use crate::{
     hitables::{HitKind, HitKindDevice, HitRecord, RecursiveHitable},
     random::Random,
     ray::Ray,
+    stack::Stack,
     vec3::{Real, Vec3},
 };
 use gpu_builder::derive_builder;
@@ -44,6 +45,7 @@ impl RecursiveHitable for Translate<'_> {
         hit_record: &mut Option<HitRecord<'a>>,
         count: usize,
         _rng: &mut Random,
+        _extra_stack: &mut Stack,
     ) -> Option<(&'a HitKind<'a>, usize)> {
         if count == 0 {
             if let Some(rec) = hit_record {

@@ -13,11 +13,12 @@ use gpu_builder::DeviceCopyBuilder;
 #[cfg(target_os = "cuda")]
 use gpu_rand::DefaultRand;
 
-use crate::random::Random;
-use crate::vec3::{Point3, Real, Vec3};
 use crate::{
     color::Color,
     hitables::{HitKind, HitRecord, Hitable, RecursiveHitable, init_stack},
+    random::Random,
+    stack::Stack,
+    vec3::{Point3, Real, Vec3},
 };
 use grid_nd::GridND;
 
@@ -32,6 +33,8 @@ pub mod random;
 pub mod ray;
 pub mod textures;
 pub mod vec3;
+
+mod stack;
 
 #[cfg_attr(not(target_os = "cuda"), derive(Clone, Copy, DeviceCopy))]
 #[repr(C)]
@@ -195,6 +198,7 @@ fn render_pixel_v3<'a>(
     let mut stack: [StackEntry<'a, '_>; STACK_SIZE] = init_stack::<STACK_SIZE>(world);
     let mut hit_record: Option<HitRecord<'a>> = None;
     let mut range = 1e-12..Real::INFINITY;
+    let mut extra_stack = Stack::new();
 
     // To satisfy the compiler, we need to initialize `current_ray` here.
     let mut current_ray = Ray::new(Vec3::zero(), Vec3::zero(), 0.0);
@@ -233,6 +237,7 @@ fn render_pixel_v3<'a>(
                 &mut hit_record,
                 current.next_count,
                 rng,
+                &mut extra_stack,
             ) {
                 current.next_count = next_count;
                 match inner_hitkind {

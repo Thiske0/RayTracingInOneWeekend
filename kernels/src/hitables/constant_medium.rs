@@ -6,9 +6,9 @@ use crate::{
     materials::{MaterialKind, MaterialKindDevice},
     random::{Random, RandomRange},
     ray::Ray,
-    vec3::{Point3, Real, Vec3},
+    stack::Stack,
+    vec3::{Real, Vec3},
 };
-use core::cell::Cell;
 use gpu_builder::derive_builder;
 use ref_builder::{RefBuilder, RefBuilderDevice};
 
@@ -21,10 +21,6 @@ pub struct ConstantMedium<'a> {
     neg_inv_density: Real,
     boundary: RefBuilder<'a, HitKind<'a>>,
     phase_function: MaterialKind<'a>,
-    #[no_copy]
-    prev_hitrec: Cell<Option<HitRecord<'static>>>,
-    #[no_copy]
-    prev_ray_origin: Cell<Option<Point3>>,
 }
 
 #[cfg(not(target_os = "cuda"))]
@@ -38,8 +34,6 @@ impl<'a> ConstantMedium<'a> {
             neg_inv_density: -1.0 / density,
             boundary: RefBuilder::new(boundary),
             phase_function,
-            prev_hitrec: Cell::new(None),
-            prev_ray_origin: Cell::new(None),
         }
         .into()
     }
@@ -53,8 +47,6 @@ impl<'a> ConstantMedium<'a> {
             neg_inv_density: -1.0 / density,
             boundary: RefBuilder::new_owned(boundary),
             phase_function,
-            prev_hitrec: Cell::new(None),
-            prev_ray_origin: Cell::new(None),
         }
         .into()
     }
@@ -63,31 +55,18 @@ impl<'a> ConstantMedium<'a> {
 impl ConstantMedium<'_> {
     fn make_record<'a>(
         &'a self,
-        ray: &mut Ray,
+        ray: &Ray,
         start_t: Real,
         end_t: Real,
         rng: &mut Random,
     ) -> Option<HitRecord<'a>> {
-        //first modify ray back to original
-        let prev_record = self.prev_hitrec.take();
-        *ray = Ray::new(
-            self.prev_ray_origin.take().unwrap(),
-            ray.direction.clone(),
-            ray.time,
-        );
-
         let distance_inside_boundary = (end_t - start_t) * ray.direction.length();
         let random_real: Real = rng.random_range(0.0..1.0);
         let hit_distance = self.neg_inv_density * random_real.ln();
         if hit_distance > distance_inside_boundary {
-            return prev_record;
+            return None;
         }
         let t = start_t + hit_distance;
-        if let Some(prev_record) = prev_record {
-            if prev_record.t < t {
-                return Some(prev_record);
-            }
-        }
         let normal = Vec3::new(1.0, 0.0, 0.0); // arbitrary
         let (u, v) = (0.0, 0.0); // arbitrary
         Some(HitRecord {
@@ -110,56 +89,61 @@ impl RecursiveHitable for ConstantMedium<'_> {
         hit_record: &mut Option<HitRecord<'a>>,
         count: usize,
         rng: &mut Random,
+        extra_stack: &mut Stack,
     ) -> Option<(&'a HitKind<'a>, usize)> {
         if count == 0 {
-            let static_hitrec = unsafe {
-                core::mem::transmute::<Option<HitRecord<'a>>, Option<HitRecord<'static>>>(
-                    hit_record.take(),
-                )
-            };
-            self.prev_hitrec.set(static_hitrec);
-            self.prev_ray_origin.set(Some(ray.origin.clone()));
-
-            Some((
-                &self.boundary,
-                1, // Increment count to avoid infinite recursion
-            ))
-        } else if count == 1 {
-            if let Some(boundary_hit) = hit_record {
-                if boundary_hit.is_front_face {
-                    // get second hit for back face
-                    *ray = Ray::new(boundary_hit.p.clone(), ray.direction.clone(), ray.time);
-                    *hit_record = None;
-                    return Some((
-                        &self.boundary,
-                        2, // Increment count to avoid infinite recursion
-                    ));
-                } else {
-                    // start is just the start of the ray
-                    let start_t = range.start;
-                    let end_t = boundary_hit.t;
-                    //TODO: make work with concave shapes
-                    *hit_record = self.make_record(ray, start_t, end_t, rng);
-                    return None;
-                }
-            }
-            *hit_record = self.make_record(ray, 0.0, 0.0, rng);
-            None
-        } else if count == 2 {
-            if let Some(boundary_hit) = hit_record {
-                // start is just the start of the ray
-                let start_t = 0.0;
-                let end_t = boundary_hit.t;
-                *hit_record = self.make_record(ray, start_t, end_t, rng);
+            if !self.boundingbox().hit(ray, range) {
                 return None;
             }
-            let start_t = 0.0;
-            let end_t = range.end;
-            *hit_record = self.make_record(ray, start_t, end_t, rng);
-            None
+            //TD: fix this shit
+            return None;
+
+            extra_stack
+                .push::<(Range<Real>, Option<HitRecord<'a>>)>((range.clone(), hit_record.take()));
+            return Some((&self.boundary, 1));
+        } else if count == 1 {
+            if let Some(first_hit) = hit_record.take() {
+                if first_hit.is_front_face {
+                    // get second hit for back face
+                    *range = (1e-3 + first_hit.t)..range.end;
+                    return Some((&self.boundary, 2));
+                } else {
+                    *hit_record = self.make_record(&ray, range.start, first_hit.t, rng);
+                }
+            }
+        } else if count == 2 {
+            let start_t = range.start - 1e-3;
+            let end_t = if let Some(second_hit) = hit_record.take() {
+                second_hit.t
+            } else {
+                range.end
+            };
+            *hit_record = self.make_record(&ray, start_t, end_t, rng);
         } else {
             unreachable!()
         }
+
+        // restore previous hit_record and range
+        let (prev_range, prev_hit_record) =
+            unsafe { extra_stack.pop::<(Range<Real>, Option<HitRecord<'a>>)>() };
+        let mut reset_record = false;
+        if let Some(ref prev_rec) = prev_hit_record {
+            if let Some(rec) = hit_record {
+                // merge with previous hit record
+                if rec.t > prev_rec.t {
+                    reset_record = true;
+                }
+            } else {
+                reset_record = true;
+            }
+        }
+        if reset_record {
+            *hit_record = prev_hit_record;
+            *range = prev_range;
+        } else if let Some(hit_record) = hit_record {
+            *range = prev_range.start..hit_record.t;
+        }
+        None
     }
 }
 

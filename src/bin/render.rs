@@ -15,6 +15,7 @@ use simple_ray_tracer_kernels::{
     color::Color,
     hitables::{
         HitKind,
+        constant_medium::ConstantMedium,
         hitable_list_builder::HitableListBuilder,
         planar::{Quad, Triangle, make_box},
         rotate::Rotate,
@@ -22,7 +23,8 @@ use simple_ray_tracer_kernels::{
         translate::Translate,
     },
     materials::{
-        dielectric::Dielectric, diffuse_light::DiffuseLight, lambertian::Lambertian, metal::Metal,
+        dielectric::Dielectric, diffuse_light::DiffuseLight, isotropic::Isotropic,
+        lambertian::Lambertian, metal::Metal,
     },
     random::RandomRange,
     textures::{
@@ -378,8 +380,8 @@ fn cornell_box_smoke<'a>(options: &mut RenderOptions) -> HitableListBuilder<'a> 
         ),
     ));
 
-    world.add(Translate::new_owned(
-        Vec3::new(130.0, 0.0, 65.0),
+    let smoke_box = Translate::new_owned(
+        Vec3::new(130.0, 1.0, 65.0),
         Rotate::new_owned(
             Axis::Y,
             -18.0_f32.to_radians(),
@@ -390,6 +392,12 @@ fn cornell_box_smoke<'a>(options: &mut RenderOptions) -> HitableListBuilder<'a> 
             )
             .into(),
         ),
+    );
+
+    world.add(ConstantMedium::new_owned(
+        0.05,
+        smoke_box,
+        Isotropic::new(Color::new(0.0, 0.0, 0.0)),
     ));
 
     world.add_unrolled(make_box(
@@ -416,7 +424,7 @@ fn main() -> Result<()> {
 
     let earth_image = ImageTexture::from_file("data/earthmap.jpg")?;
 
-    let scene = 6;
+    let scene = 7;
     let world = match scene {
         1 => bouncing_spheres(&mut options.render),
         2 => earth(&mut options.render, &earth_image),

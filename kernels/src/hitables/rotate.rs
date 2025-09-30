@@ -5,6 +5,7 @@ use crate::{
     hitables::{HitKind, HitKindDevice, HitRecord, RecursiveHitable},
     random::Random,
     ray::Ray,
+    stack::Stack,
     vec3::{Axis, Real},
 };
 use gpu_builder::derive_builder;
@@ -59,6 +60,7 @@ impl RecursiveHitable for Rotate<'_> {
         hit_record: &mut Option<HitRecord<'a>>,
         count: usize,
         _rng: &mut Random,
+        _extra_stack: &mut Stack,
     ) -> Option<(&'a HitKind<'a>, usize)> {
         if count == 0 {
             if !self.bounding_box.hit(ray, range) {

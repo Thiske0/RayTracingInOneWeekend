@@ -4,6 +4,8 @@ use crate::{
     materials::{
         dielectric::{Dielectric, DielectricDevice},
         diffuse_light::{DiffuseLight, DiffuseLightDevice},
+        is_front::IsFront,
+        isotropic::Isotropic,
         lambertian::{Lambertian, LambertianDevice},
         metal::{Metal, MetalDevice},
     },
@@ -29,9 +31,13 @@ pub enum MaterialKind<'a> {
     Metal(Metal<'a>),
     Dielectric(Dielectric<'a>),
     DiffuseLight(DiffuseLight<'a>),
+    Isotropic(Isotropic),
+    IsFront(IsFront),
 }
 
 pub mod dielectric;
 pub mod diffuse_light;
+pub mod is_front;
+pub mod isotropic;
 pub mod lambertian;
 pub mod metal;
