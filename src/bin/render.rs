@@ -525,7 +525,7 @@ fn final_scene<'a>(
     options.lookat = Point3::new(278.0, 278.0, 0.0);
     options.vup = Vec3::new(0.0, 1.0, 0.0);
     options.width = options.height;
-    options.samples_per_pixel = 500;
+    options.samples_per_pixel = 50;
 
     options.defocus_angle = 0.0;
 

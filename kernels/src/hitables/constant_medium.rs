@@ -98,6 +98,7 @@ impl RecursiveHitable for ConstantMedium<'_> {
 
             extra_stack
                 .push::<(Range<Real>, Option<HitRecord<'a>>)>((range.clone(), hit_record.take()));
+            range.end = Real::INFINITY;
             return Some((&self.boundary, 1));
         } else if count == 1 {
             if let Some(first_hit) = hit_record.take() {
