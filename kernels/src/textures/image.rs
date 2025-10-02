@@ -6,6 +6,7 @@ use crate::{
     textures::Texture,
     vec3::{Point3, Real},
 };
+use core::cmp::{max, min};
 use gpu_builder::derive_builder;
 use grid_nd::{GridND, GridNDDevice};
 use ref_builder::{RefBuilder, RefBuilderDevice};
@@ -59,7 +60,9 @@ impl<'a> ImageTexture<'a> {
 impl<'a> Texture for ImageTexture<'a> {
     fn color(&self, u: Real, v: Real, _p: &Point3, _rng: &mut Random) -> Color {
         let x = (u * self.image.shape()[1] as Real).floor() as usize;
+        let x = min(max(x, 0), self.image.shape()[1] - 1);
         let y = (v * self.image.shape()[0] as Real).floor() as usize;
+        let y = min(max(y, 0), self.image.shape()[0] - 1);
         self.image.at(y).at(x).clone()
     }
 }

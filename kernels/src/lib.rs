@@ -77,7 +77,7 @@ pub unsafe fn render_image<'a>(
     let mut rng = unsafe { &mut *rand_states.add(px_idx) };
 
     // Store the pixel color in the grid
-    *grid.at_mut(idx_y).at_mut(idx_x) = render_pixel_v2(idx_x, idx_y, options, world, &mut rng);
+    *grid.at_mut(idx_y).at_mut(idx_x) = render_pixel_v3(idx_x, idx_y, options, world, &mut rng);
 }
 use crate::ray::Ray;
 

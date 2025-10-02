@@ -118,7 +118,7 @@ fn earth<'a>(
     options.background = Color::new(0.7, 0.8, 1.0);
 
     let mut world: HitableListBuilder<'_> = HitableListBuilder::new();
-    world.add(globe.into());
+    world.add(globe);
     world
 }
 
@@ -412,13 +412,133 @@ fn cornell_box_smoke<'a>(options: &mut RenderOptions) -> HitableListBuilder<'a> 
     world
 }
 
+fn final_scene<'a>(
+    options: &mut RenderOptions,
+    earth_image: &'a GridND<Color, 2>,
+) -> HitableListBuilder<'a> {
+    let mut world = HitableListBuilder::new();
+    let mut floor = HitableListBuilder::new();
+    let ground = Lambertian::new(SolidTexture::new(Color::new(0.48, 0.83, 0.53)));
+
+    let mut rng = rand::rng();
+    let boxes_per_side = 20;
+    for i in 0..boxes_per_side {
+        for j in 0..boxes_per_side {
+            let size = 100.0;
+            let x0 = -1000.0 + i as f32 * size;
+            let z0 = -1000.0 + j as f32 * size;
+            let y1 = rng.random_range(1.0..101.0);
+            floor.add_unrolled(make_box(
+                Point3::new(x0, 0.0, z0),
+                Point3::new(x0 + size, y1, z0 + size),
+                ground.clone(),
+            ));
+        }
+    }
+    let subdivided_floor = floor.subdivide(&[2, 4]).into();
+    world.add(subdivided_floor);
+
+    world.add(Quad::new(
+        Point3::new(123.0, 554.0, 147.0),
+        Vec3::new(300.0, 0.0, 0.0),
+        Vec3::new(0.0, 0.0, 265.0),
+        DiffuseLight::new(SolidTexture::new(Color::new(7.0, 7.0, 7.0))),
+    ));
+
+    let start = Point3::new(400.0, 400.0, 200.0);
+    let end = start + Vec3::new(30.0, 0.0, 0.0);
+    world.add(
+        Sphere::new_moving(
+            start,
+            end,
+            50.0,
+            Lambertian::new(SolidTexture::new(Color::new(0.7, 0.3, 0.1))),
+        )
+        .into(),
+    );
+
+    world.add(Sphere::new_static(
+        Point3::new(260.0, 150.0, 45.0),
+        50.0,
+        Dielectric::new(1.5),
+    ));
+    world.add(Sphere::new_static(
+        Point3::new(0.0, 150.0, 145.0),
+        50.0,
+        Metal::new(SolidTexture::new(Color::new(0.8, 0.8, 0.9)), 1.0),
+    ));
+
+    //Dielectric with smoke inside
+    world.add(Sphere::new_static(
+        Point3::new(360.0, 150.0, 145.0),
+        70.0,
+        Dielectric::new(1.5),
+    ));
+    let boundary = Sphere::new_static(
+        Point3::new(360.0, 150.0, 145.0),
+        70.0 - 1e-3,
+        Dielectric::new(1.5),
+    );
+    world.add(ConstantMedium::new_owned(
+        0.2,
+        boundary,
+        Isotropic::new(Color::new(0.2, 0.4, 0.9)),
+    ));
+
+    let boundary = Sphere::new_static(Point3::new(0.0, 0.0, 0.0), 5000.0, Dielectric::new(1.5));
+    world.add(ConstantMedium::new_owned(
+        0.0001,
+        boundary,
+        Isotropic::new(Color::new(1.0, 1.0, 1.0)),
+    ));
+
+    world.add(Sphere::new_static(
+        Point3::new(400.0, 200.0, 400.0),
+        100.0,
+        Lambertian::new(ImageTexture::new(&earth_image)),
+    ));
+    world.add(Sphere::new_static(
+        Point3::new(220.0, 280.0, 300.0),
+        80.0,
+        Lambertian::new(PerlinTexture::new(0.2)),
+    ));
+
+    let mut spheres = HitableListBuilder::new();
+    let white = Lambertian::new(SolidTexture::new(Color::new(0.73, 0.73, 0.73)));
+    let ns = 1000;
+    for _ in 0..ns {
+        spheres.add(Sphere::new_static(
+            Point3::random(0.0..165.0, &mut rng),
+            10.0,
+            white.clone(),
+        ));
+    }
+    let subdivided_spheres = spheres.subdivide(&[3, 3]).into();
+
+    world.add(Translate::new_owned(
+        Vec3::new(-100.0, 270.0, 395.0),
+        Rotate::new_owned(Axis::Y, 15.0, subdivided_spheres),
+    ));
+
+    options.vertical_fov = 40.0;
+    options.lookfrom = Point3::new(478.0, 278.0, -600.0);
+    options.lookat = Point3::new(278.0, 278.0, 0.0);
+    options.vup = Vec3::new(0.0, 1.0, 0.0);
+    options.width = options.height;
+    options.samples_per_pixel = 500;
+
+    options.defocus_angle = 0.0;
+
+    world
+}
+
 fn main() -> Result<()> {
     // Parse command line options
     let mut options = Options::parse();
 
     let earth_image = ImageTexture::from_file("data/earthmap.jpg")?;
 
-    let scene = 7;
+    let scene = 8;
     let world = match scene {
         1 => bouncing_spheres(&mut options.render),
         2 => earth(&mut options.render, &earth_image),
@@ -427,6 +547,7 @@ fn main() -> Result<()> {
         5 => lights(&mut options.render),
         6 => cornell_box(&mut options.render),
         7 => cornell_box_smoke(&mut options.render),
+        8 => final_scene(&mut options.render, &earth_image),
         _ => {
             panic!("Unknown scene {}", scene);
         }
