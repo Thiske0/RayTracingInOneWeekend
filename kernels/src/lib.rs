@@ -265,6 +265,10 @@ fn render_pixel_v3<'a>(
         }
 
         if stack_ptr == 0 {
+            // resynchronize threads to avoid divergence?
+            // #[cfg(target_os = "cuda")]
+            // unsafe { cuda_std::warp::sync_warp(0xFFFF_FFFF) };
+
             // process hit
             if let Some(hit) = &hit_record {
                 pixel_color += (&current_color) * hit.mat.emission(&hit, rng);
