@@ -18,6 +18,7 @@ pub struct RefBuilder<'a, T: Builder<'a>> {
     owned: bool,
 }
 
+#[cfg(not(target_os = "cuda"))]
 impl<'a, T: Builder<'a>> Clone for RefBuilder<'a, T> {
     fn clone(&self) -> Self {
         if self.owned {
@@ -57,6 +58,7 @@ pub struct SliceBuilder<'a, T: Builder<'a>> {
     owned: bool,
 }
 
+#[cfg(not(target_os = "cuda"))]
 impl<'a, T: Builder<'a>> Clone for SliceBuilder<'a, T> {
     fn clone(&self) -> Self {
         if self.owned {
