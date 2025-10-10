@@ -109,8 +109,8 @@ fn render_pixel<'a>(
     rng: &mut Random,
 ) -> Color {
     let mut pixel_color = Color::black();
-    for _ in 0..options.samples_per_pixel {
-        let ray = Ray::get_ray(i, j, options, rng);
+    for cur_sample in 0..options.samples_per_pixel {
+        let ray = Ray::get_ray(cur_sample, i, j, options, rng);
         pixel_color += ray.color(world, options, rng);
     }
     pixel_color / options.samples_per_pixel as Real
@@ -138,7 +138,7 @@ fn render_pixel_v2<'a>(
     let mut current_color = Color::white();
     while cur_sample < options.samples_per_pixel {
         if cur_depth == 0 {
-            current_ray = Ray::get_ray(i, j, options, rng);
+            current_ray = Ray::get_ray(cur_sample, i, j, options, rng);
             current_color = Color::white();
         }
 
@@ -207,7 +207,7 @@ fn render_pixel_v3<'a>(
     while cur_sample < options.samples_per_pixel {
         if stack_ptr == 0 {
             if cur_depth == 0 {
-                current_ray = Ray::get_ray(i, j, options, rng);
+                current_ray = Ray::get_ray(cur_sample, i, j, options, rng);
                 current_color = Color::white();
             }
 

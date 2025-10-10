@@ -10,6 +10,10 @@ use gpu_builder::DeviceCopyBuilder;
 
 #[cfg(not(target_os = "cuda"))]
 use cust::DeviceCopy;
+
+#[cfg(target_os = "cuda")]
+use cuda_std::GpuFloat;
+
 #[cfg_attr(not(target_os = "cuda"), derive(Copy, DeviceCopy))]
 #[repr(C)]
 #[derive(DeviceCopyBuilder, Clone)]
@@ -81,8 +85,14 @@ impl Ray {
         final_color
     }
 
-    pub fn get_ray(i: usize, j: usize, options: &ImageRenderOptions, rng: &mut Random) -> Ray {
-        let offset = Vec3::sample_square(rng);
+    pub fn get_ray(
+        cur_sample: usize,
+        i: usize,
+        j: usize,
+        options: &ImageRenderOptions,
+        rng: &mut Random,
+    ) -> Ray {
+        let offset = Self::stratisfied_sample_square(cur_sample, options.samples_per_pixel, rng);
         let pixel_sample = &options.pixel00_loc
             + (&options.pixel_delta_u * (i as Real + offset.x))
             + (&options.pixel_delta_v * (j as Real + offset.y));
@@ -98,5 +108,21 @@ impl Ray {
 
         let ray_direction = pixel_sample - &ray_origin;
         Ray::new(ray_origin, ray_direction, rng.random_range(0.0..1.0))
+    }
+
+    fn stratisfied_sample_square(cur_sample: usize, amount: usize, rng: &mut Random) -> Vec3 {
+        let n = (amount as Real).sqrt().floor() as usize;
+        let i = cur_sample % n;
+        let j = cur_sample / n;
+        let offset = if cur_sample < n * n {
+            Vec3::new(
+                (i as Real + rng.random_range(0.0..1.0)) / n as Real,
+                (j as Real + rng.random_range(0.0..1.0)) / n as Real,
+                0.0,
+            )
+        } else {
+            Vec3::sample_square(rng)
+        };
+        offset
     }
 }
