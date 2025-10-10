@@ -14,6 +14,7 @@ use gpu_builder::derive_builder;
 use cuda_std::GpuFloat;
 
 #[repr(C)]
+#[cfg_attr(not(target_os = "cuda"), derive(Clone))]
 #[derive_builder('a)]
 pub struct Sphere<'a> {
     center: Ray,

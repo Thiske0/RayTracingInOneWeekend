@@ -16,6 +16,7 @@ use ref_builder::{RefBuilder, RefBuilderDevice};
 use cuda_std::GpuFloat;
 
 #[repr(C)]
+#[cfg_attr(not(target_os = "cuda"), derive(Clone))]
 #[derive_builder('a)]
 pub struct ConstantMedium<'a> {
     neg_inv_density: Real,

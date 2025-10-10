@@ -78,6 +78,7 @@ impl Plane {
 }
 
 #[repr(C)]
+#[cfg_attr(not(target_os = "cuda"), derive(Clone))]
 #[derive_builder('a)]
 pub struct Triangle<'a> {
     origin: Point3,
@@ -140,6 +141,7 @@ impl<'a> IntoBoundingBox for Triangle<'a> {
 }
 
 #[repr(C)]
+#[cfg_attr(not(target_os = "cuda"), derive(Clone))]
 #[derive_builder('a)]
 pub struct Quad<'a> {
     origin: Point3,

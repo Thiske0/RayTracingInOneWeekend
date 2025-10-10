@@ -49,6 +49,10 @@ pub struct RenderOptions {
     #[arg(short = 'g', long = "gpu", default_value_t = true)]
     pub gpu_render: bool,
 
+    /// Render on GPU
+    #[arg(short = 'n', long = "noise", default_value_t = true)]
+    pub calculate_noise: bool,
+
     #[arg(short = 'b', long = "background", default_value = "0,0,0")]
     pub background: Color,
 }

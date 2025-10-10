@@ -12,6 +12,7 @@ use gpu_builder::derive_builder;
 use ref_builder::{SliceBuilder, SliceBuilderDevice};
 
 #[repr(C)]
+#[cfg_attr(not(target_os = "cuda"), derive(Clone))]
 #[derive_builder('a)]
 pub struct HitableList<'a> {
     hitables: SliceBuilder<'a, HitKind<'a>>,

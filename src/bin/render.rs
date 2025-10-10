@@ -553,6 +553,8 @@ fn main() -> Result<()> {
         }
     };
 
+    let has_noise_calculation = options.render.calculate_noise;
+
     // Camera setup
     let camera = Camera::new(options.render);
 
@@ -561,7 +563,10 @@ fn main() -> Result<()> {
 
     camera.render(world.into())?;
 
-    let duration = start.elapsed();
+    let mut duration = start.elapsed();
+    if has_noise_calculation {
+        duration /= 2; // Rough estimate since noise calculation does two renders
+    }
     println!("Render time: {:?}", duration);
 
     Ok(())

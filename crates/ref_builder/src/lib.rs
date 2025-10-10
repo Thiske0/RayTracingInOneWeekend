@@ -8,7 +8,6 @@ use gpu_builder::{derive_device_struct, Builder};
 #[cfg(not(target_os = "cuda"))]
 mod implementation;
 
-#[cfg_attr(not(target_os = "cuda"), derive(Clone))]
 #[derive_device_struct]
 #[repr(C)]
 pub struct RefBuilder<'a, T: Builder<'a>> {
@@ -17,6 +16,20 @@ pub struct RefBuilder<'a, T: Builder<'a>> {
     _marker: core::marker::PhantomData<&'a T>,
     #[host_only]
     owned: bool,
+}
+
+impl<'a, T: Builder<'a>> Clone for RefBuilder<'a, T> {
+    fn clone(&self) -> Self {
+        if self.owned {
+            #[cfg(debug_assertions)]
+            println!("Cloning an owned RefBuilder is unsafe, make sure to not drop the original before the clone.");
+        }
+        RefBuilder {
+            reference: self.reference,
+            _marker: core::marker::PhantomData,
+            owned: false,
+        }
+    }
 }
 
 impl<'a, T: Builder<'a>> RefBuilder<'a, T> {
@@ -34,7 +47,6 @@ impl<'a, T: Builder<'a>> Deref for RefBuilder<'a, T> {
 }
 
 #[repr(C)]
-#[cfg_attr(not(target_os = "cuda"), derive(Clone))]
 #[derive_device_struct]
 pub struct SliceBuilder<'a, T: Builder<'a>> {
     reference: *const T,
@@ -43,6 +55,21 @@ pub struct SliceBuilder<'a, T: Builder<'a>> {
     _marker: core::marker::PhantomData<&'a [T]>,
     #[host_only]
     owned: bool,
+}
+
+impl<'a, T: Builder<'a>> Clone for SliceBuilder<'a, T> {
+    fn clone(&self) -> Self {
+        if self.owned {
+            #[cfg(debug_assertions)]
+            println!("Cloning an owned SliceBuilder is unsafe, make sure to not drop the original before the clone.");
+        }
+        SliceBuilder {
+            reference: self.reference,
+            size: self.size,
+            _marker: core::marker::PhantomData,
+            owned: false,
+        }
+    }
 }
 
 impl<'a, T: Builder<'a>> SliceBuilder<'a, T> {

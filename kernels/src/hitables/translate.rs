@@ -12,6 +12,7 @@ use gpu_builder::derive_builder;
 use ref_builder::{RefBuilder, RefBuilderDevice};
 
 #[repr(C)]
+#[cfg_attr(not(target_os = "cuda"), derive(Clone))]
 #[derive_builder('a)]
 pub struct Translate<'a> {
     offset: Vec3,

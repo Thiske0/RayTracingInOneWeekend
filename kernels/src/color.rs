@@ -50,6 +50,13 @@ impl Color {
     pub fn random(rng: &mut Random) -> Self {
         Color(Vec3::random(0.0..1.0, rng))
     }
+
+    pub fn variance(&self, other: &Color) -> Real {
+        let dr = self.0.x - other.0.x;
+        let dg = self.0.y - other.0.y;
+        let db = self.0.z - other.0.z;
+        (dr * dr + dg * dg + db * db) / 3.0
+    }
 }
 
 #[cfg(not(target_os = "cuda"))]

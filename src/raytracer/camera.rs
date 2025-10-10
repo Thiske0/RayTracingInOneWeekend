@@ -87,15 +87,55 @@ impl Camera {
         let image_width = self.render_options.width;
         let image_height = self.render_options.height;
 
-        let mut image_grid = GridND::new([image_height, image_width], Color::black());
+        let image_grid = GridND::new([image_height, image_width], Color::black());
 
         let _ctx = cust::quick_init()?;
         let module = Module::from_ptx(PTX, &[])?;
         let stream = Stream::new(StreamFlags::NON_BLOCKING, None)?;
 
+        let world_copy = world.clone();
+
+        let callback = |image_grid: &GridND<Color, 2>| {
+            if self.render_options.calculate_noise {
+                let noise_callback = |other_image_grid: &GridND<Color, 2>| -> Result<()> {
+                    let mut total_variance = 0.0;
+                    for (c1, c2) in (&image_grid)
+                        .into_iter()
+                        .zip((&other_image_grid).into_iter())
+                    {
+                        for (p1, p2) in c1.into_iter().zip(c2.into_iter()) {
+                            total_variance += p1.variance(p2);
+                        }
+                    }
+                    let noise = (total_variance / (2 * image_width * image_height) as Real).sqrt();
+                    println!("Estimated noise: {}", noise);
+                    Ok(())
+                };
+                self.render_with_callback(
+                    image_grid.clone(),
+                    world_copy,
+                    &module,
+                    &stream,
+                    noise_callback,
+                )?;
+            }
+            self.save_image(image_grid)
+        };
+        self.render_with_callback(image_grid, world, &module, &stream, callback)?;
+        Ok(())
+    }
+
+    fn render_with_callback(
+        &self,
+        mut image_grid: GridND<Color, 2>,
+        world: HitKind,
+        module: &Module,
+        stream: &Stream,
+        callback: impl FnOnce(&GridND<Color, 2>) -> Result<()>,
+    ) -> Result<()> {
         unsafe {
             // Initialize camera parameters
-            let (image_render_options, rand_states_device) = self.initilize(&stream)?;
+            let (image_render_options, rand_states_device) = self.initilize(stream)?;
 
             if self.render_options.gpu_render {
                 Self::render_gpu(
@@ -103,35 +143,28 @@ impl Camera {
                     world,
                     &image_render_options,
                     rand_states_device,
-                    &module,
-                    &stream,
-                    self.make_save_image(),
+                    module,
+                    stream,
+                    callback,
                 )?;
             } else {
-                Self::render_cpu(
-                    &mut image_grid,
-                    world,
-                    &image_render_options,
-                    self.make_save_image(),
-                )?;
+                Self::render_cpu(&mut image_grid, world, &image_render_options, callback)?;
             }
         }
         Ok(())
     }
 
-    fn make_save_image(&self) -> impl FnOnce(&GridND<Color, 2>) -> Result<()> {
-        |image_grid: &GridND<Color, 2>| {
-            let img: RgbImage = ImageBuffer::from_fn(
-                image_grid.shape()[1] as u32,
-                image_grid.shape()[0] as u32,
-                |x, y| {
-                    let color = *image_grid.at(y as usize).at(x as usize);
-                    color.into()
-                },
-            );
-            img.save(&self.render_options.file_name)?;
-            Ok(())
-        }
+    fn save_image(&self, image_grid: &GridND<Color, 2>) -> Result<()> {
+        let img: RgbImage = ImageBuffer::from_fn(
+            image_grid.shape()[1] as u32,
+            image_grid.shape()[0] as u32,
+            |x, y| {
+                let color = *image_grid.at(y as usize).at(x as usize);
+                color.into()
+            },
+        );
+        img.save(&self.render_options.file_name)?;
+        Ok(())
     }
 
     #[allow(unused)]
@@ -173,6 +206,7 @@ impl Camera {
             stream.synchronize()?;
 
             let result_grid = image_grid_device.copy_back()?;
+
             callback(result_grid)?;
 
             Ok(())

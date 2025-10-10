@@ -55,6 +55,7 @@ pub trait RecursiveHitable {
 }
 
 #[repr(C)]
+#[cfg_attr(not(target_os = "cuda"), derive(Clone))]
 #[derive_builder('b)]
 #[enum_dispatch(IntoBoundingBox)]
 pub enum HitKind<'b> {
@@ -193,6 +194,7 @@ macro_rules! impl_into_hitkind_non_recursive {
 }
 
 #[repr(C)]
+#[cfg_attr(not(target_os = "cuda"), derive(Clone))]
 #[enum_dispatch(Hitable, IntoBoundingBox)]
 #[derive_builder('b)]
 pub enum HitKindNonRecursive<'b> {
@@ -203,6 +205,7 @@ pub enum HitKindNonRecursive<'b> {
 impl_into_hitkind_non_recursive!(Sphere, Quad, Triangle);
 
 #[repr(C)]
+#[cfg_attr(not(target_os = "cuda"), derive(Clone))]
 #[enum_dispatch(IntoBoundingBox)]
 #[derive_builder('b)]
 pub enum HitKindRecursive<'b> {
