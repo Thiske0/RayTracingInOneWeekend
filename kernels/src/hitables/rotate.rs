@@ -6,7 +6,7 @@ use crate::{
     random::Random,
     ray::Ray,
     stack::Stack,
-    vec3::{Axis, Real},
+    vec3::{Axis, Point3, Real, Vec3},
 };
 use gpu_builder::derive_builder;
 use ref_builder::{RefBuilder, RefBuilderDevice};
@@ -89,6 +89,46 @@ impl RecursiveHitable for Rotate<'_> {
                 ray.direction.rotate(&self.axis, self.angle_rad),
                 ray.time,
             );
+            None
+        } else {
+            unreachable!()
+        }
+    }
+
+    fn pdf_value_recursive<'a>(
+        &'a self,
+        count: usize,
+        origin: &mut Point3,
+        direction: &mut Vec3,
+        _current_value: &mut Real,
+        _rng: &mut Random,
+    ) -> Option<(&'a HitKind<'a>, usize)> {
+        if count == 0 {
+            *origin = origin.rotate(&self.axis, -self.angle_rad);
+            *direction = direction.rotate(&self.axis, -self.angle_rad);
+            Some((&self.inner, 1))
+        } else if count == 1 {
+            *origin = origin.rotate(&self.axis, self.angle_rad);
+            *direction = direction.rotate(&self.axis, self.angle_rad);
+            None
+        } else {
+            unreachable!()
+        }
+    }
+
+    fn random_recursive<'a>(
+        &'a self,
+        count: usize,
+        origin: &mut Point3,
+        current_value: &mut Vec3,
+        _rng: &mut Random,
+    ) -> Option<(&'a HitKind<'a>, usize)> {
+        if count == 0 {
+            *origin = origin.rotate(&self.axis, -self.angle_rad);
+            Some((&self.inner, 1))
+        } else if count == 1 {
+            *origin = origin.rotate(&self.axis, self.angle_rad);
+            *current_value = current_value.rotate(&self.axis, self.angle_rad);
             None
         } else {
             unreachable!()

@@ -9,7 +9,10 @@ use gpu_rand::DefaultRand;
 use grid_nd::GridND;
 use image::{ImageBuffer, RgbImage};
 use rand::Rng;
-use simple_ray_tracer_kernels::{ImageRenderOptions, hitables::HitKind};
+use simple_ray_tracer_kernels::{
+    ImageRenderOptions,
+    hitables::{HitKind, hitable_list::HitableList},
+};
 
 use crate::{Result, raytracer::options::RenderOptions};
 
@@ -93,7 +96,10 @@ impl Camera {
         let module = Module::from_ptx(PTX, &[])?;
         let stream = Stream::new(StreamFlags::NON_BLOCKING, None)?;
 
+        let lights: HitKind<'_> = HitableList::new(&[]).into();
+
         let world_copy = world.clone();
+        let lights_copy = lights.clone();
 
         let callback = |image_grid: &GridND<Color, 2>| {
             if self.render_options.calculate_noise {
@@ -114,6 +120,7 @@ impl Camera {
                 self.render_with_callback(
                     image_grid.clone(),
                     world_copy,
+                    lights_copy,
                     &module,
                     &stream,
                     noise_callback,
@@ -121,7 +128,7 @@ impl Camera {
             }
             self.save_image(image_grid)
         };
-        self.render_with_callback(image_grid, world, &module, &stream, callback)?;
+        self.render_with_callback(image_grid, world, lights, &module, &stream, callback)?;
         Ok(())
     }
 
@@ -129,6 +136,7 @@ impl Camera {
         &self,
         mut image_grid: GridND<Color, 2>,
         world: HitKind,
+        lights: HitKind,
         module: &Module,
         stream: &Stream,
         callback: impl FnOnce(&GridND<Color, 2>) -> Result<()>,
@@ -141,6 +149,7 @@ impl Camera {
                 Self::render_gpu(
                     image_grid,
                     world,
+                    lights,
                     &image_render_options,
                     rand_states_device,
                     module,
@@ -148,7 +157,13 @@ impl Camera {
                     callback,
                 )?;
             } else {
-                Self::render_cpu(&mut image_grid, world, &image_render_options, callback)?;
+                Self::render_cpu(
+                    &mut image_grid,
+                    world,
+                    lights,
+                    &image_render_options,
+                    callback,
+                )?;
             }
         }
         Ok(())
@@ -171,6 +186,7 @@ impl Camera {
     unsafe fn render_gpu<'a>(
         image_grid: GridND<Color, 2>,
         world: HitKind<'a>,
+        lights: HitKind<'a>,
         image_render_options: &ImageRenderOptions,
         rand_states_device: DeviceBuffer<DefaultRand>,
         module: &Module,
@@ -186,6 +202,7 @@ impl Camera {
                 GridND::<Color, 2>::grid_and_block_size(image_grid.shape(), recommended_block_size);
 
             let world_device = world.build_device(&stream)?;
+            let lights_device = lights.build_device(&stream)?;
 
             let image_render_options_device = DeviceBox::new_async(image_render_options, &stream)?;
             let mut image_grid_device = image_grid.build_device(&stream)?;
@@ -195,11 +212,13 @@ impl Camera {
                     image_grid_device.as_device_ptr()?.as_mut_ptr(),
                     world_device.as_device_ptr()?,
                     image_render_options_device.as_device_ptr(),
+                    lights_device.as_device_ptr()?,
                     rand_states_device.as_device_ptr().as_mut_ptr()
                 )
             )?;
 
             //world_device.drop_async(&stream)?;
+            //lights_device.drop_async(&stream)?;
             image_render_options_device.drop_async(&stream)?;
             rand_states_device.drop_async(&stream)?;
 
@@ -217,10 +236,11 @@ impl Camera {
     fn render_cpu<'a>(
         image_grid: &mut GridND<Color, 2>,
         world: HitKind<'a>,
+        lights: HitKind<'a>,
         image_render_options: &ImageRenderOptions,
         callback: impl FnOnce(&GridND<Color, 2>) -> Result<()>,
     ) -> Result<()> {
-        simple_ray_tracer_kernels::render_image(image_grid, &world, image_render_options);
+        simple_ray_tracer_kernels::render_image(image_grid, &world, image_render_options, &lights);
         callback(image_grid)?;
         Ok(())
     }

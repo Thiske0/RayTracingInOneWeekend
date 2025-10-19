@@ -1,10 +1,10 @@
 use crate::{
     color::Color,
     hitables::HitRecord,
-    materials::{Material, MaterialKind},
+    materials::{Material, MaterialKind, ScatterResult},
+    pdf::SpherePDF,
     random::Random,
     ray::Ray,
-    vec3::Vec3,
 };
 use gpu_builder::DeviceCopyBuilder;
 
@@ -24,10 +24,17 @@ impl Isotropic {
     }
 }
 impl Material for Isotropic {
-    fn scatter(&self, ray: &Ray, hit: &HitRecord, rng: &mut Random) -> Option<(Ray, Color)> {
-        let direction = Vec3::random_unit(rng);
-        let new_ray = Ray::new(hit.p.clone(), direction, ray.time);
-        Some((new_ray, self.color.clone()))
+    fn scatter(&self, _ray: &Ray, _hit: &HitRecord, _rng: &mut Random) -> Option<Color> {
+        Some(self.color.clone())
+    }
+
+    fn scattering_pdf<'a, 'b>(
+        &'a self,
+        _ray: &Ray,
+        _hit: &HitRecord<'b>,
+        _rng: &mut Random,
+    ) -> ScatterResult<'a, 'b> {
+        ScatterResult::PDF(SpherePDF::new().into())
     }
 
     fn emission(&self, _hit_record: &HitRecord, _rng: &mut Random) -> Color {

@@ -3,7 +3,7 @@ use gpu_builder::{DeviceCopyBuilder, derive_builder};
 use crate::{
     hitables::{BoundingBox, HitKind, HitRecord, Hitable, IntoBoundingBox},
     materials::{MaterialKind, MaterialKindDevice},
-    random::Random,
+    random::{Random, RandomRange},
     ray::Ray,
     vec3::{Point3, Real, Vec3},
 };
@@ -129,6 +129,29 @@ impl<'b> Hitable for Triangle<'b> {
         }
         None
     }
+
+    fn pdf_value(&self, origin: &Point3, direction: &Vec3, rng: &mut Random) -> Real {
+        let test_ray = Ray::new(origin.clone(), direction.clone(), 0.0);
+        if let Some(hit) = self.hit(&test_ray, &(0.001..Real::INFINITY), rng) {
+            let distance_squared = hit.t * hit.t * direction.length_squared();
+            let cosine = (direction.dot(&hit.normal) / direction.length()).abs();
+            let area = self.u.cross(&self.v).length() * 0.5;
+            distance_squared / (cosine * area)
+        } else {
+            0.0
+        }
+    }
+
+    fn random(&self, origin: &Point3, rng: &mut Random) -> Vec3 {
+        let mut random_u = rng.random_range(0.0..1.0);
+        let mut random_v = rng.random_range(0.0..1.0);
+        if random_u + random_v > 1.0 {
+            random_u = 1.0 - random_u;
+            random_v = 1.0 - random_v;
+        }
+        let p = &self.origin + &self.u * random_u + &self.v * random_v;
+        p - origin
+    }
 }
 
 impl<'a> IntoBoundingBox for Triangle<'a> {
@@ -189,6 +212,25 @@ impl<'b> Hitable for Quad<'b> {
             }
         }
         None
+    }
+
+    fn pdf_value(&self, origin: &Point3, direction: &Vec3, rng: &mut Random) -> Real {
+        let test_ray = Ray::new(origin.clone(), direction.clone(), 0.0);
+        if let Some(hit) = self.hit(&test_ray, &(0.001..Real::INFINITY), rng) {
+            let distance_squared = hit.t * hit.t * direction.length_squared();
+            let cosine = (direction.dot(&hit.normal) / direction.length()).abs();
+            let area = self.u.cross(&self.v).length();
+            distance_squared / (cosine * area)
+        } else {
+            0.0
+        }
+    }
+
+    fn random(&self, origin: &Point3, rng: &mut Random) -> Vec3 {
+        let random_u = rng.random_range(0.0..1.0);
+        let random_v = rng.random_range(0.0..1.0);
+        let p = &self.origin + &self.u * random_u + &self.v * random_v;
+        p - origin
     }
 }
 

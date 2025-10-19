@@ -6,7 +6,7 @@ use crate::{
     random::Random,
     ray::Ray,
     stack::Stack,
-    vec3::{Real, Vec3},
+    vec3::{Point3, Real, Vec3},
 };
 use gpu_builder::derive_builder;
 use ref_builder::{RefBuilder, RefBuilderDevice};
@@ -17,24 +17,34 @@ use ref_builder::{RefBuilder, RefBuilderDevice};
 pub struct Translate<'a> {
     offset: Vec3,
     inner: RefBuilder<'a, HitKind<'a>>,
+    bounding_box: BoundingBox,
 }
 
 #[cfg(not(target_os = "cuda"))]
 impl<'a> Translate<'a> {
     pub fn new(offset: Vec3, inner: &'a HitKind<'a>) -> HitKind<'a> {
+        let bounding_box = Self::make_boundingbox(inner, &offset);
         Translate {
             offset,
             inner: RefBuilder::new(inner),
+            bounding_box,
         }
         .into()
     }
 
     pub fn new_owned(offset: Vec3, inner: HitKind<'a>) -> HitKind<'a> {
+        let bounding_box = Self::make_boundingbox(&inner, &offset);
         Translate {
             offset,
             inner: RefBuilder::new_owned(inner),
+            bounding_box,
         }
         .into()
+    }
+
+    fn make_boundingbox(inner: &HitKind<'a>, offset: &Vec3) -> BoundingBox {
+        let inner_box = inner.boundingbox();
+        inner_box.translate(offset)
     }
 }
 
@@ -67,11 +77,47 @@ impl RecursiveHitable for Translate<'_> {
             unreachable!()
         }
     }
+
+    fn pdf_value_recursive<'a>(
+        &'a self,
+        count: usize,
+        origin: &mut Point3,
+        _direction: &mut Vec3,
+        _current_value: &mut Real,
+        _rng: &mut Random,
+    ) -> Option<(&'a HitKind<'a>, usize)> {
+        if count == 0 {
+            *origin -= &self.offset;
+            Some((&self.inner, 1))
+        } else if count == 1 {
+            *origin += &self.offset;
+            None
+        } else {
+            unreachable!()
+        }
+    }
+
+    fn random_recursive<'a>(
+        &'a self,
+        count: usize,
+        origin: &mut Point3,
+        _current_value: &mut Vec3,
+        _rng: &mut Random,
+    ) -> Option<(&'a HitKind<'a>, usize)> {
+        if count == 0 {
+            *origin -= &self.offset;
+            Some((&self.inner, 1))
+        } else if count == 1 {
+            *origin += &self.offset;
+            None
+        } else {
+            unreachable!()
+        }
+    }
 }
 
 impl IntoBoundingBox for Translate<'_> {
     fn boundingbox(&self) -> BoundingBox {
-        let inner_box = self.inner.boundingbox();
-        inner_box.translate(&self.offset)
+        self.bounding_box.clone()
     }
 }

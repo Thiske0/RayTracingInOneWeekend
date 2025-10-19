@@ -1,11 +1,11 @@
 use crate::{
     color::Color,
     hitables::HitRecord,
-    materials::{Material, MaterialKind},
+    materials::{Material, MaterialKind, ScatterResult},
+    pdf::CosinePDF,
     random::Random,
     ray::Ray,
     textures::{Texture, TextureKind, TextureKindDevice},
-    vec3::Vec3,
 };
 
 use gpu_builder::derive_builder;
@@ -23,14 +23,18 @@ impl Lambertian<'_> {
     }
 }
 impl Material for Lambertian<'_> {
-    fn scatter(&self, ray: &Ray, hit: &HitRecord, rng: &mut Random) -> Option<(Ray, Color)> {
-        let mut direction = &hit.normal + Vec3::random_unit(rng);
-        if direction.near_zero() {
-            direction = hit.normal.clone(); // Handle near-zero direction to avoid NaN
-        }
+    fn scatter(&self, _ray: &Ray, hit: &HitRecord, rng: &mut Random) -> Option<Color> {
         let color = self.texture.color(hit.u, hit.v, &hit.p, rng);
-        let new_ray = Ray::new(hit.p.clone(), direction, ray.time);
-        Some((new_ray, color))
+        Some(color)
+    }
+
+    fn scattering_pdf<'a, 'b>(
+        &'a self,
+        _ray: &Ray,
+        hit: &HitRecord<'b>,
+        _rng: &mut Random,
+    ) -> ScatterResult<'a, 'b> {
+        ScatterResult::PDF(CosinePDF::new(&hit.normal))
     }
 
     fn emission(&self, _hit_record: &HitRecord, _rng: &mut Random) -> Color {

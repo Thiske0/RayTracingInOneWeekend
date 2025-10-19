@@ -120,6 +120,18 @@ impl Vec3 {
         }
     }
 
+    pub fn random_cosine_direction(rng: &mut Random) -> Vec3 {
+        let r1: Real = rng.random_range(0.0..1.0);
+        let r2: Real = rng.random_range(0.0..1.0);
+
+        let phi = 2.0 * (core::f32::consts::PI as Real) * r1;
+        let x = phi.cos() * r2.sqrt();
+        let y = phi.sin() * r2.sqrt();
+        let z = (1.0 - r2).sqrt();
+
+        Vec3::new(x, y, z)
+    }
+
     pub fn random_in_unit_disk(rng: &mut Random) -> Vec3 {
         loop {
             let mut v = Vec3::random(-1.0..1.0, rng);

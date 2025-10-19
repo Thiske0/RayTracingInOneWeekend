@@ -4,7 +4,8 @@ use crate::{
     boundingbox::{BoundingBox, IntoBoundingBox},
     hitables::{HitKind, HitRecord, Hitable},
     materials::{MaterialKind, MaterialKindDevice},
-    random::Random,
+    onb::ONB,
+    random::{Random, RandomRange},
     ray::Ray,
     vec3::{Point3, Real, Vec3},
 };
@@ -55,6 +56,18 @@ impl<'a> Sphere<'a> {
         let v = theta / (core::f32::consts::PI as Real);
         (u, v)
     }
+
+    fn random_to_sphere(&self, distance_squared: Real, rng: &mut Random) -> Vec3 {
+        let r1 = rng.random_range(0.0..1.0);
+        let r2 = rng.random_range(0.0..1.0);
+        let z = 1.0 + r2 * (1.0 - self.radius * self.radius / distance_squared).sqrt();
+
+        let phi = 2.0 * (core::f32::consts::PI as Real) * r1;
+        let x = phi.cos() * (1.0 - z * z).sqrt();
+        let y = phi.sin() * (1.0 - z * z).sqrt();
+
+        Vec3::new(x, y, z)
+    }
 }
 
 impl Hitable for Sphere<'_> {
@@ -93,6 +106,42 @@ impl Hitable for Sphere<'_> {
         } else {
             None
         }
+    }
+
+    fn pdf_value(&self, origin: &Point3, direction: &Vec3, rng: &mut Random) -> Real {
+        if self.center.direction != Vec3::zero() {
+            // This method only works for stationary spheres.
+            unimplemented!();
+        }
+        if let Some(_rec) = self.hit(
+            &Ray::new(origin.clone(), direction.clone(), 0.0),
+            &Range {
+                start: 0.001,
+                end: Real::INFINITY,
+            },
+            rng,
+        ) {
+            let center = self.center.at(0.0);
+            let dist_squared = (center - origin).length_squared();
+            let cos_theta_max = (1.0 - self.radius * self.radius / dist_squared).sqrt();
+            let solid_angle = 2.0 * (core::f32::consts::PI as Real) * (1.0 - cos_theta_max);
+
+            1.0 / solid_angle
+        } else {
+            0.0
+        }
+    }
+
+    fn random(&self, origin: &Point3, rng: &mut Random) -> Vec3 {
+        if self.center.direction != Vec3::zero() {
+            // This method only works for stationary spheres.
+            unimplemented!();
+        }
+        let center = self.center.at(0.0);
+        let direction = center - origin;
+        let distance_squared = direction.length_squared();
+        let uvw = ONB::new_from_normal(&direction);
+        uvw.to_world(&self.random_to_sphere(distance_squared, rng))
     }
 }
 

@@ -9,17 +9,30 @@ use crate::{
         lambertian::{Lambertian, LambertianDevice},
         metal::{Metal, MetalDevice},
     },
+    pdf::PDFKind,
     random::Random,
     ray::Ray,
 };
 use enum_dispatch::enum_dispatch;
 use gpu_builder::derive_builder;
 
+pub enum ScatterResult<'b, 'a> {
+    Scattered(Ray),
+    PDF(PDFKind<'b, 'a>),
+    None,
+}
+
 #[enum_dispatch]
 pub trait Material {
     /// Returns the scattered ray and the attenuation color.
-    fn scatter(&self, ray: &Ray, hit_record: &HitRecord, rng: &mut Random) -> Option<(Ray, Color)>;
+    fn scatter(&self, ray: &Ray, hit_record: &HitRecord, rng: &mut Random) -> Option<Color>;
     fn emission(&self, hit_record: &HitRecord, rng: &mut Random) -> Color;
+    fn scattering_pdf<'b, 'c>(
+        &'b self,
+        ray: &Ray,
+        hit_record: &HitRecord<'c>,
+        rng: &mut Random,
+    ) -> ScatterResult<'b, 'c>;
 }
 
 #[repr(C)]

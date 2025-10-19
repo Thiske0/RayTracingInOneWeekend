@@ -3,10 +3,10 @@ use core::ops::Range;
 use crate::{
     boundingbox::{BoundingBox, IntoBoundingBox},
     hitables::{HitKind, HitKindDevice, HitRecord, RecursiveHitable},
-    random::Random,
+    random::{Random, RandomRange},
     ray::Ray,
     stack::Stack,
-    vec3::Real,
+    vec3::{Point3, Real, Vec3},
 };
 use gpu_builder::derive_builder;
 use ref_builder::{SliceBuilder, SliceBuilderDevice};
@@ -65,5 +65,38 @@ impl RecursiveHitable for HitableList<'_> {
             return None;
         }
         Some((&self.hitables[count], count + 1))
+    }
+
+    fn pdf_value_recursive<'a>(
+        &'a self,
+        count: usize,
+        _origin: &mut Point3,
+        _direction: &mut Vec3,
+        current_value: &mut Real,
+        _rng: &mut Random,
+    ) -> Option<(&'a HitKind<'a>, usize)> {
+        if count >= self.hitables.len() {
+            *current_value /= self.hitables.len() as Real;
+            None
+        } else {
+            Some((&self.hitables[count], count + 1))
+        }
+    }
+
+    fn random_recursive<'a>(
+        &'a self,
+        count: usize,
+        _origin: &mut Point3,
+        _current_value: &mut Vec3,
+        rng: &mut Random,
+    ) -> Option<(&'a HitKind<'a>, usize)> {
+        if count == 0 {
+            let index = rng.random_range(0..self.hitables.len());
+            Some((&self.hitables[index], 1))
+        } else if count == 1 {
+            None
+        } else {
+            unreachable!()
+        }
     }
 }

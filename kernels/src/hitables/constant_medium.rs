@@ -7,7 +7,7 @@ use crate::{
     random::{Random, RandomRange},
     ray::Ray,
     stack::Stack,
-    vec3::{Real, Vec3},
+    vec3::{Point3, Real, Vec3},
 };
 use gpu_builder::derive_builder;
 use ref_builder::{RefBuilder, RefBuilderDevice};
@@ -145,6 +145,28 @@ impl RecursiveHitable for ConstantMedium<'_> {
             *range = prev_range.start..hit_record.t;
         }
         None
+    }
+
+    // Smoke should never be a light source
+    fn pdf_value_recursive<'a>(
+        &'a self,
+        _count: usize,
+        _origin: &mut Point3,
+        _direction: &mut Vec3,
+        _current_value: &mut Real,
+        _rng: &mut Random,
+    ) -> Option<(&'a HitKind<'a>, usize)> {
+        unimplemented!()
+    }
+
+    fn random_recursive<'a>(
+        &'a self,
+        _count: usize,
+        _origin: &mut Point3,
+        _current_value: &mut Vec3,
+        _rng: &mut Random,
+    ) -> Option<(&'a HitKind<'a>, usize)> {
+        unimplemented!()
     }
 }
 

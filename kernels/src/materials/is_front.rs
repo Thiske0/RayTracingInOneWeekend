@@ -1,7 +1,7 @@
 use crate::{
     color::Color,
     hitables::HitRecord,
-    materials::{Material, MaterialKind},
+    materials::{Material, MaterialKind, ScatterResult},
     random::Random,
     ray::Ray,
 };
@@ -21,8 +21,17 @@ impl IsFront {
     }
 }
 impl Material for IsFront {
-    fn scatter(&self, _ray: &Ray, _hit: &HitRecord, _rng: &mut Random) -> Option<(Ray, Color)> {
+    fn scatter(&self, _ray: &Ray, _hit: &HitRecord, _rng: &mut Random) -> Option<Color> {
         None
+    }
+
+    fn scattering_pdf<'a, 'b>(
+        &'a self,
+        _ray: &Ray,
+        _hit_record: &HitRecord<'b>,
+        _rng: &mut Random,
+    ) -> ScatterResult<'a, 'b> {
+        unreachable!()
     }
 
     fn emission(&self, hit: &HitRecord, _rng: &mut Random) -> Color {

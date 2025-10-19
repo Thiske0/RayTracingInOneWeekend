@@ -1,8 +1,9 @@
 use crate::{
     ImageRenderOptions,
     color::Color,
-    hitables::HitKind,
-    materials::Material,
+    hitables::{HitKind, HitRecord},
+    materials::{Material, ScatterResult},
+    pdf::{HitablePDF, MixturePDF, PDF},
     random::Random,
     vec3::{Point3, Real, Vec3},
 };
@@ -50,6 +51,7 @@ impl Ray {
         hitable: &HitKind<'a>,
         options: &ImageRenderOptions,
         rng: &mut Random,
+        lights: &HitKind<'a>,
     ) -> Color {
         // If we've exceeded the ray bounce limit, no more light is gathered.
         if options.max_depth <= 0 {
@@ -63,17 +65,22 @@ impl Ray {
         for _ in 0..options.max_depth {
             if let Some(hit) = hitable.hit(current_ray.clone(), 1e-12..Real::INFINITY, rng) {
                 final_color += (&current_color) * hit.mat.emission(&hit, rng);
-                if let Some((mut scattered_ray, attenuation)) =
-                    hit.mat.scatter(&current_ray, &hit, rng)
-                {
-                    // Improve the scattered ray's direction and origin.
-                    // This is to avoid precision issues with re-intersection.
-                    scattered_ray.direction = scattered_ray.direction.normalize(); // Ensure direction is normalized
-                    scattered_ray.origin = scattered_ray.origin + &scattered_ray.direction * 1e-4; // Offset to avoid re-intersection
-
+                if let Some(attenuation) = hit.mat.scatter(&current_ray, &hit, rng) {
                     // Recursively calculate the color of the scattered ray.
-                    current_ray = scattered_ray;
-                    current_color = current_color * attenuation;
+                    if let Some((mut scattered_ray, attenuation)) =
+                        current_ray.apply_pdf(attenuation, &hit, rng, lights)
+                    {
+                        // Improve the scattered ray's direction and origin.
+                        // This is to avoid precision issues with re-intersection.
+                        scattered_ray.direction = scattered_ray.direction.normalize(); // Ensure direction is normalized
+                        scattered_ray.origin =
+                            scattered_ray.origin + &scattered_ray.direction * 1e-4; // Offset to avoid re-intersection
+
+                        current_ray = scattered_ray;
+                        current_color = current_color * attenuation;
+                    } else {
+                        return final_color;
+                    }
                 } else {
                     return final_color;
                 }
@@ -83,6 +90,35 @@ impl Ray {
         }
         // no more light is gathered
         final_color
+    }
+
+    pub fn apply_pdf<'a>(
+        &self,
+        attenuation: Color,
+        hit: &HitRecord,
+        rng: &mut Random,
+        lights: &HitKind<'a>,
+    ) -> Option<(Ray, Color)> {
+        let scatter_result = hit.mat.scattering_pdf(self, hit, rng);
+        match scatter_result {
+            ScatterResult::Scattered(scattered_ray) => Some((scattered_ray, attenuation)),
+            ScatterResult::PDF(scattering_pdf) => {
+                let lights_pdf = HitablePDF::new(hit.p.clone(), lights);
+                let mixture_pdf = MixturePDF::new(&scattering_pdf, &scattering_pdf);
+                let scattered_direction = mixture_pdf.generate(rng);
+                let pdf_value = mixture_pdf.value(&scattered_direction, rng);
+
+                let scattering_pdf_value = scattering_pdf.value(&scattered_direction, rng);
+                let scattered_ray = Ray::new(hit.p.clone(), scattered_direction, self.time);
+
+                let mut multiplier = scattering_pdf_value / pdf_value;
+                if multiplier.is_nan() {
+                    multiplier = 1.0;
+                }
+                Some((scattered_ray, attenuation * multiplier))
+            }
+            ScatterResult::None => None,
+        }
     }
 
     pub fn get_ray(

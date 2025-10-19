@@ -1,7 +1,7 @@
 use crate::{
     color::Color,
     hitables::HitRecord,
-    materials::{Material, MaterialKind},
+    materials::{Material, MaterialKind, ScatterResult},
     random::Random,
     ray::Ray,
     textures::{Texture, TextureKind, TextureKindDevice},
@@ -22,11 +22,24 @@ impl DiffuseLight<'_> {
     }
 }
 impl Material for DiffuseLight<'_> {
-    fn scatter(&self, _ray: &Ray, _hit: &HitRecord, _rng: &mut Random) -> Option<(Ray, Color)> {
+    fn scatter(&self, _ray: &Ray, _hit: &HitRecord, _rng: &mut Random) -> Option<Color> {
         None
     }
 
+    fn scattering_pdf<'a, 'b>(
+        &'a self,
+        _ray: &Ray,
+        _hit: &HitRecord<'b>,
+        _rng: &mut Random,
+    ) -> ScatterResult<'a, 'b> {
+        unreachable!()
+    }
+
     fn emission(&self, hit: &HitRecord, rng: &mut Random) -> Color {
-        self.texture.color(hit.u, hit.v, &hit.p, rng)
+        if hit.is_front_face {
+            self.texture.color(hit.u, hit.v, &hit.p, rng)
+        } else {
+            Color::black()
+        }
     }
 }

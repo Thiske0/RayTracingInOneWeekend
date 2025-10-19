@@ -34,6 +34,8 @@ pub mod hitable_list_builder;
 pub trait Hitable {
     fn hit<'a>(&'a self, ray: &Ray, range: &Range<Real>, rng: &mut Random)
     -> Option<HitRecord<'a>>;
+    fn pdf_value(&self, origin: &Point3, direction: &Vec3, rng: &mut Random) -> Real;
+    fn random(&self, origin: &Point3, rng: &mut Random) -> Vec3;
 }
 
 #[enum_dispatch]
@@ -51,6 +53,21 @@ pub trait RecursiveHitable {
         count: usize,
         rng: &mut Random,
         extra_stack: &mut Stack,
+    ) -> Option<(&'a HitKind<'a>, usize)>;
+    fn pdf_value_recursive<'a>(
+        &'a self,
+        count: usize,
+        origin: &mut Point3,
+        direction: &mut Vec3,
+        current_value: &mut Real,
+        rng: &mut Random,
+    ) -> Option<(&'a HitKind<'a>, usize)>;
+    fn random_recursive<'a>(
+        &'a self,
+        count: usize,
+        origin: &mut Point3,
+        current_value: &mut Vec3,
+        rng: &mut Random,
     ) -> Option<(&'a HitKind<'a>, usize)>;
 }
 
@@ -99,6 +116,103 @@ fn init_stack_for_recursive<'a, 'b, const SIZE: usize>(
     stack
 }
 
+trait Recursive<'a> {
+    fn recurse(
+        &mut self,
+        hitkind: &'a HitKindRecursive<'a>,
+        count: usize,
+    ) -> Option<(&'a HitKind<'a>, usize)>;
+    fn handle_non_recursive(&mut self, hitkind: &'a HitKindNonRecursive<'a>);
+}
+
+struct HitRecursive<'a, 'b> {
+    ray: Ray,
+    range: Range<Real>,
+    hit_record: Option<HitRecord<'a>>,
+    rng: &'b mut Random,
+    extra_stack: Stack,
+}
+
+impl<'a> Recursive<'a> for HitRecursive<'a, '_> {
+    fn recurse(
+        &mut self,
+        hitkind: &'a HitKindRecursive<'a>,
+        count: usize,
+    ) -> Option<(&'a HitKind<'a>, usize)> {
+        hitkind.hit_recursive(
+            &mut self.ray,
+            &mut self.range,
+            &mut self.hit_record,
+            count,
+            &mut self.rng,
+            &mut self.extra_stack,
+        )
+    }
+
+    fn handle_non_recursive(&mut self, hitkind: &'a HitKindNonRecursive<'a>) {
+        if let Some(rec) = hitkind.hit(&self.ray, &self.range, &mut self.rng) {
+            if let Some(current_rec) = &self.hit_record {
+                if rec.t < current_rec.t {
+                    self.range = self.range.start..rec.t;
+                    self.hit_record = Some(rec);
+                }
+            } else {
+                self.range = self.range.start..rec.t;
+                self.hit_record = Some(rec);
+            }
+        }
+    }
+}
+
+struct PDFValueRecursive<'b> {
+    origin: Point3,
+    direction: Vec3,
+    current_value: Real,
+    rng: &'b mut Random,
+}
+
+impl<'a> Recursive<'a> for PDFValueRecursive<'_> {
+    fn recurse(
+        &mut self,
+        hitkind: &'a HitKindRecursive<'a>,
+        count: usize,
+    ) -> Option<(&'a HitKind<'a>, usize)> {
+        hitkind.pdf_value_recursive(
+            count,
+            &mut self.origin,
+            &mut self.direction,
+            &mut self.current_value,
+            self.rng,
+        )
+    }
+
+    fn handle_non_recursive(&mut self, hitkind: &'a HitKindNonRecursive<'a>) {
+        let value = hitkind.pdf_value(&self.origin, &self.direction, self.rng);
+        self.current_value += value;
+    }
+}
+
+struct PDFRandomRecursive<'b> {
+    origin: Point3,
+    current_value: Vec3,
+    rng: &'b mut Random,
+}
+
+impl<'a> Recursive<'a> for PDFRandomRecursive<'_> {
+    fn recurse(
+        &mut self,
+        hitkind: &'a HitKindRecursive<'a>,
+        count: usize,
+    ) -> Option<(&'a HitKind<'a>, usize)> {
+        hitkind.random_recursive(count, &mut self.origin, &mut self.current_value, self.rng)
+    }
+
+    fn handle_non_recursive(&mut self, hitkind: &'a HitKindNonRecursive<'a>) {
+        let value = hitkind.random(&self.origin, self.rng);
+        self.current_value += value;
+    }
+}
+
 impl HitKind<'_> {
     pub fn hit<'a>(
         &'a self,
@@ -112,47 +226,90 @@ impl HitKind<'_> {
         }
     }
 
+    pub fn pdf_value(&self, origin: &Point3, direction: &Vec3, rng: &mut Random) -> Real {
+        match self {
+            HitKind::HitKindNonRecursive(h) => h.pdf_value(origin, direction, rng),
+            HitKind::HitKindRecursive(h) => Self::pdf_value_recursive(h, origin, direction, rng),
+        }
+    }
+
+    pub fn random(&self, origin: &Point3, rng: &mut Random) -> Vec3 {
+        match self {
+            HitKind::HitKindNonRecursive(h) => h.random(origin, rng),
+            HitKind::HitKindRecursive(h) => Self::random_recursive(h, origin, rng),
+        }
+    }
+
     fn hit_recursive<'a>(
         hitkind: &'a HitKindRecursive<'a>,
         ray: Ray,
         range: Range<Real>,
         rng: &mut Random,
     ) -> Option<HitRecord<'a>> {
-        let mut extra_stack = Stack::new();
-        let mut stack = init_stack_for_recursive::<STACK_SIZE>(hitkind);
+        let mut recurse_impl = HitRecursive {
+            ray: ray,
+            range: range,
+            hit_record: None,
+            rng: rng,
+            extra_stack: Stack::new(),
+        };
+
+        Self::use_stack(hitkind, &mut recurse_impl);
+        return recurse_impl.hit_record;
+    }
+
+    fn pdf_value_recursive<'a>(
+        hitkind: &'a HitKindRecursive<'a>,
+        origin: &Point3,
+        direction: &Vec3,
+        rng: &mut Random,
+    ) -> Real {
+        let mut recurse_impl = PDFValueRecursive {
+            origin: origin.clone(),
+            direction: direction.clone(),
+            current_value: 0.0,
+            rng: rng,
+        };
+
+        Self::use_stack(hitkind, &mut recurse_impl);
+        return recurse_impl.current_value;
+    }
+
+    fn random_recursive<'a>(
+        hitkind: &'a HitKindRecursive<'a>,
+        origin: &Point3,
+        rng: &mut Random,
+    ) -> Vec3 {
+        let mut recurse_impl = PDFRandomRecursive {
+            origin: origin.clone(),
+            current_value: Vec3::zero(),
+            rng: rng,
+        };
+
+        Self::use_stack(hitkind, &mut recurse_impl);
+        return recurse_impl.current_value;
+    }
+
+    fn use_stack<'a, RecursiveImpl: Recursive<'a>>(
+        initial: &'a HitKindRecursive<'a>,
+        recurse_impl: &mut RecursiveImpl,
+    ) {
+        let mut stack = init_stack_for_recursive::<STACK_SIZE>(initial);
         let mut stack_ptr = 1;
 
-        let mut hit_record: Option<HitRecord<'a>> = None;
-        let mut ray = ray;
-        let mut range = range;
         loop {
             if stack_ptr >= STACK_SIZE {
                 // Stack overflow, break to avoid infinite loop
                 panic!("Stack overflow in hit_recursive");
             }
             let current = &mut stack[stack_ptr - 1];
-            if let Some((inner_hitkind, next_count)) = current.hitkind.hit_recursive(
-                &mut ray,
-                &mut range,
-                &mut hit_record,
-                current.next_count,
-                rng,
-                &mut extra_stack,
-            ) {
+            if let Some((inner_hitkind, next_count)) =
+                recurse_impl.recurse(current.hitkind, current.next_count)
+            {
                 current.next_count = next_count;
                 match inner_hitkind {
                     HitKind::HitKindNonRecursive(inner_hitkind) => {
-                        if let Some(rec) = inner_hitkind.hit(&ray, &range, rng) {
-                            if let Some(current_rec) = &hit_record {
-                                if rec.t < current_rec.t {
-                                    range = range.start..rec.t;
-                                    hit_record = Some(rec);
-                                }
-                            } else {
-                                range = range.start..rec.t;
-                                hit_record = Some(rec);
-                            }
-                        }
+                        recurse_impl.handle_non_recursive(inner_hitkind);
                     }
                     HitKind::HitKindRecursive(inner_hitkind) => {
                         stack_ptr += 1;
@@ -162,7 +319,7 @@ impl HitKind<'_> {
             } else {
                 stack_ptr -= 1;
                 if stack_ptr == 0 {
-                    return hit_record;
+                    return;
                 }
             }
         }
@@ -239,6 +396,49 @@ impl RecursiveHitable for HitKindRecursive<'_> {
             }
             HitKindRecursive::ConstantMedium(h) => {
                 h.hit_recursive(ray, range, hit_record, count, rng, extra_stack)
+            }
+        }
+    }
+
+    fn pdf_value_recursive<'a>(
+        &'a self,
+        count: usize,
+        origin: &mut Point3,
+        direction: &mut Vec3,
+        current_value: &mut Real,
+        rng: &mut Random,
+    ) -> Option<(&'a HitKind<'a>, usize)> {
+        match self {
+            HitKindRecursive::HitableList(h) => {
+                h.pdf_value_recursive(count, origin, direction, current_value, rng)
+            }
+            HitKindRecursive::Translate(h) => {
+                h.pdf_value_recursive(count, origin, direction, current_value, rng)
+            }
+            HitKindRecursive::Rotate(h) => {
+                h.pdf_value_recursive(count, origin, direction, current_value, rng)
+            }
+            HitKindRecursive::ConstantMedium(h) => {
+                h.pdf_value_recursive(count, origin, direction, current_value, rng)
+            }
+        }
+    }
+
+    fn random_recursive<'a>(
+        &'a self,
+        count: usize,
+        origin: &mut Point3,
+        current_value: &mut Vec3,
+        rng: &mut Random,
+    ) -> Option<(&'a HitKind<'a>, usize)> {
+        match self {
+            HitKindRecursive::HitableList(h) => {
+                h.random_recursive(count, origin, current_value, rng)
+            }
+            HitKindRecursive::Translate(h) => h.random_recursive(count, origin, current_value, rng),
+            HitKindRecursive::Rotate(h) => h.random_recursive(count, origin, current_value, rng),
+            HitKindRecursive::ConstantMedium(h) => {
+                h.random_recursive(count, origin, current_value, rng)
             }
         }
     }

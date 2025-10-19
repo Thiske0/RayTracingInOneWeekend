@@ -1,3 +1,4 @@
+use crate::materials::ScatterResult;
 use crate::random::RandomRange;
 use crate::{
     color::Color,
@@ -37,7 +38,16 @@ impl<'a> Dielectric<'a> {
     }
 }
 impl Material for Dielectric<'_> {
-    fn scatter(&self, ray: &Ray, hit: &HitRecord, rng: &mut Random) -> Option<(Ray, Color)> {
+    fn scatter(&self, _ray: &Ray, hit: &HitRecord, rng: &mut Random) -> Option<Color> {
+        Some(self.texture.color(hit.u, hit.v, &hit.p, rng))
+    }
+
+    fn scattering_pdf<'a, 'b>(
+        &'a self,
+        ray: &Ray,
+        hit: &HitRecord<'b>,
+        rng: &mut Random,
+    ) -> ScatterResult<'a, 'b> {
         let ri = if hit.is_front_face {
             1.0 / self.refraction_index
         } else {
@@ -59,9 +69,8 @@ impl Material for Dielectric<'_> {
             unit_direction.refract(&hit.normal, ri)
         };
 
-        let color = self.texture.color(hit.u, hit.v, &hit.p, rng);
         let scattered = Ray::new(hit.p.clone(), direction, ray.time);
-        Some((scattered, color))
+        ScatterResult::Scattered(scattered)
     }
 
     fn emission(&self, _hit_record: &HitRecord, _rng: &mut Random) -> Color {

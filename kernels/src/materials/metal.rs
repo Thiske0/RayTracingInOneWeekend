@@ -1,7 +1,7 @@
 use crate::{
     color::Color,
     hitables::HitRecord,
-    materials::{Material, MaterialKind},
+    materials::{Material, MaterialKind, ScatterResult},
     random::Random,
     ray::Ray,
     textures::{Texture, TextureKind, TextureKindDevice},
@@ -24,15 +24,24 @@ impl Metal<'_> {
     }
 }
 impl Material for Metal<'_> {
-    fn scatter(&self, ray: &Ray, hit: &HitRecord, rng: &mut Random) -> Option<(Ray, Color)> {
+    fn scatter(&self, _ray: &Ray, hit: &HitRecord, rng: &mut Random) -> Option<Color> {
+        let color = self.texture.color(hit.u, hit.v, &hit.p, rng);
+        Some(color)
+    }
+
+    fn scattering_pdf<'a, 'b>(
+        &'a self,
+        ray: &Ray,
+        hit: &HitRecord<'b>,
+        rng: &mut Random,
+    ) -> ScatterResult<'a, 'b> {
         let direction = ray.direction.reflect(&hit.normal).normalize()
             + Vec3::random_unit(rng) * self.fuzziness;
         if direction.near_zero() || direction.dot(&hit.normal) < 0.0 {
-            return None; // Ray is absorbed
+            ScatterResult::None
+        } else {
+            ScatterResult::Scattered(Ray::new(hit.p.clone(), direction, ray.time))
         }
-        let color = self.texture.color(hit.u, hit.v, &hit.p, rng);
-        let new_ray = Ray::new(hit.p.clone(), direction, ray.time);
-        Some((new_ray, color))
     }
 
     fn emission(&self, _hit_record: &HitRecord, _rng: &mut Random) -> Color {

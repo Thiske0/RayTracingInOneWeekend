@@ -29,6 +29,8 @@ pub mod boundingbox;
 pub mod color;
 pub mod hitables;
 pub mod materials;
+pub mod onb;
+pub mod pdf;
 pub mod random;
 pub mod ray;
 pub mod textures;
@@ -61,6 +63,7 @@ pub unsafe fn render_image<'a>(
     grid: *mut GridND<Color, 2>,
     world: &'a HitKind<'a>,
     options: &ImageRenderOptions,
+    lights: &'a HitKind<'a>,
     rand_states: *mut DefaultRand,
 ) {
     // Safety: 'grid' must point to a valid GridND<Color, 2> that is mutable.
@@ -77,7 +80,8 @@ pub unsafe fn render_image<'a>(
     let mut rng = unsafe { &mut *rand_states.add(px_idx) };
 
     // Store the pixel color in the grid
-    *grid.at_mut(idx_y).at_mut(idx_x) = render_pixel_v3(idx_x, idx_y, options, world, &mut rng);
+    *grid.at_mut(idx_y).at_mut(idx_x) =
+        render_pixel_v3(idx_x, idx_y, options, world, lights, &mut rng);
 }
 use crate::ray::Ray;
 
@@ -86,6 +90,7 @@ pub fn render_image<'a, 'b: 'a>(
     grid: &mut GridND<Color, 2>,
     world: &'b HitKind<'a>,
     options: &ImageRenderOptions,
+    lights: &'b HitKind<'a>,
 ) {
     // Set up the progress bar
 
@@ -94,7 +99,7 @@ pub fn render_image<'a, 'b: 'a>(
     let mut rng = rand::rng();
     for i in 0..grid.shape()[1] {
         for j in 0..grid.shape()[0] {
-            *grid.at_mut(j).at_mut(i) = render_pixel(i, j, options, world, &mut rng);
+            *grid.at_mut(j).at_mut(i) = render_pixel(i, j, options, world, lights, &mut rng);
         }
         progress.inc(grid.shape()[0] as u64);
     }
@@ -106,12 +111,13 @@ fn render_pixel<'a>(
     j: usize,
     options: &ImageRenderOptions,
     world: &HitKind<'a>,
+    lights: &HitKind<'a>,
     rng: &mut Random,
 ) -> Color {
     let mut pixel_color = Color::black();
     for cur_sample in 0..options.samples_per_pixel {
         let ray = Ray::get_ray(cur_sample, i, j, options, rng);
-        pixel_color += ray.color(world, options, rng);
+        pixel_color += ray.color(world, options, rng, lights);
     }
     pixel_color / options.samples_per_pixel as Real
 }
@@ -126,6 +132,7 @@ fn render_pixel_v2<'a>(
     j: usize,
     options: &ImageRenderOptions,
     world: &HitKind<'a>,
+    lights: &HitKind<'a>,
     rng: &mut Random,
 ) -> Color {
     let mut pixel_color = Color::black();
@@ -144,20 +151,26 @@ fn render_pixel_v2<'a>(
 
         if let Some(hit) = world.hit(current_ray.clone(), 1e-12..Real::INFINITY, rng) {
             pixel_color += (&current_color) * hit.mat.emission(&hit, rng);
-            if let Some((mut scattered_ray, attenuation)) = hit.mat.scatter(&current_ray, &hit, rng)
-            {
-                // Improve the scattered ray's direction and origin.
-                // This is to avoid precision issues with re-intersection.
-                scattered_ray.direction = scattered_ray.direction.normalize(); // Ensure direction is normalized
-                scattered_ray.origin = scattered_ray.origin + &scattered_ray.direction * 1e-4; // Offset to avoid re-intersection
-
+            if let Some(attenuation) = hit.mat.scatter(&current_ray, &hit, rng) {
                 // Recursively calculate the color of the scattered ray.
-                current_ray = scattered_ray;
-                current_color = current_color * attenuation;
-                cur_depth += 1;
+                if let Some((mut scattered_ray, attenuation)) =
+                    current_ray.apply_pdf(attenuation, &hit, rng, lights)
+                {
+                    // Improve the scattered ray's direction and origin.
+                    // This is to avoid precision issues with re-intersection.
+                    scattered_ray.direction = scattered_ray.direction.normalize(); // Ensure direction is normalized
+                    scattered_ray.origin = scattered_ray.origin + &scattered_ray.direction * 1e-4; // Offset to avoid re-intersection
 
-                if cur_depth >= options.max_depth {
-                    // max depth is reached, don't gather any light
+                    current_ray = scattered_ray;
+                    current_color = current_color * attenuation;
+                    cur_depth += 1;
+
+                    if cur_depth >= options.max_depth {
+                        // max depth is reached, don't gather any light
+                        cur_depth = 0;
+                        cur_sample += 1;
+                    }
+                } else {
                     cur_depth = 0;
                     cur_sample += 1;
                 }
@@ -185,6 +198,7 @@ fn render_pixel_v3<'a>(
     j: usize,
     options: &ImageRenderOptions,
     world: &'a HitKind<'a>,
+    lights: &HitKind<'a>,
     rng: &mut Random,
 ) -> Color {
     use crate::hitables::STACK_SIZE;
@@ -272,21 +286,27 @@ fn render_pixel_v3<'a>(
             // process hit
             if let Some(hit) = &hit_record {
                 pixel_color += (&current_color) * hit.mat.emission(&hit, rng);
-                if let Some((mut scattered_ray, attenuation)) =
-                    hit.mat.scatter(&current_ray, hit, rng)
-                {
-                    // Improve the scattered ray's direction and origin.
-                    // This is to avoid precision issues with re-intersection.
-                    scattered_ray.direction = scattered_ray.direction.normalize(); // Ensure direction is normalized
-                    scattered_ray.origin = scattered_ray.origin + &scattered_ray.direction * 1e-4; // Offset to avoid re-intersection
-
+                if let Some(attenuation) = hit.mat.scatter(&current_ray, hit, rng) {
                     // Recursively calculate the color of the scattered ray.
-                    current_ray = scattered_ray;
-                    current_color = current_color * attenuation;
-                    cur_depth += 1;
+                    if let Some((mut scattered_ray, attenuation)) =
+                        current_ray.apply_pdf(attenuation, &hit, rng, lights)
+                    {
+                        // Improve the scattered ray's direction and origin.
+                        // This is to avoid precision issues with re-intersection.
+                        scattered_ray.direction = scattered_ray.direction.normalize(); // Ensure direction is normalized
+                        scattered_ray.origin =
+                            scattered_ray.origin + &scattered_ray.direction * 1e-4; // Offset to avoid re-intersection
 
-                    if cur_depth >= options.max_depth {
-                        // max depth is reached, don't gather any light
+                        current_ray = scattered_ray;
+                        current_color = current_color * attenuation;
+                        cur_depth += 1;
+
+                        if cur_depth >= options.max_depth {
+                            // max depth is reached, don't gather any light
+                            cur_depth = 0;
+                            cur_sample += 1;
+                        }
+                    } else {
                         cur_depth = 0;
                         cur_sample += 1;
                     }
