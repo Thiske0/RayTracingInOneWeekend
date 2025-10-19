@@ -361,6 +361,20 @@ pub enum HitKindNonRecursive<'b> {
 }
 impl_into_hitkind_non_recursive!(Sphere, Quad, Triangle);
 
+#[cfg(not(target_os = "cuda"))]
+use crate::materials::IsLight;
+
+#[cfg(not(target_os = "cuda"))]
+impl<'a> IsLight for HitKindNonRecursive<'a> {
+    fn is_light(&self) -> bool {
+        match self {
+            HitKindNonRecursive::Sphere(s) => s.is_light(),
+            HitKindNonRecursive::Quad(q) => q.is_light(),
+            HitKindNonRecursive::Triangle(t) => t.is_light(),
+        }
+    }
+}
+
 #[repr(C)]
 #[cfg_attr(not(target_os = "cuda"), derive(Clone))]
 #[enum_dispatch(IntoBoundingBox)]
@@ -472,6 +486,55 @@ impl<'a> HitRecord<'a> {
             mat,
             u,
             v,
+        }
+    }
+}
+
+#[cfg(not(target_os = "cuda"))]
+trait GetLights<'a> {
+    fn get_lights_inner(&self) -> Vec<HitKind<'a>>;
+}
+
+#[cfg(not(target_os = "cuda"))]
+impl<'a> HitKind<'a> {
+    pub fn get_lights(&self) -> HitKind<'a> {
+        let lights = match self {
+            HitKind::HitKindNonRecursive(h) => h.get_lights_inner(),
+            HitKind::HitKindRecursive(h) => h.get_lights_inner(),
+        };
+        HitableList::new_owned(lights).into()
+    }
+}
+
+#[cfg(not(target_os = "cuda"))]
+impl<'a> GetLights<'a> for HitKind<'a> {
+    fn get_lights_inner(&self) -> Vec<HitKind<'a>> {
+        match self {
+            HitKind::HitKindNonRecursive(h) => h.get_lights_inner(),
+            HitKind::HitKindRecursive(h) => h.get_lights_inner(),
+        }
+    }
+}
+
+#[cfg(not(target_os = "cuda"))]
+impl<'a> GetLights<'a> for HitKindNonRecursive<'a> {
+    fn get_lights_inner(&self) -> Vec<HitKind<'a>> {
+        let mut lights = Vec::new();
+        if self.is_light() {
+            lights.push(self.clone().into());
+        }
+        lights
+    }
+}
+
+#[cfg(not(target_os = "cuda"))]
+impl<'a> GetLights<'a> for HitKindRecursive<'a> {
+    fn get_lights_inner(&self) -> Vec<HitKind<'a>> {
+        match self {
+            HitKindRecursive::HitableList(h) => h.get_lights_inner(),
+            HitKindRecursive::Translate(h) => h.get_lights_inner(),
+            HitKindRecursive::Rotate(h) => h.get_lights_inner(),
+            HitKindRecursive::ConstantMedium(h) => h.get_lights_inner(),
         }
     }
 }

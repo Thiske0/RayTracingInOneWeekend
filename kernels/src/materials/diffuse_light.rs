@@ -43,3 +43,13 @@ impl Material for DiffuseLight<'_> {
         }
     }
 }
+
+#[cfg(not(target_os = "cuda"))]
+use crate::materials::IsLight;
+
+#[cfg(not(target_os = "cuda"))]
+impl IsLight for DiffuseLight<'_> {
+    fn is_light(&self) -> bool {
+        true
+    }
+}

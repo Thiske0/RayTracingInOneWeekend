@@ -16,6 +16,11 @@ use crate::{
 use enum_dispatch::enum_dispatch;
 use gpu_builder::derive_builder;
 
+#[cfg(not(target_os = "cuda"))]
+pub trait IsLight {
+    fn is_light(&self) -> bool;
+}
+
 pub enum ScatterResult<'b, 'a> {
     Scattered(Ray),
     PDF(PDFKind<'b, 'a>),
@@ -46,6 +51,20 @@ pub enum MaterialKind<'a> {
     DiffuseLight(DiffuseLight<'a>),
     Isotropic(Isotropic),
     IsFront(IsFront),
+}
+
+#[cfg(not(target_os = "cuda"))]
+impl<'a> IsLight for MaterialKind<'a> {
+    fn is_light(&self) -> bool {
+        match self {
+            MaterialKind::Lambertian(mat) => mat.is_light(),
+            MaterialKind::Metal(mat) => mat.is_light(),
+            MaterialKind::Dielectric(mat) => mat.is_light(),
+            MaterialKind::DiffuseLight(mat) => mat.is_light(),
+            MaterialKind::Isotropic(mat) => mat.is_light(),
+            MaterialKind::IsFront(mat) => mat.is_light(),
+        }
+    }
 }
 
 pub mod dielectric;

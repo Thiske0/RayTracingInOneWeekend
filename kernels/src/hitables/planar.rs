@@ -303,3 +303,20 @@ pub fn make_box<'a>(a: Point3, b: Point3, mat: MaterialKind<'a>) -> HitableListB
 
     sides
 }
+
+#[cfg(not(target_os = "cuda"))]
+use crate::materials::IsLight;
+
+#[cfg(not(target_os = "cuda"))]
+impl IsLight for Quad<'_> {
+    fn is_light(&self) -> bool {
+        self.mat.is_light()
+    }
+}
+
+#[cfg(not(target_os = "cuda"))]
+impl IsLight for Triangle<'_> {
+    fn is_light(&self) -> bool {
+        self.mat.is_light()
+    }
+}

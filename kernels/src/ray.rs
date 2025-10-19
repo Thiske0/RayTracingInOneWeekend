@@ -104,7 +104,7 @@ impl Ray {
             ScatterResult::Scattered(scattered_ray) => Some((scattered_ray, attenuation)),
             ScatterResult::PDF(scattering_pdf) => {
                 let lights_pdf = HitablePDF::new(hit.p.clone(), lights);
-                let mixture_pdf = MixturePDF::new(&scattering_pdf, &scattering_pdf);
+                let mixture_pdf = MixturePDF::new_with_chance(0.8, &scattering_pdf, &lights_pdf);
                 let scattered_direction = mixture_pdf.generate(rng);
                 let pdf_value = mixture_pdf.value(&scattered_direction, rng);
 

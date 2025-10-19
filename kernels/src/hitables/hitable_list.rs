@@ -91,6 +91,9 @@ impl RecursiveHitable for HitableList<'_> {
         rng: &mut Random,
     ) -> Option<(&'a HitKind<'a>, usize)> {
         if count == 0 {
+            if self.hitables.len() == 0 {
+                return None;
+            }
             let index = rng.random_range(0..self.hitables.len());
             Some((&self.hitables[index], 1))
         } else if count == 1 {
@@ -98,5 +101,17 @@ impl RecursiveHitable for HitableList<'_> {
         } else {
             unreachable!()
         }
+    }
+}
+#[cfg(not(target_os = "cuda"))]
+use crate::hitables::GetLights;
+
+#[cfg(not(target_os = "cuda"))]
+impl<'a> GetLights<'a> for HitableList<'a> {
+    fn get_lights_inner(&self) -> Vec<HitKind<'a>> {
+        self.hitables
+            .iter()
+            .flat_map(|hitable| hitable.get_lights_inner())
+            .collect()
     }
 }

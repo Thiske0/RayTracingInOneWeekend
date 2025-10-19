@@ -96,7 +96,7 @@ impl Camera {
         let module = Module::from_ptx(PTX, &[])?;
         let stream = Stream::new(StreamFlags::NON_BLOCKING, None)?;
 
-        let lights: HitKind<'_> = HitableList::new(&[]).into();
+        let lights = world.get_lights();
 
         let world_copy = world.clone();
         let lights_copy = lights.clone();

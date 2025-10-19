@@ -175,3 +175,13 @@ impl IntoBoundingBox for ConstantMedium<'_> {
         self.boundary.boundingbox()
     }
 }
+#[cfg(not(target_os = "cuda"))]
+use crate::hitables::GetLights;
+
+#[cfg(not(target_os = "cuda"))]
+impl<'a> GetLights<'a> for ConstantMedium<'a> {
+    fn get_lights_inner(&self) -> Vec<HitKind<'a>> {
+        // Constant medium is never a light source
+        Vec::new()
+    }
+}

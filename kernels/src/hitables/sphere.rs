@@ -157,3 +157,13 @@ impl IntoBoundingBox for Sphere<'_> {
         start_box.merge(&end_box)
     }
 }
+
+#[cfg(not(target_os = "cuda"))]
+use crate::materials::IsLight;
+
+#[cfg(not(target_os = "cuda"))]
+impl IsLight for Sphere<'_> {
+    fn is_light(&self) -> bool {
+        self.mat.is_light()
+    }
+}

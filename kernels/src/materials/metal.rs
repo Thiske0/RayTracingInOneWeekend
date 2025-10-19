@@ -48,3 +48,13 @@ impl Material for Metal<'_> {
         Color::black()
     }
 }
+
+#[cfg(not(target_os = "cuda"))]
+use crate::materials::IsLight;
+
+#[cfg(not(target_os = "cuda"))]
+impl IsLight for Metal<'_> {
+    fn is_light(&self) -> bool {
+        self.fuzziness < 0.2
+    }
+}
