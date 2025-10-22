@@ -124,10 +124,20 @@ impl IntoBoundingBox for Translate<'_> {
 
 #[cfg(not(target_os = "cuda"))]
 use crate::hitables::GetLights;
+#[cfg(not(target_os = "cuda"))]
+use crate::hitables::hitable_list::HitableList;
 
 #[cfg(not(target_os = "cuda"))]
 impl<'a> GetLights<'a> for Translate<'a> {
     fn get_lights_inner(&self) -> Vec<HitKind<'a>> {
-        (&self.inner).get_lights_inner()
+        let result = self.inner.get_lights_inner();
+        if result.is_empty() {
+            vec![]
+        } else {
+            vec![Translate::new_owned(
+                self.offset.clone(),
+                HitableList::new_owned(result).into(),
+            )]
+        }
     }
 }

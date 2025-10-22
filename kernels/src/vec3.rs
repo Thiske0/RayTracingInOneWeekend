@@ -165,6 +165,14 @@ impl Vec3 {
             ),
         }
     }
+
+    pub fn scale(&self, scale: &Vec3) -> Self {
+        Vec3::new(self.x * scale.x, self.y * scale.y, self.z * scale.z)
+    }
+
+    pub fn scale_inverse(&self, scale: &Vec3) -> Self {
+        Vec3::new(self.x / scale.x, self.y / scale.y, self.z / scale.z)
+    }
 }
 
 #[cfg(test)]

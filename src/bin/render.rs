@@ -17,14 +17,16 @@ use simple_ray_tracer_kernels::{
         HitKind,
         constant_medium::ConstantMedium,
         hitable_list_builder::HitableListBuilder,
+        object_parser::parse_obj,
         planar::{Quad, Triangle, make_box},
         rotate::Rotate,
+        scale::Scale,
         sphere::Sphere,
         translate::Translate,
     },
     materials::{
-        dielectric::Dielectric, diffuse_light::DiffuseLight, isotropic::Isotropic,
-        lambertian::Lambertian, metal::Metal,
+        dielectric::Dielectric, diffuse_light::DiffuseLight, is_front::IsFront,
+        isotropic::Isotropic, lambertian::Lambertian, metal::Metal,
     },
     random::RandomRange,
     textures::{
@@ -532,13 +534,87 @@ fn final_scene<'a>(
     world
 }
 
+fn bunny<'a>(options: &mut RenderOptions) -> HitableListBuilder<'a> {
+    let mut world = HitableListBuilder::new();
+
+    let bunny = parse_obj(
+        "data/bunny.obj",
+        Lambertian::new(SolidTexture::new(Color::new(0.0, 0.0, 0.8)).into()),
+    )
+    .expect("Failed to parse bunny.obj");
+
+    let bunny = bunny.subdivide(&[3, 3]);
+
+    world.add(Translate::new_owned(
+        Vec3::new(277.5, -50.0, 277.5),
+        Rotate::new_owned(
+            Axis::Y,
+            180.0_f32.to_radians(),
+            Scale::new_owned_same(1500.0, bunny.into()),
+        ),
+    ));
+
+    let red = Lambertian::new(SolidTexture::new(Color::new(0.65, 0.05, 0.05)));
+    let green = Lambertian::new(SolidTexture::new(Color::new(0.12, 0.45, 0.15)));
+    let light = DiffuseLight::new(SolidTexture::new(Color::new(15.0, 15.0, 15.0)));
+    let white = Lambertian::new(SolidTexture::new(Color::new(0.73, 0.73, 0.73)));
+
+    world.add(Quad::new(
+        Point3::new(555.0, 0.0, 0.0),
+        Vec3::new(0.0, 555.0, 0.0),
+        Vec3::new(0.0, 0.0, 555.0),
+        green,
+    ));
+    world.add(Quad::new(
+        Point3::new(0.0, 0.0, 0.0),
+        Vec3::new(0.0, 555.0, 0.0),
+        Vec3::new(0.0, 0.0, 555.0),
+        red,
+    ));
+    world.add(Quad::new(
+        Point3::new(343.0, 554.0, 332.0),
+        Vec3::new(-130.0, 0.0, 0.0),
+        Vec3::new(0.0, 0.0, -105.0),
+        light,
+    ));
+    world.add(Quad::new(
+        Point3::new(0.0, 0.0, 0.0),
+        Vec3::new(555.0, 0.0, 0.0),
+        Vec3::new(0.0, 0.0, 555.0),
+        white.clone(),
+    ));
+    world.add(Quad::new(
+        Point3::new(555.0, 555.0, 555.0),
+        Vec3::new(-555.0, 0.0, 0.0),
+        Vec3::new(0.0, 0.0, -555.0),
+        white.clone(),
+    ));
+    world.add(Quad::new(
+        Point3::new(0.0, 0.0, 555.0),
+        Vec3::new(555.0, 0.0, 0.0),
+        Vec3::new(0.0, 555.0, 0.0),
+        white.clone(),
+    ));
+
+    options.vertical_fov = 40.0;
+    options.lookfrom = Point3::new(278.0, 278.0, -800.0);
+    options.lookat = Point3::new(278.0, 278.0, 0.0);
+    options.vup = Vec3::new(0.0, 1.0, 0.0);
+    options.width = options.height;
+    options.samples_per_pixel = 20;
+
+    options.defocus_angle = 0.0;
+
+    world
+}
+
 fn main() -> Result<()> {
     // Parse command line options
     let mut options = Options::parse();
 
     let earth_image = ImageTexture::from_file("data/earthmap.jpg")?;
 
-    let scene = 8;
+    let scene = 9;
     let world = match scene {
         1 => bouncing_spheres(&mut options.render),
         2 => earth(&mut options.render, &earth_image),
@@ -548,6 +624,7 @@ fn main() -> Result<()> {
         6 => cornell_box(&mut options.render),
         7 => cornell_box_smoke(&mut options.render),
         8 => final_scene(&mut options.render, &earth_image),
+        9 => bunny(&mut options.render),
         _ => {
             panic!("Unknown scene {}", scene);
         }

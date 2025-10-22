@@ -9,6 +9,7 @@ use crate::{
         hitable_list::{HitableList, HitableListDevice},
         planar::{Quad, QuadDevice, Triangle, TriangleDevice},
         rotate::{Rotate, RotateDevice},
+        scale::{Scale, ScaleDevice},
         sphere::{Sphere, SphereDevice},
         translate::{Translate, TranslateDevice},
     },
@@ -24,11 +25,14 @@ pub mod constant_medium;
 pub mod hitable_list;
 pub mod planar;
 pub mod rotate;
+pub mod scale;
 pub mod sphere;
 pub mod translate;
 
 #[cfg(not(target_os = "cuda"))]
 pub mod hitable_list_builder;
+#[cfg(not(target_os = "cuda"))]
+pub mod object_parser;
 
 #[enum_dispatch]
 pub trait Hitable {
@@ -383,10 +387,11 @@ pub enum HitKindRecursive<'b> {
     HitableList(HitableList<'b>),
     Translate(Translate<'b>),
     Rotate(Rotate<'b>),
+    Scale(Scale<'b>),
     ConstantMedium(ConstantMedium<'b>),
 }
 
-impl_into_hitkind_recursive!(HitableList, Translate, Rotate, ConstantMedium);
+impl_into_hitkind_recursive!(HitableList, Translate, Rotate, Scale, ConstantMedium);
 
 impl RecursiveHitable for HitKindRecursive<'_> {
     fn hit_recursive<'a>(
@@ -406,6 +411,9 @@ impl RecursiveHitable for HitKindRecursive<'_> {
                 h.hit_recursive(ray, range, hit_record, count, rng, extra_stack)
             }
             HitKindRecursive::Rotate(h) => {
+                h.hit_recursive(ray, range, hit_record, count, rng, extra_stack)
+            }
+            HitKindRecursive::Scale(h) => {
                 h.hit_recursive(ray, range, hit_record, count, rng, extra_stack)
             }
             HitKindRecursive::ConstantMedium(h) => {
@@ -432,6 +440,9 @@ impl RecursiveHitable for HitKindRecursive<'_> {
             HitKindRecursive::Rotate(h) => {
                 h.pdf_value_recursive(count, origin, direction, current_value, rng)
             }
+            HitKindRecursive::Scale(h) => {
+                h.pdf_value_recursive(count, origin, direction, current_value, rng)
+            }
             HitKindRecursive::ConstantMedium(h) => {
                 h.pdf_value_recursive(count, origin, direction, current_value, rng)
             }
@@ -451,6 +462,7 @@ impl RecursiveHitable for HitKindRecursive<'_> {
             }
             HitKindRecursive::Translate(h) => h.random_recursive(count, origin, current_value, rng),
             HitKindRecursive::Rotate(h) => h.random_recursive(count, origin, current_value, rng),
+            HitKindRecursive::Scale(h) => h.random_recursive(count, origin, current_value, rng),
             HitKindRecursive::ConstantMedium(h) => {
                 h.random_recursive(count, origin, current_value, rng)
             }
@@ -534,6 +546,7 @@ impl<'a> GetLights<'a> for HitKindRecursive<'a> {
             HitKindRecursive::HitableList(h) => h.get_lights_inner(),
             HitKindRecursive::Translate(h) => h.get_lights_inner(),
             HitKindRecursive::Rotate(h) => h.get_lights_inner(),
+            HitKindRecursive::Scale(h) => h.get_lights_inner(),
             HitKindRecursive::ConstantMedium(h) => h.get_lights_inner(),
         }
     }

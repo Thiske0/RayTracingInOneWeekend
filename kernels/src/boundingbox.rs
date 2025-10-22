@@ -123,6 +123,13 @@ impl BoundingBox {
         }
     }
 
+    pub fn scale(&self, scale: &Vec3) -> Self {
+        BoundingBox {
+            min: self.min.scale(scale),
+            max: self.max.scale(scale),
+        }
+    }
+
     pub fn corners(&self) -> [Point3; 8] {
         [
             Point3::new(self.min.x, self.min.y, self.min.z),

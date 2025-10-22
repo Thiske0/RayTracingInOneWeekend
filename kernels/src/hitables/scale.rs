@@ -6,7 +6,7 @@ use crate::{
     random::Random,
     ray::Ray,
     stack::Stack,
-    vec3::{Axis, Point3, Real, Vec3},
+    vec3::{Point3, Real, Vec3},
 };
 use gpu_builder::derive_builder;
 use ref_builder::{RefBuilder, RefBuilderDevice};
@@ -14,79 +14,78 @@ use ref_builder::{RefBuilder, RefBuilderDevice};
 #[repr(C)]
 #[cfg_attr(not(target_os = "cuda"), derive(Clone))]
 #[derive_builder('a)]
-pub struct Rotate<'a> {
-    axis: Axis,
-    angle_rad: Real,
+pub struct Scale<'a> {
+    scale: Vec3,
     inner: RefBuilder<'a, HitKind<'a>>,
     bounding_box: BoundingBox,
 }
 
 #[cfg(not(target_os = "cuda"))]
-impl<'a> Rotate<'a> {
-    pub fn new(axis: Axis, angle_rad: Real, inner: &'a HitKind<'a>) -> HitKind<'a> {
-        Rotate {
-            axis,
-            angle_rad,
+impl<'a> Scale<'a> {
+    pub fn new(scale: Vec3, inner: &'a HitKind<'a>) -> HitKind<'a> {
+        let bounding_box = Self::make_boundingbox(inner, &scale);
+        Scale {
+            scale,
             inner: RefBuilder::new(inner),
-            bounding_box: Self::make_bounding_box(inner, axis, angle_rad),
-        }
-        .into()
-    }
-
-    pub fn new_owned(axis: Axis, angle_rad: Real, inner: HitKind<'a>) -> HitKind<'a> {
-        let inner = RefBuilder::new_owned(inner);
-        let bounding_box = Self::make_bounding_box(inner.as_ref(), axis, angle_rad);
-        Rotate {
-            axis,
-            angle_rad,
-            inner,
             bounding_box,
         }
         .into()
     }
 
-    fn make_bounding_box(inner: &HitKind, axis: Axis, angle_rad: Real) -> BoundingBox {
+    pub fn new_owned(scale: Vec3, inner: HitKind<'a>) -> HitKind<'a> {
+        let bounding_box = Self::make_boundingbox(&inner, &scale);
+        Scale {
+            scale,
+            inner: RefBuilder::new_owned(inner),
+            bounding_box,
+        }
+        .into()
+    }
+
+    pub fn new_same(scale: Real, inner: &'a HitKind<'a>) -> HitKind<'a> {
+        Self::new(Vec3::new(scale, scale, scale), inner)
+    }
+
+    pub fn new_owned_same(scale: Real, inner: HitKind<'a>) -> HitKind<'a> {
+        Self::new_owned(Vec3::new(scale, scale, scale), inner)
+    }
+
+    fn make_boundingbox(inner: &HitKind<'a>, scale: &Vec3) -> BoundingBox {
         let inner_box = inner.boundingbox();
-        let corners = inner_box.corners();
-        let rotated_corners = corners.map(|corner| corner.rotate(&axis, angle_rad));
-        BoundingBox::from_corners(&rotated_corners)
+        inner_box.scale(scale)
     }
 }
 
-impl RecursiveHitable for Rotate<'_> {
+impl RecursiveHitable for Scale<'_> {
     fn hit_recursive<'a>(
         &'a self,
         ray: &mut Ray,
-        range: &mut Range<Real>,
+        _range: &mut Range<Real>,
         hit_record: &mut Option<HitRecord<'a>>,
         count: usize,
         _rng: &mut Random,
         _extra_stack: &mut Stack,
     ) -> Option<(&'a HitKind<'a>, usize)> {
         if count == 0 {
-            if !self.bounding_box.hit(ray, range) {
-                return None;
-            }
-
             if let Some(rec) = hit_record {
-                rec.p = rec.p.rotate(&self.axis, -self.angle_rad);
-                rec.normal = rec.normal.rotate(&self.axis, -self.angle_rad);
+                rec.p = rec.p.scale_inverse(&self.scale);
             }
-
             *ray = Ray::new(
-                ray.origin.rotate(&self.axis, -self.angle_rad),
-                ray.direction.rotate(&self.axis, -self.angle_rad),
+                ray.origin.scale_inverse(&self.scale),
+                ray.direction.scale_inverse(&self.scale),
                 ray.time,
             );
-            Some((&self.inner, 1))
+            Some((
+                &self.inner,
+                1, // Increment count to avoid infinite recursion
+            ))
         } else if count == 1 {
             if let Some(rec) = hit_record {
-                rec.p = rec.p.rotate(&self.axis, self.angle_rad);
-                rec.normal = rec.normal.rotate(&self.axis, self.angle_rad);
+                rec.p = rec.p.scale(&self.scale);
             }
             *ray = Ray::new(
-                ray.origin.rotate(&self.axis, self.angle_rad),
-                ray.direction.rotate(&self.axis, self.angle_rad),
+                ray.origin.scale(&self.scale),
+                ray.direction.scale(&self.scale),
                 ray.time,
             );
             None
@@ -104,12 +103,12 @@ impl RecursiveHitable for Rotate<'_> {
         _rng: &mut Random,
     ) -> Option<(&'a HitKind<'a>, usize)> {
         if count == 0 {
-            *origin = origin.rotate(&self.axis, -self.angle_rad);
-            *direction = direction.rotate(&self.axis, -self.angle_rad);
+            *origin = origin.scale_inverse(&self.scale);
+            *direction = direction.scale_inverse(&self.scale);
             Some((&self.inner, 1))
         } else if count == 1 {
-            *origin = origin.rotate(&self.axis, self.angle_rad);
-            *direction = direction.rotate(&self.axis, self.angle_rad);
+            *origin = origin.scale(&self.scale);
+            *direction = direction.scale(&self.scale);
             None
         } else {
             unreachable!()
@@ -120,15 +119,14 @@ impl RecursiveHitable for Rotate<'_> {
         &'a self,
         count: usize,
         origin: &mut Point3,
-        current_value: &mut Vec3,
+        _current_value: &mut Vec3,
         _rng: &mut Random,
     ) -> Option<(&'a HitKind<'a>, usize)> {
         if count == 0 {
-            *origin = origin.rotate(&self.axis, -self.angle_rad);
+            *origin = origin.scale_inverse(&self.scale);
             Some((&self.inner, 1))
         } else if count == 1 {
-            *origin = origin.rotate(&self.axis, self.angle_rad);
-            *current_value = current_value.rotate(&self.axis, self.angle_rad);
+            *origin = origin.scale(&self.scale);
             None
         } else {
             unreachable!()
@@ -136,7 +134,7 @@ impl RecursiveHitable for Rotate<'_> {
     }
 }
 
-impl IntoBoundingBox for Rotate<'_> {
+impl IntoBoundingBox for Scale<'_> {
     fn boundingbox(&self) -> BoundingBox {
         self.bounding_box.clone()
     }
@@ -148,15 +146,14 @@ use crate::hitables::GetLights;
 use crate::hitables::hitable_list::HitableList;
 
 #[cfg(not(target_os = "cuda"))]
-impl<'a> GetLights<'a> for Rotate<'a> {
+impl<'a> GetLights<'a> for Scale<'a> {
     fn get_lights_inner(&self) -> Vec<HitKind<'a>> {
         let result = self.inner.get_lights_inner();
         if result.is_empty() {
             vec![]
         } else {
-            vec![Rotate::new_owned(
-                self.axis.clone(),
-                self.angle_rad,
+            vec![Scale::new_owned(
+                self.scale.clone(),
                 HitableList::new_owned(result).into(),
             )]
         }
