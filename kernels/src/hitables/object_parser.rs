@@ -15,6 +15,7 @@ pub fn parse_obj<'a>(
     // Implementation for parsing .obj files
     let file = BufReader::new(File::open(path)?);
     let mut vertices = Vec::new();
+    let mut vertex_normals = Vec::new();
     let mut result = HitableListBuilder::new();
 
     for line in file.lines() {
@@ -25,11 +26,19 @@ pub fn parse_obj<'a>(
         }
         match parts[0] {
             "#" => continue,
+            "o" => continue,
+            "s" => continue,
             "v" => {
                 let x: Real = parts[1].parse()?;
                 let y: Real = parts[2].parse()?;
                 let z: Real = parts[3].parse()?;
                 vertices.push(Vec3::new(x, y, z));
+            }
+            "vn" => {
+                let x: Real = parts[1].parse()?;
+                let y: Real = parts[2].parse()?;
+                let z: Real = parts[3].parse()?;
+                vertex_normals.push(Vec3::new(x, y, z));
             }
             "f" => {
                 let v1: usize = parts[1].split('/').next().unwrap().parse()?;
