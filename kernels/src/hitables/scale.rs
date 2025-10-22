@@ -69,6 +69,7 @@ impl RecursiveHitable for Scale<'_> {
         if count == 0 {
             if let Some(rec) = hit_record {
                 rec.p = rec.p.scale_inverse(&self.scale);
+                rec.normal = rec.normal.scale(&self.scale).normalize();
             }
             *ray = Ray::new(
                 ray.origin.scale_inverse(&self.scale),
@@ -82,6 +83,8 @@ impl RecursiveHitable for Scale<'_> {
         } else if count == 1 {
             if let Some(rec) = hit_record {
                 rec.p = rec.p.scale(&self.scale);
+                //normals are covariant
+                rec.normal = rec.normal.scale_inverse(&self.scale).normalize();
             }
             *ray = Ray::new(
                 ray.origin.scale(&self.scale),
