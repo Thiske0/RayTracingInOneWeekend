@@ -231,9 +231,7 @@ fn lights<'a>(options: &mut RenderOptions) -> HitableListBuilder<'a> {
     world
 }
 
-fn cornell_box<'a>(options: &mut RenderOptions) -> HitableListBuilder<'a> {
-    let mut world = HitableListBuilder::new();
-
+fn make_cornell_box<'a>(world: &mut HitableListBuilder<'a>, options: &mut RenderOptions) {
     let red = Lambertian::new(SolidTexture::new(Color::new(0.65, 0.05, 0.05)));
     let green = Lambertian::new(SolidTexture::new(Color::new(0.12, 0.45, 0.15)));
     let light = DiffuseLight::new(SolidTexture::new(Color::new(15.0, 15.0, 15.0)));
@@ -276,6 +274,20 @@ fn cornell_box<'a>(options: &mut RenderOptions) -> HitableListBuilder<'a> {
         white.clone(),
     ));
 
+    options.vertical_fov = 40.0;
+    options.lookfrom = Point3::new(278.0, 278.0, -800.0);
+    options.lookat = Point3::new(278.0, 278.0, 0.0);
+    options.vup = Vec3::new(0.0, 1.0, 0.0);
+    options.width = options.height;
+
+    options.defocus_angle = 0.0;
+}
+
+fn cornell_box<'a>(options: &mut RenderOptions) -> HitableListBuilder<'a> {
+    let mut world = HitableListBuilder::new();
+
+    let white = Lambertian::new(SolidTexture::new(Color::new(0.73, 0.73, 0.73)));
+
     world.add(Translate::new_owned(
         Vec3::new(265.0, 0.0, 295.0),
         Rotate::new_owned(
@@ -289,7 +301,6 @@ fn cornell_box<'a>(options: &mut RenderOptions) -> HitableListBuilder<'a> {
             .into(),
         ),
     ));
-
     world.add(Translate::new_owned(
         Vec3::new(130.0, 0.0, 65.0),
         Rotate::new_owned(
@@ -304,14 +315,8 @@ fn cornell_box<'a>(options: &mut RenderOptions) -> HitableListBuilder<'a> {
         ),
     ));
 
-    options.vertical_fov = 40.0;
-    options.lookfrom = Point3::new(278.0, 278.0, -800.0);
-    options.lookat = Point3::new(278.0, 278.0, 0.0);
-    options.vup = Vec3::new(0.0, 1.0, 0.0);
-    options.width = options.height;
+    make_cornell_box(&mut world, options);
     options.samples_per_pixel = 200;
-
-    options.defocus_angle = 0.0;
 
     world
 }
@@ -554,56 +559,36 @@ fn bunny<'a>(options: &mut RenderOptions) -> HitableListBuilder<'a> {
         ),
     ));
 
-    let red = Lambertian::new(SolidTexture::new(Color::new(0.65, 0.05, 0.05)));
-    let green = Lambertian::new(SolidTexture::new(Color::new(0.12, 0.45, 0.15)));
-    let light = DiffuseLight::new(SolidTexture::new(Color::new(15.0, 15.0, 15.0)));
-    let white = Lambertian::new(SolidTexture::new(Color::new(0.73, 0.73, 0.73)));
+    make_cornell_box(&mut world, options);
 
-    world.add(Quad::new(
-        Point3::new(555.0, 0.0, 0.0),
-        Vec3::new(0.0, 555.0, 0.0),
-        Vec3::new(0.0, 0.0, 555.0),
-        green,
-    ));
-    world.add(Quad::new(
-        Point3::new(0.0, 0.0, 0.0),
-        Vec3::new(0.0, 555.0, 0.0),
-        Vec3::new(0.0, 0.0, 555.0),
-        red,
-    ));
-    world.add(Quad::new(
-        Point3::new(343.0, 554.0, 332.0),
-        Vec3::new(-130.0, 0.0, 0.0),
-        Vec3::new(0.0, 0.0, -105.0),
-        light,
-    ));
-    world.add(Quad::new(
-        Point3::new(0.0, 0.0, 0.0),
-        Vec3::new(555.0, 0.0, 0.0),
-        Vec3::new(0.0, 0.0, 555.0),
-        white.clone(),
-    ));
-    world.add(Quad::new(
-        Point3::new(555.0, 555.0, 555.0),
-        Vec3::new(-555.0, 0.0, 0.0),
-        Vec3::new(0.0, 0.0, -555.0),
-        white.clone(),
-    ));
-    world.add(Quad::new(
-        Point3::new(0.0, 0.0, 555.0),
-        Vec3::new(555.0, 0.0, 0.0),
-        Vec3::new(0.0, 555.0, 0.0),
-        white.clone(),
-    ));
-
-    options.vertical_fov = 40.0;
-    options.lookfrom = Point3::new(278.0, 278.0, -800.0);
-    options.lookat = Point3::new(278.0, 278.0, 0.0);
-    options.vup = Vec3::new(0.0, 1.0, 0.0);
-    options.width = options.height;
     options.samples_per_pixel = 50;
 
-    options.defocus_angle = 0.0;
+    world
+}
+
+fn dragon<'a>(options: &mut RenderOptions) -> HitableListBuilder<'a> {
+    let mut world = HitableListBuilder::new();
+
+    let dragon = parse_obj(
+        "data/Dragon_80K.obj",
+        Lambertian::new(SolidTexture::new(Color::new(0.0, 0.0, 0.8)).into()),
+    )
+    .expect("Failed to parse Dragon_80K.obj");
+
+    let dragon = dragon.subdivide(&[2, 3, 3, 3, 3]);
+
+    world.add(Translate::new_owned(
+        Vec3::new(277.5, 100.0, 277.5),
+        Rotate::new_owned(
+            Axis::Y,
+            -90.0_f32.to_radians(),
+            Scale::new_owned_same(400.0, dragon.into()),
+        ),
+    ));
+
+    make_cornell_box(&mut world, options);
+
+    options.samples_per_pixel = 50;
 
     world
 }
@@ -614,7 +599,7 @@ fn main() -> Result<()> {
 
     let earth_image = ImageTexture::from_file("data/earthmap.jpg")?;
 
-    let scene = 9;
+    let scene = 10;
     let world = match scene {
         1 => bouncing_spheres(&mut options.render),
         2 => earth(&mut options.render, &earth_image),
@@ -625,6 +610,7 @@ fn main() -> Result<()> {
         7 => cornell_box_smoke(&mut options.render),
         8 => final_scene(&mut options.render, &earth_image),
         9 => bunny(&mut options.render),
+        10 => dragon(&mut options.render),
         _ => {
             panic!("Unknown scene {}", scene);
         }
