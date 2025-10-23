@@ -166,6 +166,94 @@ impl<'a> IntoBoundingBox for Triangle<'a> {
 #[repr(C)]
 #[cfg_attr(not(target_os = "cuda"), derive(Clone))]
 #[derive_builder('a)]
+pub struct NormedTriangle<'a> {
+    origin: Point3,
+    u: Vec3,
+    v: Vec3,
+    norigin: Vec3,
+    nu: Vec3,
+    nv: Vec3,
+    plane: Plane,
+    mat: MaterialKind<'a>,
+}
+
+impl<'a> NormedTriangle<'a> {
+    pub fn new(
+        p1: Point3,
+        p2: Point3,
+        p3: Point3,
+        norm1: Vec3,
+        norm2: Vec3,
+        norm3: Vec3,
+        mat: MaterialKind<'a>,
+    ) -> HitKind<'a> {
+        let u = p2 - &p1;
+        let v = p3 - &p1;
+        let plane = Plane::from_uv(&p1, &u, &v);
+        let nu = norm2 - &norm1;
+        let nv = norm3 - &norm1;
+        NormedTriangle {
+            origin: p1,
+            u,
+            v,
+            plane,
+            norigin: norm1,
+            nu,
+            nv,
+            mat,
+        }
+        .into()
+    }
+}
+
+impl<'b> Hitable for NormedTriangle<'b> {
+    fn hit<'a>(
+        &'a self,
+        ray: &Ray,
+        t_range: &Range<Real>,
+        _rng: &mut Random,
+    ) -> Option<HitRecord<'a>> {
+        if let Some(hit) = self.plane.hit(ray, t_range) {
+            let (u, v) = self
+                .plane
+                .get_uv_coords(&hit.p, &self.origin, &self.u, &self.v);
+            if u >= 0.0 && v >= 0.0 && u + v <= 1.0 {
+                let normal = (&self.norigin + &self.nu * u + &self.nv * v).normalize();
+                return Some(HitRecord {
+                    p: hit.p,
+                    normal,
+                    t: hit.t,
+                    is_front_face: hit.is_front_face,
+                    u,
+                    v,
+                    mat: &self.mat,
+                });
+            }
+        }
+        None
+    }
+
+    fn pdf_value(&self, _origin: &Point3, _direction: &Vec3, _rng: &mut Random) -> Real {
+        unimplemented!()
+    }
+
+    fn random(&self, _origin: &Point3, _rng: &mut Random) -> Vec3 {
+        unimplemented!()
+    }
+}
+
+impl<'a> IntoBoundingBox for NormedTriangle<'a> {
+    fn boundingbox(&self) -> BoundingBox {
+        // Compute the bounding box of all three vertices.
+        let bbox = BoundingBox::new_point(self.origin.clone());
+        let bbox = bbox.merge(&BoundingBox::new_point((&self.origin) + &self.u));
+        bbox.merge(&BoundingBox::new_point((&self.origin) + &self.v))
+    }
+}
+
+#[repr(C)]
+#[cfg_attr(not(target_os = "cuda"), derive(Clone))]
+#[derive_builder('a)]
 pub struct Quad<'a> {
     origin: Point3,
     u: Vec3,
@@ -316,6 +404,13 @@ impl IsLight for Quad<'_> {
 
 #[cfg(not(target_os = "cuda"))]
 impl IsLight for Triangle<'_> {
+    fn is_light(&self) -> bool {
+        self.mat.is_light()
+    }
+}
+
+#[cfg(not(target_os = "cuda"))]
+impl IsLight for NormedTriangle<'_> {
     fn is_light(&self) -> bool {
         self.mat.is_light()
     }

@@ -7,7 +7,9 @@ use crate::{
     hitables::{
         constant_medium::{ConstantMedium, ConstantMediumDevice},
         hitable_list::{HitableList, HitableListDevice},
-        planar::{Quad, QuadDevice, Triangle, TriangleDevice},
+        planar::{
+            NormedTriangle, NormedTriangleDevice, Quad, QuadDevice, Triangle, TriangleDevice,
+        },
         rotate::{Rotate, RotateDevice},
         scale::{Scale, ScaleDevice},
         sphere::{Sphere, SphereDevice},
@@ -362,8 +364,9 @@ pub enum HitKindNonRecursive<'b> {
     Sphere(Sphere<'b>),
     Quad(Quad<'b>),
     Triangle(Triangle<'b>),
+    NormedTriangle(NormedTriangle<'b>),
 }
-impl_into_hitkind_non_recursive!(Sphere, Quad, Triangle);
+impl_into_hitkind_non_recursive!(Sphere, Quad, Triangle, NormedTriangle);
 
 #[cfg(not(target_os = "cuda"))]
 use crate::materials::IsLight;
@@ -375,6 +378,7 @@ impl<'a> IsLight for HitKindNonRecursive<'a> {
             HitKindNonRecursive::Sphere(s) => s.is_light(),
             HitKindNonRecursive::Quad(q) => q.is_light(),
             HitKindNonRecursive::Triangle(t) => t.is_light(),
+            HitKindNonRecursive::NormedTriangle(t) => t.is_light(),
         }
     }
 }
