@@ -150,6 +150,13 @@ impl BoundingBox {
         }
         bbox
     }
+
+    pub fn surface_area(&self) -> Real {
+        let dx = self.max.x - self.min.x;
+        let dy = self.max.y - self.min.y;
+        let dz = self.max.z - self.min.z;
+        2.0 * (dx * dy + dy * dz + dz * dx)
+    }
 }
 
 #[enum_dispatch]

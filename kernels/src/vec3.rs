@@ -78,6 +78,14 @@ impl Vec3 {
         let r_out_parallel = normal * -Real::abs(1.0 - r_out_perp.length_squared()).sqrt();
         r_out_perp + r_out_parallel
     }
+
+    pub fn at_axis(&self, axis: &Axis) -> Real {
+        match axis {
+            Axis::X => self.x,
+            Axis::Y => self.y,
+            Axis::Z => self.z,
+        }
+    }
 }
 
 #[cfg(target_os = "cuda")]

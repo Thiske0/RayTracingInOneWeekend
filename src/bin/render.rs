@@ -548,7 +548,7 @@ fn bunny<'a>(options: &mut RenderOptions) -> HitableListBuilder<'a> {
     )
     .expect("Failed to parse bunny.obj");
 
-    let bunny = bunny.subdivide(&[3, 3, 3]);
+    let bunny = bunny.subdivide_by4(5);
 
     world.add(Translate::new_owned(
         Vec3::new(277.5, -50.0, 277.5),
@@ -575,7 +575,7 @@ fn dragon<'a>(options: &mut RenderOptions) -> HitableListBuilder<'a> {
     )
     .expect("Failed to parse Dragon_80K.obj");
 
-    let dragon = dragon.subdivide(&[2, 2, 2, 2, 2, 2, 2, 2, 2, 2]);
+    let dragon = dragon.subdivide_by4(8);
 
     world.add(Translate::new_owned(
         Vec3::new(277.5, 100.0, 277.5),
