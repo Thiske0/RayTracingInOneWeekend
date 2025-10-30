@@ -2,7 +2,9 @@ use core::ops::Range;
 
 use crate::{
     boundingbox::{BoundingBox, IntoBoundingBox},
-    hitables::{HitKind, HitKindDevice, HitRecord, RecursiveHitable},
+    hitables::{
+        HitKind, HitRecord, HitableWithCentroid, HitableWithCentroidDevice, RecursiveHitable,
+    },
     random::{Random, RandomRange},
     ray::Ray,
     stack::Stack,
@@ -15,26 +17,23 @@ use ref_builder::{SliceBuilder, SliceBuilderDevice};
 #[cfg_attr(not(target_os = "cuda"), derive(Clone))]
 #[derive_builder('a)]
 pub struct HitableList<'a> {
-    hitables: SliceBuilder<'a, HitKind<'a>>,
+    hitables: SliceBuilder<'a, HitableWithCentroid<'a>>,
     bounding_box: BoundingBox,
 }
 
 #[cfg(not(target_os = "cuda"))]
 impl<'a> HitableList<'a> {
-    pub fn new(hitables: &'a [HitKind<'a>]) -> Self {
-        let bounding_box = hitables.iter().fold(BoundingBox::empty(), |acc, hitable| {
-            acc.merge(&hitable.boundingbox())
-        });
-        HitableList {
-            hitables: SliceBuilder::new(hitables),
-            bounding_box,
+    pub fn new(hitables: Vec<HitKind<'a>>) -> Self {
+        if hitables.len() > 32 {
+            println!(
+                "Warning: Creating HitableList with {} hitables. Consider using a BVH with more levels for better performance.",
+                hitables.len()
+            );
         }
-    }
-
-    pub fn new_owned(hitables: Vec<HitKind<'a>>) -> Self {
         let bounding_box = hitables.iter().fold(BoundingBox::empty(), |acc, hitable| {
             acc.merge(&hitable.boundingbox())
         });
+        let hitables = hitables.into_iter().map(|hitable| hitable.into()).collect();
         HitableList {
             hitables: SliceBuilder::new_owned(hitables),
             bounding_box,
@@ -64,7 +63,32 @@ impl RecursiveHitable for HitableList<'_> {
         if count >= self.hitables.len() {
             return None;
         }
-        Some((&self.hitables[count], count + 1))
+        Some((&self.hitables.as_slice()[count].hitable, count + 1))
+        // let min_distance_squared = if count == 0 {
+        //     0.0
+        // } else {
+        //     (&ray.origin - &self.hitables[count - 1].centroid).length_squared()
+        // };
+        // let mut closest_distance_squared = Real::MAX;
+        // let mut closest_index = 0;
+        // for index in 0..self.hitables.len() {
+        //     let distance_squared = (&ray.origin - &self.hitables[index].centroid).length_squared();
+        //     if distance_squared < closest_distance_squared
+        //         && (distance_squared > min_distance_squared
+        //             || (distance_squared == min_distance_squared && index >= count))
+        //     {
+        //         closest_distance_squared = distance_squared;
+        //         closest_index = index;
+        //     }
+        // }
+        // if closest_distance_squared == Real::MAX {
+        //     return None;
+        // }
+
+        // Some((
+        //     &self.hitables.as_slice()[closest_index].hitable,
+        //     closest_index + 1,
+        // ))
     }
 
     fn pdf_value_recursive<'a>(
@@ -79,7 +103,7 @@ impl RecursiveHitable for HitableList<'_> {
             *current_value /= self.hitables.len() as Real;
             None
         } else {
-            Some((&self.hitables[count], count + 1))
+            Some((&self.hitables[count].hitable, count + 1))
         }
     }
 
@@ -95,7 +119,7 @@ impl RecursiveHitable for HitableList<'_> {
                 return None;
             }
             let index = rng.random_range(0..self.hitables.len());
-            Some((&self.hitables[index], 1))
+            Some((&self.hitables[index].hitable, 1))
         } else if count == 1 {
             None
         } else {
@@ -111,7 +135,7 @@ impl<'a> GetLights<'a> for HitableList<'a> {
     fn get_lights_inner(&self) -> Vec<HitKind<'a>> {
         self.hitables
             .iter()
-            .flat_map(|hitable| hitable.get_lights_inner())
+            .flat_map(|hitable_with_centroid| hitable_with_centroid.hitable.get_lights_inner())
             .collect()
     }
 }

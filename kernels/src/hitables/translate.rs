@@ -136,7 +136,7 @@ impl<'a> GetLights<'a> for Translate<'a> {
         } else {
             vec![Translate::new_owned(
                 self.offset.clone(),
-                HitableList::new_owned(result).into(),
+                HitableList::new(result).into(),
             )]
         }
     }

@@ -575,7 +575,7 @@ fn dragon<'a>(options: &mut RenderOptions) -> HitableListBuilder<'a> {
     )
     .expect("Failed to parse Dragon_80K.obj");
 
-    let dragon = dragon.subdivide(&[2, 3, 3, 3, 3]);
+    let dragon = dragon.subdivide(&[2, 2, 2, 2, 2, 2, 2, 2, 2, 2]);
 
     world.add(Translate::new_owned(
         Vec3::new(277.5, 100.0, 277.5),

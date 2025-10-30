@@ -157,7 +157,7 @@ impl<'a> GetLights<'a> for Scale<'a> {
         } else {
             vec![Scale::new_owned(
                 self.scale.clone(),
-                HitableList::new_owned(result).into(),
+                HitableList::new(result).into(),
             )]
         }
     }

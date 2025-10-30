@@ -157,7 +157,7 @@ impl<'a> GetLights<'a> for Rotate<'a> {
             vec![Rotate::new_owned(
                 self.axis.clone(),
                 self.angle_rad,
-                HitableList::new_owned(result).into(),
+                HitableList::new(result).into(),
             )]
         }
     }

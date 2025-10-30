@@ -75,9 +75,12 @@ impl<'a> HitableListBuilder<'a> {
             divided = divided
                 .into_iter()
                 .flat_map(|builder| {
+                    if builder.hitables.len() <= 8 {
+                        return vec![builder];
+                    }
                     let (left, right) = builder.split();
                     if let Some(right) = right {
-                        vec![left, right]
+                        vec![right, left]
                     } else {
                         vec![left]
                     }
@@ -109,14 +112,8 @@ impl<'a> HitableListBuilder<'a> {
     }
 }
 
-impl<'a> From<&'a HitableListBuilder<'a>> for HitKind<'a> {
-    fn from(builder: &'a HitableListBuilder<'a>) -> Self {
-        HitableList::new(builder.hitables.as_slice()).into()
-    }
-}
-
 impl<'a> From<HitableListBuilder<'a>> for HitKind<'a> {
     fn from(builder: HitableListBuilder<'a>) -> Self {
-        HitableList::new_owned(builder.hitables).into()
+        HitableList::new(builder.hitables).into()
     }
 }
