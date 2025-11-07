@@ -168,20 +168,19 @@ impl RecursiveHitable for ConstantMedium<'_> {
     ) -> Option<(&'a HitKind<'a>, usize)> {
         unimplemented!()
     }
+
+    #[cfg(not(target_os = "cuda"))]
+    fn get_lights_inner<'a>(&'a self) -> Vec<HitKind<'a>>
+    where
+        Self: Into<HitKind<'a>>,
+    {
+        // Constant medium is never a light source
+        Vec::new()
+    }
 }
 
 impl IntoBoundingBox for ConstantMedium<'_> {
     fn boundingbox(&self) -> BoundingBox {
         self.boundary.boundingbox()
-    }
-}
-#[cfg(not(target_os = "cuda"))]
-use crate::hitables::GetLights;
-
-#[cfg(not(target_os = "cuda"))]
-impl<'a> GetLights<'a> for ConstantMedium<'a> {
-    fn get_lights_inner(&self) -> Vec<HitKind<'a>> {
-        // Constant medium is never a light source
-        Vec::new()
     }
 }

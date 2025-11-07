@@ -11,6 +11,9 @@ use crate::{
 use gpu_builder::derive_builder;
 use ref_builder::{RefBuilder, RefBuilderDevice};
 
+#[cfg(not(target_os = "cuda"))]
+use crate::hitables::hitable_list::HitableList;
+
 #[repr(C)]
 #[cfg_attr(not(target_os = "cuda"), derive(Clone))]
 #[derive_builder('a)]
@@ -135,22 +138,12 @@ impl RecursiveHitable for Scale<'_> {
             unreachable!()
         }
     }
-}
 
-impl IntoBoundingBox for Scale<'_> {
-    fn boundingbox(&self) -> BoundingBox {
-        self.bounding_box.clone()
-    }
-}
-
-#[cfg(not(target_os = "cuda"))]
-use crate::hitables::GetLights;
-#[cfg(not(target_os = "cuda"))]
-use crate::hitables::hitable_list::HitableList;
-
-#[cfg(not(target_os = "cuda"))]
-impl<'a> GetLights<'a> for Scale<'a> {
-    fn get_lights_inner(&self) -> Vec<HitKind<'a>> {
+    #[cfg(not(target_os = "cuda"))]
+    fn get_lights_inner<'a>(&'a self) -> Vec<HitKind<'a>>
+    where
+        Self: Into<HitKind<'a>>,
+    {
         let result = self.inner.get_lights_inner();
         if result.is_empty() {
             vec![]
@@ -160,5 +153,11 @@ impl<'a> GetLights<'a> for Scale<'a> {
                 HitableList::new(result).into(),
             )]
         }
+    }
+}
+
+impl IntoBoundingBox for Scale<'_> {
+    fn boundingbox(&self) -> BoundingBox {
+        self.bounding_box.clone()
     }
 }

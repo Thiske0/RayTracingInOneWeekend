@@ -11,6 +11,9 @@ use crate::{
 use gpu_builder::derive_builder;
 use ref_builder::{RefBuilder, RefBuilderDevice};
 
+#[cfg(not(target_os = "cuda"))]
+use crate::hitables::hitable_list::HitableList;
+
 #[repr(C)]
 #[cfg_attr(not(target_os = "cuda"), derive(Clone))]
 #[derive_builder('a)]
@@ -48,7 +51,7 @@ impl<'a> Translate<'a> {
     }
 }
 
-impl RecursiveHitable for Translate<'_> {
+impl<'b> RecursiveHitable for Translate<'b> {
     fn hit_recursive<'a>(
         &'a self,
         ray: &mut Ray,
@@ -114,22 +117,13 @@ impl RecursiveHitable for Translate<'_> {
             unreachable!()
         }
     }
-}
 
-impl IntoBoundingBox for Translate<'_> {
-    fn boundingbox(&self) -> BoundingBox {
-        self.bounding_box.clone()
-    }
-}
-
-#[cfg(not(target_os = "cuda"))]
-use crate::hitables::GetLights;
-#[cfg(not(target_os = "cuda"))]
-use crate::hitables::hitable_list::HitableList;
-
-#[cfg(not(target_os = "cuda"))]
-impl<'a> GetLights<'a> for Translate<'a> {
-    fn get_lights_inner(&self) -> Vec<HitKind<'a>> {
+    #[cfg(not(target_os = "cuda"))]
+    fn get_lights_inner<'a>(&'a self) -> Vec<HitKind<'a>>
+    where
+        Self: Into<HitKind<'a>>,
+        'b: 'a,
+    {
         let result = self.inner.get_lights_inner();
         if result.is_empty() {
             vec![]
@@ -139,5 +133,11 @@ impl<'a> GetLights<'a> for Translate<'a> {
                 HitableList::new(result).into(),
             )]
         }
+    }
+}
+
+impl IntoBoundingBox for Translate<'_> {
+    fn boundingbox(&self) -> BoundingBox {
+        self.bounding_box.clone()
     }
 }

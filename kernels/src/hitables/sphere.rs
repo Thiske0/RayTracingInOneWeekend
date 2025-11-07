@@ -11,6 +11,9 @@ use crate::{
 };
 use gpu_builder::derive_builder;
 
+#[cfg(not(target_os = "cuda"))]
+use crate::materials::IsLight;
+
 #[cfg(target_os = "cuda")]
 use cuda_std::GpuFloat;
 
@@ -143,6 +146,11 @@ impl Hitable for Sphere<'_> {
         let uvw = ONB::new_from_normal(&direction);
         uvw.to_world(&self.random_to_sphere(distance_squared, rng))
     }
+
+    #[cfg(not(target_os = "cuda"))]
+    fn is_light(&self) -> bool {
+        self.mat.is_light()
+    }
 }
 
 impl IntoBoundingBox for Sphere<'_> {
@@ -155,15 +163,5 @@ impl IntoBoundingBox for Sphere<'_> {
         let end_box = BoundingBox::new(&end - &radius_vec, end + radius_vec);
 
         start_box.merge(&end_box)
-    }
-}
-
-#[cfg(not(target_os = "cuda"))]
-use crate::materials::IsLight;
-
-#[cfg(not(target_os = "cuda"))]
-impl IsLight for Sphere<'_> {
-    fn is_light(&self) -> bool {
-        self.mat.is_light()
     }
 }

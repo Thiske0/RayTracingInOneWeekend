@@ -126,13 +126,12 @@ impl RecursiveHitable for HitableList<'_> {
             unreachable!()
         }
     }
-}
-#[cfg(not(target_os = "cuda"))]
-use crate::hitables::GetLights;
 
-#[cfg(not(target_os = "cuda"))]
-impl<'a> GetLights<'a> for HitableList<'a> {
-    fn get_lights_inner(&self) -> Vec<HitKind<'a>> {
+    #[cfg(not(target_os = "cuda"))]
+    fn get_lights_inner<'a>(&'a self) -> Vec<HitKind<'a>>
+    where
+        Self: Into<HitKind<'a>>,
+    {
         self.hitables
             .iter()
             .flat_map(|hitable_with_centroid| hitable_with_centroid.hitable.get_lights_inner())

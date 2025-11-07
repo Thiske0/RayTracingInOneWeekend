@@ -10,6 +10,8 @@ use crate::{
 use core::ops::Range;
 
 #[cfg(not(target_os = "cuda"))]
+use crate::materials::IsLight;
+#[cfg(not(target_os = "cuda"))]
 use cust::memory::DeviceCopy;
 
 #[cfg_attr(not(target_os = "cuda"), derive(Clone, Copy, DeviceCopy))]
@@ -152,6 +154,11 @@ impl<'b> Hitable for Triangle<'b> {
         let p = &self.origin + &self.u * random_u + &self.v * random_v;
         p - origin
     }
+
+    #[cfg(not(target_os = "cuda"))]
+    fn is_light(&self) -> bool {
+        self.mat.is_light()
+    }
 }
 
 impl<'a> IntoBoundingBox for Triangle<'a> {
@@ -240,6 +247,11 @@ impl<'b> Hitable for NormedTriangle<'b> {
     fn random(&self, _origin: &Point3, _rng: &mut Random) -> Vec3 {
         unimplemented!()
     }
+
+    #[cfg(not(target_os = "cuda"))]
+    fn is_light(&self) -> bool {
+        self.mat.is_light()
+    }
 }
 
 impl<'a> IntoBoundingBox for NormedTriangle<'a> {
@@ -320,6 +332,11 @@ impl<'b> Hitable for Quad<'b> {
         let p = &self.origin + &self.u * random_u + &self.v * random_v;
         p - origin
     }
+
+    #[cfg(not(target_os = "cuda"))]
+    fn is_light(&self) -> bool {
+        self.mat.is_light()
+    }
 }
 
 impl<'a> IntoBoundingBox for Quad<'a> {
@@ -390,28 +407,4 @@ pub fn make_box<'a>(a: Point3, b: Point3, mat: MaterialKind<'a>) -> HitableListB
     sides.add(Quad::new(Point3::new(min.x, min.y, min.z), dx, dz, mat)); // bottom
 
     sides
-}
-
-#[cfg(not(target_os = "cuda"))]
-use crate::materials::IsLight;
-
-#[cfg(not(target_os = "cuda"))]
-impl IsLight for Quad<'_> {
-    fn is_light(&self) -> bool {
-        self.mat.is_light()
-    }
-}
-
-#[cfg(not(target_os = "cuda"))]
-impl IsLight for Triangle<'_> {
-    fn is_light(&self) -> bool {
-        self.mat.is_light()
-    }
-}
-
-#[cfg(not(target_os = "cuda"))]
-impl IsLight for NormedTriangle<'_> {
-    fn is_light(&self) -> bool {
-        self.mat.is_light()
-    }
 }

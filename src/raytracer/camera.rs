@@ -93,7 +93,9 @@ impl Camera {
         let module = Module::from_ptx(PTX, &[])?;
         let stream = Stream::new(StreamFlags::NON_BLOCKING, None)?;
 
-        let lights = world.get_lights();
+        //TODO: get rid of clone by changing lifetimes
+        let binding = world.clone();
+        let lights = binding.get_lights();
 
         let world_copy = world.clone();
         let lights_copy = lights.clone();

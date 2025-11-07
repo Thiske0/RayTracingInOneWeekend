@@ -1,6 +1,7 @@
 #![feature(generic_const_exprs)]
 #![allow(incomplete_features)]
 #![feature(offset_of_enum)]
+#![feature(where_clause_attrs)]
 
 #[cfg(target_os = "cuda")]
 use cuda_std::glam::{UVec2, UVec3};
@@ -15,7 +16,7 @@ use gpu_rand::DefaultRand;
 
 use crate::{
     color::Color,
-    hitables::{HitKind, HitRecord, Hitable, RecursiveHitable, init_stack},
+    hitables::{HitKind, HitRecord, RecursiveHitable, init_stack},
     random::Random,
     stack::Stack,
     vec3::{Point3, Real, Vec3},
@@ -226,16 +227,9 @@ fn render_pixel_v3<'a>(
             }
 
             range = 1e-12..Real::INFINITY;
-            match world {
-                HitKind::HitKindNonRecursive(h) => {
-                    hit_record = h.hit(&current_ray, &range, rng);
-                }
-                HitKind::HitKindRecursive(h) => {
-                    stack[0].next_count = 0; // reset next_count
-                    stack_ptr = 1;
-                    hit_record = None;
-                }
-            }
+            stack[0].next_count = 0; // reset next_count
+            stack_ptr = 1;
+            hit_record = None;
         }
 
         if stack_ptr > 0 {
@@ -254,25 +248,8 @@ fn render_pixel_v3<'a>(
                 &mut extra_stack,
             ) {
                 current.next_count = next_count;
-                match inner_hitkind {
-                    HitKind::HitKindNonRecursive(inner_hitkind) => {
-                        if let Some(rec) = inner_hitkind.hit(&current_ray, &range, rng) {
-                            if let Some(current_rec) = &hit_record {
-                                if rec.t < current_rec.t {
-                                    range = range.start..rec.t;
-                                    hit_record = Some(rec);
-                                }
-                            } else {
-                                range = range.start..rec.t;
-                                hit_record = Some(rec);
-                            }
-                        }
-                    }
-                    HitKind::HitKindRecursive(inner_hitkind) => {
-                        stack_ptr += 1;
-                        stack[stack_ptr - 1] = StackEntry::new(&inner_hitkind);
-                    }
-                }
+                stack_ptr += 1;
+                stack[stack_ptr - 1] = StackEntry::new(&inner_hitkind);
             } else {
                 stack_ptr -= 1;
             }

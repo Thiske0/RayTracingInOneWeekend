@@ -42,7 +42,20 @@ pub trait Hitable {
     -> Option<HitRecord<'a>>;
     fn pdf_value(&self, origin: &Point3, direction: &Vec3, rng: &mut Random) -> Real;
     fn random(&self, origin: &Point3, rng: &mut Random) -> Vec3;
+    #[cfg(not(target_os = "cuda"))]
+    fn is_light(&self) -> bool;
 }
+
+#[cfg(not(target_os = "cuda"))]
+pub trait FullHitable: Hitable + Clone {}
+#[cfg(target_os = "cuda")]
+pub trait FullHitable: Hitable {}
+
+#[cfg(not(target_os = "cuda"))]
+impl<T: Hitable + Clone> FullHitable for T {}
+
+#[cfg(target_os = "cuda")]
+impl<T: Hitable> FullHitable for T {}
 
 #[enum_dispatch]
 pub trait RecursiveHitable {
@@ -75,26 +88,100 @@ pub trait RecursiveHitable {
         current_value: &mut Vec3,
         rng: &mut Random,
     ) -> Option<(&'a HitKind<'a>, usize)>;
+
+    #[cfg(not(target_os = "cuda"))]
+    fn get_lights_inner<'a>(&'a self) -> Vec<HitKind<'a>>
+    where
+        Self: Into<HitKind<'a>>;
+}
+
+impl<T: FullHitable> RecursiveHitable for T {
+    fn hit_recursive<'b>(
+        &'b self,
+        ray: &mut Ray,
+        range: &mut Range<Real>,
+        hit_record: &mut Option<HitRecord<'b>>,
+        _count: usize,
+        rng: &mut Random,
+        _extra_stack: &mut Stack,
+    ) -> Option<(&'b HitKind<'b>, usize)> {
+        if let Some(rec) = self.hit(ray, range, rng) {
+            if let Some(current_rec) = hit_record {
+                if rec.t < current_rec.t {
+                    *range = range.start..rec.t;
+                    *hit_record = Some(rec);
+                }
+            } else {
+                *range = range.start..rec.t;
+                *hit_record = Some(rec);
+            }
+        }
+        None
+    }
+
+    fn pdf_value_recursive<'b>(
+        &'b self,
+        _count: usize,
+        origin: &mut Point3,
+        direction: &mut Vec3,
+        current_value: &mut Real,
+        rng: &mut Random,
+    ) -> Option<(&'b HitKind<'b>, usize)> {
+        let value = self.pdf_value(origin, direction, rng);
+        *current_value += value;
+        None
+    }
+
+    fn random_recursive<'b>(
+        &'b self,
+        _count: usize,
+        origin: &mut Point3,
+        current_value: &mut Vec3,
+        rng: &mut Random,
+    ) -> Option<(&'b HitKind<'b>, usize)> {
+        let value = self.random(origin, rng);
+        *current_value += value;
+        None
+    }
+
+    #[cfg(not(target_os = "cuda"))]
+    fn get_lights_inner<'b>(&self) -> Vec<HitKind<'b>>
+    where
+        Self: Into<HitKind<'b>>,
+    {
+        if self.is_light() {
+            vec![self.clone().into()]
+        } else {
+            vec![]
+        }
+    }
 }
 
 #[repr(C)]
 #[cfg_attr(not(target_os = "cuda"), derive(Clone))]
 #[derive_builder('b)]
-#[enum_dispatch(IntoBoundingBox)]
+#[enum_dispatch(IntoBoundingBox, RecursiveHitable)]
 pub enum HitKind<'b> {
-    HitKindNonRecursive(HitKindNonRecursive<'b>),
-    HitKindRecursive(HitKindRecursive<'b>),
+    HitableList(HitableList<'b>),
+    Translate(Translate<'b>),
+    Rotate(Rotate<'b>),
+    Scale(Scale<'b>),
+    ConstantMedium(ConstantMedium<'b>),
+    Sphere(Sphere<'b>),
+    Quad(Quad<'b>),
+    Triangle(Triangle<'b>),
+    NormedTriangle(NormedTriangle<'b>),
 }
 
 pub const STACK_SIZE: usize = 16;
 
 pub struct StackEntry<'a, 'b> {
-    pub hitkind: &'a HitKindRecursive<'b>,
+    pub hitkind: &'a HitKind<'b>,
     pub next_count: usize,
 }
 
 impl<'a, 'b> StackEntry<'a, 'b> {
-    pub fn new(hitkind: &'a HitKindRecursive<'b>) -> Self {
+    pub fn new(hitkind: &'a HitKind<'b>) -> Self {
         StackEntry {
             hitkind,
             next_count: 0,
@@ -107,14 +194,12 @@ pub fn init_stack<'a, 'b, const SIZE: usize>(
 ) -> [StackEntry<'a, 'b>; SIZE] {
     let mut stack: [StackEntry<'a, 'b>; SIZE] =
         unsafe { core::mem::MaybeUninit::uninit().assume_init() };
-    if let HitKind::HitKindRecursive(hitkind) = hitkind {
-        stack[0] = StackEntry::new(hitkind);
-    }
+    stack[0] = StackEntry::new(hitkind);
     stack
 }
 
 fn init_stack_for_recursive<'a, 'b, const SIZE: usize>(
-    hitkind: &'a HitKindRecursive<'b>,
+    hitkind: &'a HitKind<'b>,
 ) -> [StackEntry<'a, 'b>; SIZE] {
     let mut stack: [StackEntry<'a, 'b>; SIZE] =
         unsafe { core::mem::MaybeUninit::uninit().assume_init() };
@@ -125,10 +210,9 @@ fn init_stack_for_recursive<'a, 'b, const SIZE: usize>(
 trait Recursive<'a> {
     fn recurse(
         &mut self,
-        hitkind: &'a HitKindRecursive<'a>,
+        hitkind: &'a HitKind<'a>,
         count: usize,
     ) -> Option<(&'a HitKind<'a>, usize)>;
-    fn handle_non_recursive(&mut self, hitkind: &'a HitKindNonRecursive<'a>);
 }
 
 struct HitRecursive<'a, 'b> {
@@ -142,7 +226,7 @@ struct HitRecursive<'a, 'b> {
 impl<'a> Recursive<'a> for HitRecursive<'a, '_> {
     fn recurse(
         &mut self,
-        hitkind: &'a HitKindRecursive<'a>,
+        hitkind: &'a HitKind<'a>,
         count: usize,
     ) -> Option<(&'a HitKind<'a>, usize)> {
         hitkind.hit_recursive(
@@ -153,20 +237,6 @@ impl<'a> Recursive<'a> for HitRecursive<'a, '_> {
             &mut self.rng,
             &mut self.extra_stack,
         )
-    }
-
-    fn handle_non_recursive(&mut self, hitkind: &'a HitKindNonRecursive<'a>) {
-        if let Some(rec) = hitkind.hit(&self.ray, &self.range, &mut self.rng) {
-            if let Some(current_rec) = &self.hit_record {
-                if rec.t < current_rec.t {
-                    self.range = self.range.start..rec.t;
-                    self.hit_record = Some(rec);
-                }
-            } else {
-                self.range = self.range.start..rec.t;
-                self.hit_record = Some(rec);
-            }
-        }
     }
 }
 
@@ -180,7 +250,7 @@ struct PDFValueRecursive<'b> {
 impl<'a> Recursive<'a> for PDFValueRecursive<'_> {
     fn recurse(
         &mut self,
-        hitkind: &'a HitKindRecursive<'a>,
+        hitkind: &'a HitKind<'a>,
         count: usize,
     ) -> Option<(&'a HitKind<'a>, usize)> {
         hitkind.pdf_value_recursive(
@@ -190,11 +260,6 @@ impl<'a> Recursive<'a> for PDFValueRecursive<'_> {
             &mut self.current_value,
             self.rng,
         )
-    }
-
-    fn handle_non_recursive(&mut self, hitkind: &'a HitKindNonRecursive<'a>) {
-        let value = hitkind.pdf_value(&self.origin, &self.direction, self.rng);
-        self.current_value += value;
     }
 }
 
@@ -207,47 +272,39 @@ struct PDFRandomRecursive<'b> {
 impl<'a> Recursive<'a> for PDFRandomRecursive<'_> {
     fn recurse(
         &mut self,
-        hitkind: &'a HitKindRecursive<'a>,
+        hitkind: &'a HitKind<'a>,
         count: usize,
     ) -> Option<(&'a HitKind<'a>, usize)> {
         hitkind.random_recursive(count, &mut self.origin, &mut self.current_value, self.rng)
     }
-
-    fn handle_non_recursive(&mut self, hitkind: &'a HitKindNonRecursive<'a>) {
-        let value = hitkind.random(&self.origin, self.rng);
-        self.current_value += value;
-    }
 }
 
-impl HitKind<'_> {
+impl<'b> HitKind<'b> {
     pub fn hit<'a>(
         &'a self,
         ray: Ray,
         range: Range<Real>,
         rng: &mut Random,
     ) -> Option<HitRecord<'a>> {
-        match self {
-            HitKind::HitKindNonRecursive(h) => h.hit(&ray, &range, rng),
-            HitKind::HitKindRecursive(h) => Self::hit_recursive(h, ray, range, rng),
-        }
+        Self::hit_recursive(self, ray, range, rng)
     }
 
     pub fn pdf_value(&self, origin: &Point3, direction: &Vec3, rng: &mut Random) -> Real {
-        match self {
-            HitKind::HitKindNonRecursive(h) => h.pdf_value(origin, direction, rng),
-            HitKind::HitKindRecursive(h) => Self::pdf_value_recursive(h, origin, direction, rng),
-        }
+        Self::pdf_value_recursive(self, origin, direction, rng)
     }
 
     pub fn random(&self, origin: &Point3, rng: &mut Random) -> Vec3 {
-        match self {
-            HitKind::HitKindNonRecursive(h) => h.random(origin, rng),
-            HitKind::HitKindRecursive(h) => Self::random_recursive(h, origin, rng),
-        }
+        Self::random_recursive(self, origin, rng)
+    }
+
+    #[cfg(not(target_os = "cuda"))]
+    pub fn get_lights(&'b self) -> HitKind<'b> {
+        let lights = self.get_lights_inner();
+        HitableList::new(lights).into()
     }
 
     fn hit_recursive<'a>(
-        hitkind: &'a HitKindRecursive<'a>,
+        hitkind: &'a HitKind<'a>,
         ray: Ray,
         range: Range<Real>,
         rng: &mut Random,
@@ -265,7 +322,7 @@ impl HitKind<'_> {
     }
 
     fn pdf_value_recursive<'a>(
-        hitkind: &'a HitKindRecursive<'a>,
+        hitkind: &'a HitKind<'a>,
         origin: &Point3,
         direction: &Vec3,
         rng: &mut Random,
@@ -281,11 +338,7 @@ impl HitKind<'_> {
         return recurse_impl.current_value;
     }
 
-    fn random_recursive<'a>(
-        hitkind: &'a HitKindRecursive<'a>,
-        origin: &Point3,
-        rng: &mut Random,
-    ) -> Vec3 {
+    fn random_recursive<'a>(hitkind: &'a HitKind<'a>, origin: &Point3, rng: &mut Random) -> Vec3 {
         let mut recurse_impl = PDFRandomRecursive {
             origin: origin.clone(),
             current_value: Vec3::zero(),
@@ -297,7 +350,7 @@ impl HitKind<'_> {
     }
 
     fn use_stack<'a, RecursiveImpl: Recursive<'a>>(
-        initial: &'a HitKindRecursive<'a>,
+        initial: &'a HitKind<'a>,
         recurse_impl: &mut RecursiveImpl,
     ) {
         let mut stack = init_stack_for_recursive::<STACK_SIZE>(initial);
@@ -313,162 +366,13 @@ impl HitKind<'_> {
                 recurse_impl.recurse(current.hitkind, current.next_count)
             {
                 current.next_count = next_count;
-                match inner_hitkind {
-                    HitKind::HitKindNonRecursive(inner_hitkind) => {
-                        recurse_impl.handle_non_recursive(inner_hitkind);
-                    }
-                    HitKind::HitKindRecursive(inner_hitkind) => {
-                        stack_ptr += 1;
-                        stack[stack_ptr - 1] = StackEntry::new(inner_hitkind);
-                    }
-                }
+                stack_ptr += 1;
+                stack[stack_ptr - 1] = StackEntry::new(inner_hitkind);
             } else {
                 stack_ptr -= 1;
                 if stack_ptr == 0 {
                     return;
                 }
-            }
-        }
-    }
-}
-
-// Macro's
-macro_rules! impl_into_hitkind_recursive {
-    ($($type:ident),*) => {
-        $(
-            impl<'a> From<$type<'a>> for HitKind<'a> {
-                fn from(value: $type<'a>) -> Self {
-                    HitKind::HitKindRecursive(value.into())
-                }
-            }
-        )*
-    };
-}
-macro_rules! impl_into_hitkind_non_recursive {
-    ($($type:ident),*) => {
-        $(
-            impl<'a> From<$type<'a>> for HitKind<'a> {
-                fn from(value: $type<'a>) -> Self {
-                    HitKind::HitKindNonRecursive(value.into())
-                }
-            }
-        )*
-    };
-}
-
-#[repr(C)]
-#[cfg_attr(not(target_os = "cuda"), derive(Clone))]
-#[enum_dispatch(Hitable, IntoBoundingBox)]
-#[derive_builder('b)]
-pub enum HitKindNonRecursive<'b> {
-    Sphere(Sphere<'b>),
-    Quad(Quad<'b>),
-    Triangle(Triangle<'b>),
-    NormedTriangle(NormedTriangle<'b>),
-}
-impl_into_hitkind_non_recursive!(Sphere, Quad, Triangle, NormedTriangle);
-
-#[cfg(not(target_os = "cuda"))]
-use crate::materials::IsLight;
-
-#[cfg(not(target_os = "cuda"))]
-impl<'a> IsLight for HitKindNonRecursive<'a> {
-    fn is_light(&self) -> bool {
-        match self {
-            HitKindNonRecursive::Sphere(s) => s.is_light(),
-            HitKindNonRecursive::Quad(q) => q.is_light(),
-            HitKindNonRecursive::Triangle(t) => t.is_light(),
-            HitKindNonRecursive::NormedTriangle(t) => t.is_light(),
-        }
-    }
-}
-
-#[repr(C)]
-#[cfg_attr(not(target_os = "cuda"), derive(Clone))]
-#[enum_dispatch(IntoBoundingBox)]
-#[derive_builder('b)]
-pub enum HitKindRecursive<'b> {
-    HitableList(HitableList<'b>),
-    Translate(Translate<'b>),
-    Rotate(Rotate<'b>),
-    Scale(Scale<'b>),
-    ConstantMedium(ConstantMedium<'b>),
-}
-
-impl_into_hitkind_recursive!(HitableList, Translate, Rotate, Scale, ConstantMedium);
-
-impl RecursiveHitable for HitKindRecursive<'_> {
-    fn hit_recursive<'a>(
-        &'a self,
-        ray: &mut Ray,
-        range: &mut Range<Real>,
-        hit_record: &mut Option<HitRecord<'a>>,
-        count: usize,
-        rng: &mut Random,
-        extra_stack: &mut Stack,
-    ) -> Option<(&'a HitKind<'a>, usize)> {
-        match self {
-            HitKindRecursive::HitableList(h) => {
-                h.hit_recursive(ray, range, hit_record, count, rng, extra_stack)
-            }
-            HitKindRecursive::Translate(h) => {
-                h.hit_recursive(ray, range, hit_record, count, rng, extra_stack)
-            }
-            HitKindRecursive::Rotate(h) => {
-                h.hit_recursive(ray, range, hit_record, count, rng, extra_stack)
-            }
-            HitKindRecursive::Scale(h) => {
-                h.hit_recursive(ray, range, hit_record, count, rng, extra_stack)
-            }
-            HitKindRecursive::ConstantMedium(h) => {
-                h.hit_recursive(ray, range, hit_record, count, rng, extra_stack)
-            }
-        }
-    }
-
-    fn pdf_value_recursive<'a>(
-        &'a self,
-        count: usize,
-        origin: &mut Point3,
-        direction: &mut Vec3,
-        current_value: &mut Real,
-        rng: &mut Random,
-    ) -> Option<(&'a HitKind<'a>, usize)> {
-        match self {
-            HitKindRecursive::HitableList(h) => {
-                h.pdf_value_recursive(count, origin, direction, current_value, rng)
-            }
-            HitKindRecursive::Translate(h) => {
-                h.pdf_value_recursive(count, origin, direction, current_value, rng)
-            }
-            HitKindRecursive::Rotate(h) => {
-                h.pdf_value_recursive(count, origin, direction, current_value, rng)
-            }
-            HitKindRecursive::Scale(h) => {
-                h.pdf_value_recursive(count, origin, direction, current_value, rng)
-            }
-            HitKindRecursive::ConstantMedium(h) => {
-                h.pdf_value_recursive(count, origin, direction, current_value, rng)
-            }
-        }
-    }
-
-    fn random_recursive<'a>(
-        &'a self,
-        count: usize,
-        origin: &mut Point3,
-        current_value: &mut Vec3,
-        rng: &mut Random,
-    ) -> Option<(&'a HitKind<'a>, usize)> {
-        match self {
-            HitKindRecursive::HitableList(h) => {
-                h.random_recursive(count, origin, current_value, rng)
-            }
-            HitKindRecursive::Translate(h) => h.random_recursive(count, origin, current_value, rng),
-            HitKindRecursive::Rotate(h) => h.random_recursive(count, origin, current_value, rng),
-            HitKindRecursive::Scale(h) => h.random_recursive(count, origin, current_value, rng),
-            HitKindRecursive::ConstantMedium(h) => {
-                h.random_recursive(count, origin, current_value, rng)
             }
         }
     }
@@ -502,56 +406,6 @@ impl<'a> HitRecord<'a> {
             mat,
             u,
             v,
-        }
-    }
-}
-
-#[cfg(not(target_os = "cuda"))]
-trait GetLights<'a> {
-    fn get_lights_inner(&self) -> Vec<HitKind<'a>>;
-}
-
-#[cfg(not(target_os = "cuda"))]
-impl<'a> HitKind<'a> {
-    pub fn get_lights(&self) -> HitKind<'a> {
-        let lights = match self {
-            HitKind::HitKindNonRecursive(h) => h.get_lights_inner(),
-            HitKind::HitKindRecursive(h) => h.get_lights_inner(),
-        };
-        HitableList::new(lights).into()
-    }
-}
-
-#[cfg(not(target_os = "cuda"))]
-impl<'a> GetLights<'a> for HitKind<'a> {
-    fn get_lights_inner(&self) -> Vec<HitKind<'a>> {
-        match self {
-            HitKind::HitKindNonRecursive(h) => h.get_lights_inner(),
-            HitKind::HitKindRecursive(h) => h.get_lights_inner(),
-        }
-    }
-}
-
-#[cfg(not(target_os = "cuda"))]
-impl<'a> GetLights<'a> for HitKindNonRecursive<'a> {
-    fn get_lights_inner(&self) -> Vec<HitKind<'a>> {
-        let mut lights = Vec::new();
-        if self.is_light() {
-            lights.push(self.clone().into());
-        }
-        lights
-    }
-}
-
-#[cfg(not(target_os = "cuda"))]
-impl<'a> GetLights<'a> for HitKindRecursive<'a> {
-    fn get_lights_inner(&self) -> Vec<HitKind<'a>> {
-        match self {
-            HitKindRecursive::HitableList(h) => h.get_lights_inner(),
-            HitKindRecursive::Translate(h) => h.get_lights_inner(),
-            HitKindRecursive::Rotate(h) => h.get_lights_inner(),
-            HitKindRecursive::Scale(h) => h.get_lights_inner(),
-            HitKindRecursive::ConstantMedium(h) => h.get_lights_inner(),
         }
     }
 }
