@@ -286,29 +286,6 @@ impl<'b> HitKind<'b> {
         range: Range<Real>,
         rng: &mut Random,
     ) -> Option<HitRecord<'a>> {
-        Self::hit_recursive(self, ray, range, rng)
-    }
-
-    pub fn pdf_value(&self, origin: &Point3, direction: &Vec3, rng: &mut Random) -> Real {
-        Self::pdf_value_recursive(self, origin, direction, rng)
-    }
-
-    pub fn random(&self, origin: &Point3, rng: &mut Random) -> Vec3 {
-        Self::random_recursive(self, origin, rng)
-    }
-
-    #[cfg(not(target_os = "cuda"))]
-    pub fn get_lights(&'b self) -> HitKind<'b> {
-        let lights = self.get_lights_inner();
-        HitableList::new(lights).into()
-    }
-
-    fn hit_recursive<'a>(
-        hitkind: &'a HitKind<'a>,
-        ray: Ray,
-        range: Range<Real>,
-        rng: &mut Random,
-    ) -> Option<HitRecord<'a>> {
         let mut recurse_impl = HitRecursive {
             ray: ray,
             range: range,
@@ -317,16 +294,11 @@ impl<'b> HitKind<'b> {
             extra_stack: Stack::new(),
         };
 
-        Self::use_stack(hitkind, &mut recurse_impl);
+        Self::use_stack(self, &mut recurse_impl);
         return recurse_impl.hit_record;
     }
 
-    fn pdf_value_recursive<'a>(
-        hitkind: &'a HitKind<'a>,
-        origin: &Point3,
-        direction: &Vec3,
-        rng: &mut Random,
-    ) -> Real {
+    pub fn pdf_value(&self, origin: &Point3, direction: &Vec3, rng: &mut Random) -> Real {
         let mut recurse_impl = PDFValueRecursive {
             origin: origin.clone(),
             direction: direction.clone(),
@@ -334,19 +306,25 @@ impl<'b> HitKind<'b> {
             rng: rng,
         };
 
-        Self::use_stack(hitkind, &mut recurse_impl);
+        Self::use_stack(self, &mut recurse_impl);
         return recurse_impl.current_value;
     }
 
-    fn random_recursive<'a>(hitkind: &'a HitKind<'a>, origin: &Point3, rng: &mut Random) -> Vec3 {
+    pub fn random(&self, origin: &Point3, rng: &mut Random) -> Vec3 {
         let mut recurse_impl = PDFRandomRecursive {
             origin: origin.clone(),
             current_value: Vec3::zero(),
             rng: rng,
         };
 
-        Self::use_stack(hitkind, &mut recurse_impl);
+        Self::use_stack(self, &mut recurse_impl);
         return recurse_impl.current_value;
+    }
+
+    #[cfg(not(target_os = "cuda"))]
+    pub fn get_lights(&'b self) -> HitKind<'b> {
+        let lights = self.get_lights_inner();
+        HitableList::new(lights).into()
     }
 
     fn use_stack<'a, RecursiveImpl: Recursive<'a>>(
