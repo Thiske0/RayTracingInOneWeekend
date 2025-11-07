@@ -542,6 +542,7 @@ fn final_scene<'a>(
 fn bunny<'a>(options: &mut RenderOptions) -> HitableListBuilder<'a> {
     let mut world = HitableListBuilder::new();
 
+    // 4_968 faces
     let bunny = parse_obj(
         "data/bunny.obj",
         Lambertian::new(SolidTexture::new(Color::new(0.0, 0.0, 0.8)).into()),
@@ -569,6 +570,7 @@ fn bunny<'a>(options: &mut RenderOptions) -> HitableListBuilder<'a> {
 fn dragon<'a>(options: &mut RenderOptions) -> HitableListBuilder<'a> {
     let mut world = HitableListBuilder::new();
 
+    // 87_130 faces
     let dragon = parse_obj(
         "data/Dragon_80K.obj",
         Lambertian::new(SolidTexture::new(Color::new(0.0, 0.0, 0.8)).into()),
