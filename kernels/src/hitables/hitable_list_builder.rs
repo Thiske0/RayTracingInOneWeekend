@@ -30,7 +30,7 @@ impl<'a> HitableListBuilder<'a> {
         }
     }
 
-    fn split_median(self) -> (HitableListBuilder<'a>, Option<HitableListBuilder<'a>>) {
+    fn split_middle(self) -> (HitableListBuilder<'a>, Option<HitableListBuilder<'a>>) {
         let bounding_box = self.boundingbox();
 
         let axis = bounding_box.longest_axis();
@@ -135,7 +135,7 @@ impl<'a> HitableListBuilder<'a> {
             .partition(|h| h.boundingbox().center().at_axis(&axis) < split_pos);
 
         if right.is_empty() {
-            HitableListBuilder { hitables: left }.split_median()
+            HitableListBuilder { hitables: left }.split_middle()
         } else {
             (
                 HitableListBuilder { hitables: left },
