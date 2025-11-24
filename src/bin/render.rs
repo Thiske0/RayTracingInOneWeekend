@@ -595,13 +595,45 @@ fn dragon<'a>(options: &mut RenderOptions) -> HitableListBuilder<'a> {
     world
 }
 
+fn perf_test<'a>(options: &mut RenderOptions) -> HitableListBuilder<'a> {
+    let mut world = HitableListBuilder::new();
+
+    // 87_130 faces
+    let dragon = parse_obj(
+        "data/Dragon_80K.obj",
+        Lambertian::new(SolidTexture::new(Color::new(0.0, 0.0, 0.8)).into()),
+    )
+    .expect("Failed to parse Dragon_80K.obj");
+
+    let dragon = dragon.subdivide_by4(8);
+
+    world.add(Translate::new_owned(
+        Vec3::new(277.5, 100.0, 277.5),
+        Rotate::new_owned(
+            Axis::Y,
+            -90.0_f32.to_radians(),
+            Scale::new_owned_same(400.0, dragon.into()),
+        ),
+    ));
+
+    make_cornell_box(&mut world, options);
+
+    options.width = 2160;
+    options.height = 2160;
+    options.samples_per_pixel = 200;
+    options.max_depth = 50;
+    options.calculate_noise = false;
+
+    world
+}
+
 fn main() -> Result<()> {
     // Parse command line options
     let mut options = Options::parse();
 
     let earth_image = ImageTexture::from_file("data/earthmap.jpg")?;
 
-    let scene = 10;
+    let scene = 11;
     let world = match scene {
         1 => bouncing_spheres(&mut options.render),
         2 => earth(&mut options.render, &earth_image),
@@ -613,6 +645,7 @@ fn main() -> Result<()> {
         8 => final_scene(&mut options.render, &earth_image),
         9 => bunny(&mut options.render),
         10 => dragon(&mut options.render),
+        11 => perf_test(&mut options.render),
         _ => {
             panic!("Unknown scene {}", scene);
         }

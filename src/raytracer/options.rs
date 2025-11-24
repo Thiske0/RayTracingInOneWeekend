@@ -21,7 +21,7 @@ pub struct RenderOptions {
     pub vertical_fov: Real,
 
     /// Number of samples per pixel
-    #[arg(short = 's', long = "samples", default_value_t = 20)]
+    #[arg(short = 's', long = "samples", default_value_t = 50)]
     pub samples_per_pixel: usize,
 
     /// Maximum depth of ray bounces
@@ -49,7 +49,7 @@ pub struct RenderOptions {
     #[arg(short = 'g', long = "gpu", default_value_t = true)]
     pub gpu_render: bool,
 
-    /// Render on GPU
+    /// Calculate noise
     #[arg(short = 'n', long = "noise", default_value_t = true)]
     pub calculate_noise: bool,
 

@@ -57,7 +57,7 @@ impl RecursiveHitable for HitableList<'_> {
         _rng: &mut Random,
         _extra_stack: &mut Stack,
     ) -> Option<(&'a HitKind<'a>, usize)> {
-        if (count == 0 && !self.bounding_box.hit(ray, interval)) || count >= self.hitables.len() {
+        if (!self.bounding_box.hit(ray, interval)) || count >= self.hitables.len() {
             return None;
         }
         Some((&self.hitables.as_slice()[count].hitable, count + 1))
