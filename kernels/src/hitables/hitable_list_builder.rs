@@ -22,6 +22,12 @@ pub struct HitableListBuilder<'a> {
     hitables: Vec<HitKind<'a>>,
 }
 
+pub enum SlitMethod {
+    Middle,
+    Sah,
+    SahBy4,
+}
+
 #[cfg(not(target_os = "cuda"))]
 impl<'a> HitableListBuilder<'a> {
     pub fn new() -> Self {
@@ -144,12 +150,22 @@ impl<'a> HitableListBuilder<'a> {
         }
     }
 
-    pub fn subdivide_by4(self, times: usize) -> HitableListBuilder<'a> {
+    pub fn subdivide_by4(
+        self,
+        times: usize,
+        method: SlitMethod,
+        sort_nodes: bool,
+    ) -> HitableListBuilder<'a> {
         let divisions = vec![2; times];
-        self.subdivide(divisions.as_slice())
+        self.subdivide(divisions.as_slice(), &method, sort_nodes)
     }
 
-    pub fn subdivide(self, divisions: &[usize]) -> HitableListBuilder<'a> {
+    pub fn subdivide(
+        self,
+        divisions: &[usize],
+        method: &SlitMethod,
+        sort_nodes: bool,
+    ) -> HitableListBuilder<'a> {
         if divisions.is_empty() {
             return self;
         }
@@ -160,7 +176,11 @@ impl<'a> HitableListBuilder<'a> {
             divided = divided
                 .into_iter()
                 .flat_map(|builder| {
-                    let (left, right) = builder.split_sah::<32>();
+                    let (left, right) = match method {
+                        SlitMethod::Middle => builder.split_middle(),
+                        SlitMethod::Sah => builder.split_sah::<32>(),
+                        SlitMethod::SahBy4 => unimplemented!(),
+                    };
                     if let Some(right) = right {
                         vec![right, left]
                     } else {
@@ -170,14 +190,23 @@ impl<'a> HitableListBuilder<'a> {
                 .collect();
         }
 
-        let builders = divided
+        let mut builders = divided
             .into_iter()
-            .map(|builder| builder.subdivide(&divisions[1..]))
+            .map(|builder| builder.subdivide(&divisions[1..], method, sort_nodes))
             .collect::<Vec<_>>();
 
-        if builders.len() == 1 {
-            let first = builders.into_iter().next().unwrap();
-            return first;
+        if sort_nodes {
+            let bounding_box = builders
+                .iter()
+                .fold(BoundingBox::empty(), |acc, b| acc.merge(&b.boundingbox()));
+            let axis = bounding_box.longest_axis();
+            builders.sort_by(|a, b| {
+                a.boundingbox()
+                    .center()
+                    .at_axis(&axis)
+                    .partial_cmp(&b.boundingbox().center().at_axis(&axis))
+                    .unwrap()
+            });
         }
 
         HitableListBuilder {

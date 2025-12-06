@@ -16,7 +16,7 @@ use simple_ray_tracer_kernels::{
     hitables::{
         HitKind,
         constant_medium::ConstantMedium,
-        hitable_list_builder::HitableListBuilder,
+        hitable_list_builder::{HitableListBuilder, SlitMethod},
         object_parser::parse_obj,
         planar::{Quad, Triangle, make_box},
         rotate::Rotate,
@@ -82,7 +82,7 @@ fn bouncing_spheres<'a>(options: &mut RenderOptions) -> HitableListBuilder<'a> {
             }
         }
     }
-    let spheres = spheres.subdivide(&[2]);
+    let spheres = spheres.subdivide(&[2], &SlitMethod::Middle, false);
 
     world.add_unrolled(spheres.into());
 
@@ -442,7 +442,7 @@ fn final_scene<'a>(
             ));
         }
     }
-    let subdivided_floor = floor.subdivide(&[2, 4]).into();
+    let subdivided_floor = floor.subdivide(&[2, 4], &SlitMethod::Middle, false).into();
     world.add(subdivided_floor);
 
     world.add(Quad::new(
@@ -520,7 +520,9 @@ fn final_scene<'a>(
             white.clone(),
         ));
     }
-    let subdivided_spheres = spheres.subdivide(&[3, 3]).into();
+    let subdivided_spheres = spheres
+        .subdivide(&[3, 3], &SlitMethod::Middle, false)
+        .into();
 
     world.add(Translate::new_owned(
         Vec3::new(-100.0, 270.0, 395.0),
@@ -549,7 +551,7 @@ fn bunny<'a>(options: &mut RenderOptions) -> HitableListBuilder<'a> {
     )
     .expect("Failed to parse bunny.obj");
 
-    let bunny = bunny.subdivide_by4(5);
+    let bunny = bunny.subdivide_by4(5, SlitMethod::Sah, false);
 
     world.add(Translate::new_owned(
         Vec3::new(277.5, -50.0, 277.5),
@@ -577,7 +579,7 @@ fn dragon<'a>(options: &mut RenderOptions) -> HitableListBuilder<'a> {
     )
     .expect("Failed to parse Dragon_80K.obj");
 
-    let dragon = dragon.subdivide_by4(8);
+    let dragon = dragon.subdivide_by4(8, SlitMethod::Sah, false);
 
     world.add(Translate::new_owned(
         Vec3::new(277.5, 100.0, 277.5),
@@ -605,7 +607,14 @@ fn perf_test<'a>(options: &mut RenderOptions) -> HitableListBuilder<'a> {
     )
     .expect("Failed to parse Dragon_80K.obj");
 
-    let dragon = dragon.subdivide_by4(8);
+    // Time duration
+    let start = std::time::Instant::now();
+
+    // Make BVH
+    let dragon = dragon.subdivide_by4(8, SlitMethod::Sah, true);
+
+    let duration = start.elapsed();
+    println!("BVH build time: {:?}", duration);
 
     world.add(Translate::new_owned(
         Vec3::new(277.5, 100.0, 277.5),
