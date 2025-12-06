@@ -611,7 +611,7 @@ fn perf_test<'a>(options: &mut RenderOptions) -> HitableListBuilder<'a> {
     let start = std::time::Instant::now();
 
     // Make BVH
-    let dragon = dragon.subdivide_by4(8, SlitMethod::SahBy4, true);
+    let dragon = dragon.subdivide_by4(8, SlitMethod::Middle, false);
 
     let duration = start.elapsed();
     println!("BVH build time: {:?}", duration);
