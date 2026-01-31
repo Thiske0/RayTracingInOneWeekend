@@ -58,12 +58,12 @@ impl RecursiveHitable for HitableList<'_> {
         _rng: &mut Random,
         _extra_stack: &mut Stack,
     ) -> Option<(&'a HitKind<'a>, usize)> {
-        if (count >= self.hitables.len() * 2) {
+        if count >= self.hitables.len() * 2 {
             return None;
         }
         let mut count = count;
         let dir = if count == 0 {
-            if(!self.bounding_box.hit(ray, interval)) {
+            if !self.bounding_box.hit(ray, interval) {
                 return None;
             }
             let dir = ray.direction.at_axis(&self.bounding_box.longest_axis()) >= 0.0;
