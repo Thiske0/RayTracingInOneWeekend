@@ -48,64 +48,8 @@ impl IntoBoundingBox for HitableList<'_> {
 }
 
 impl RecursiveHitable for HitableList<'_> {
-    // basic implementation: just go through all hitables in order
-    fn hit_recursive<'a>(
-        &'a self,
-        ray: &mut Ray,
-        interval: &mut Range<Real>,
-        _hit_record: &mut Option<HitRecord<'a>>,
-        count: usize,
-        _rng: &mut Random,
-        _extra_stack: &mut Stack,
-    ) -> Option<(&'a HitKind<'a>, usize)> {
-        if (!self.bounding_box.hit(ray, interval)) || count >= self.hitables.len() {
-            return None;
-        }
-        Some((&self.hitables.as_slice()[count].hitable, count + 1))
-    }
-
-    // implementation that sorts by distance to ray origin
-    /*fn hit_recursive<'a>(
-        &'a self,
-        ray: &mut Ray,
-        interval: &mut Range<Real>,
-        _hit_record: &mut Option<HitRecord<'a>>,
-        count: usize,
-        _rng: &mut Random,
-        _extra_stack: &mut Stack,
-    ) -> Option<(&'a HitKind<'a>, usize)> {
-        if !self.bounding_box.hit(ray, interval) {
-            return None;
-        }
-        let min_distance_squared = if count == 0 {
-            0.0
-        } else {
-            (&ray.origin - &self.hitables[count - 1].centroid).length_squared()
-        };
-        let mut closest_distance_squared = Real::MAX;
-        let mut closest_index = 0;
-        for index in 0..self.hitables.len() {
-            let distance_squared = (&ray.origin - &self.hitables[index].centroid).length_squared();
-            if distance_squared < closest_distance_squared
-                && (distance_squared > min_distance_squared
-                    || (distance_squared == min_distance_squared && index >= count))
-            {
-                closest_distance_squared = distance_squared;
-                closest_index = index;
-            }
-        }
-        if closest_distance_squared == Real::MAX {
-            return None;
-        }
-
-        Some((
-            &self.hitables.as_slice()[closest_index].hitable,
-            closest_index + 1,
-        ))
-    }*/
-
     //check direction along longest axis of bounding box to decide order
-    /*fn hit_recursive<'a>(
+    fn hit_recursive<'a>(
         &'a self,
         ray: &mut Ray,
         interval: &mut Range<Real>,
@@ -124,7 +68,7 @@ impl RecursiveHitable for HitableList<'_> {
             self.hitables.len() - 1 - count
         };
         Some((&self.hitables.as_slice()[index].hitable, count + 1))
-    }*/
+    }
 
     fn pdf_value_recursive<'a>(
         &'a self,

@@ -288,58 +288,47 @@ impl<'a> HitableListBuilder<'a> {
     pub fn subdivide_by4(
         self,
         times: usize,
-        method: SlitMethod,
-        sort_nodes: bool,
     ) -> HitableListBuilder<'a> {
         let divisions = vec![2; times];
-        self.subdivide(divisions.as_slice(), &method, sort_nodes)
+        self.subdivide(divisions.as_slice())
     }
 
     pub fn subdivide(
         self,
         divisions: &[usize],
-        method: &SlitMethod,
-        sort_nodes: bool,
     ) -> HitableListBuilder<'a> {
         if divisions.is_empty() {
             return self;
         }
 
-        let mut times = divisions[0];
-        if method == &SlitMethod::SahBy4 {
-            // halve the number of splits since each split creates 4 children
-            times = (times + 1) / 2;
-        }
+        let  times = (divisions[0] + 1) / 2;
         let mut divided = vec![self];
         for _ in 0..times {
             divided = divided
                 .into_iter()
-                .flat_map(|builder| match method {
-                    SlitMethod::Middle => builder.split_middle(),
-                    SlitMethod::Sah => builder.split_sah::<32>(),
-                    SlitMethod::SahBy4 => builder.split_sah_by4::<32>(),
-                })
+                .flat_map(|builder| 
+                    builder.split_sah_by4::<32>()
+                )
                 .collect();
         }
 
         let mut builders = divided
             .into_iter()
-            .map(|builder| builder.subdivide(&divisions[1..], method, sort_nodes))
+            .map(|builder| builder.subdivide(&divisions[1..]))
             .collect::<Vec<_>>();
 
-        if sort_nodes {
-            let bounding_box = builders
-                .iter()
-                .fold(BoundingBox::empty(), |acc, b| acc.merge(&b.boundingbox()));
-            let axis = bounding_box.longest_axis();
-            builders.sort_by(|a, b| {
-                a.boundingbox()
-                    .center()
-                    .at_axis(&axis)
-                    .partial_cmp(&b.boundingbox().center().at_axis(&axis))
-                    .unwrap()
-            });
-        }
+        let bounding_box = builders
+            .iter()
+            .fold(BoundingBox::empty(), |acc, b| acc.merge(&b.boundingbox()));
+        let axis = bounding_box.longest_axis();
+        builders.sort_by(|a, b| {
+            a.boundingbox()
+                .center()
+                .at_axis(&axis)
+                .partial_cmp(&b.boundingbox().center().at_axis(&axis))
+                .unwrap()
+        });
+        
 
         HitableListBuilder {
             hitables: builders.into_iter().map(|b| b.into()).collect(),
