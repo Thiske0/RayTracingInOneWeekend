@@ -3,7 +3,7 @@ use core::ops::Range;
 use crate::{
     boundingbox::{BoundingBox, IntoBoundingBox},
     hitables::{
-        HitKind, HitRecord, HitableWithCentroid, HitableWithCentroidDevice, RecursiveHitable,
+        HitKind, HitKindDevice, HitRecord, RecursiveHitable,
     },
     random::{Random, RandomRange},
     ray::Ray,
@@ -17,7 +17,7 @@ use ref_builder::{SliceBuilder, SliceBuilderDevice};
 #[cfg_attr(not(target_os = "cuda"), derive(Clone))]
 #[derive_builder('a)]
 pub struct HitableList<'a> {
-    hitables: SliceBuilder<'a, HitableWithCentroid<'a>>,
+    hitables: SliceBuilder<'a, HitKind<'a>>,
     bounding_box: BoundingBox,
 }
 
@@ -58,16 +58,27 @@ impl RecursiveHitable for HitableList<'_> {
         _rng: &mut Random,
         _extra_stack: &mut Stack,
     ) -> Option<(&'a HitKind<'a>, usize)> {
-        if (!self.bounding_box.hit(ray, interval)) || count >= self.hitables.len() {
+        if (count >= self.hitables.len() * 2) {
             return None;
         }
-        let dir = ray.direction.at_axis(&self.bounding_box.longest_axis()) >= 0.0;
-        let index = if dir {
-            count
-        } else {
-            self.hitables.len() - 1 - count
+        let mut count = count;
+        let dir = if count == 0 {
+            if(!self.bounding_box.hit(ray, interval)) {
+                return None;
+            }
+            let dir = ray.direction.at_axis(&self.bounding_box.longest_axis()) >= 0.0;
+            count += dir as usize;
+            dir
+        }  else {
+            (count & 1) == 1
         };
-        Some((&self.hitables.as_slice()[index].hitable, count + 1))
+        
+        let index = if dir {
+            count / 2
+        } else {
+            self.hitables.len() - 1 - count / 2
+        };
+        Some((&self.hitables.as_slice()[index], count + 2))
     }
 
     fn pdf_value_recursive<'a>(
@@ -82,7 +93,7 @@ impl RecursiveHitable for HitableList<'_> {
             *current_value /= self.hitables.len() as Real;
             None
         } else {
-            Some((&self.hitables[count].hitable, count + 1))
+            Some((&self.hitables[count], count + 1))
         }
     }
 
@@ -98,7 +109,7 @@ impl RecursiveHitable for HitableList<'_> {
                 return None;
             }
             let index = rng.random_range(0..self.hitables.len());
-            Some((&self.hitables[index].hitable, 1))
+            Some((&self.hitables[index], 1))
         } else if count == 1 {
             None
         } else {
@@ -113,7 +124,7 @@ impl RecursiveHitable for HitableList<'_> {
     {
         self.hitables
             .iter()
-            .flat_map(|hitable_with_centroid| hitable_with_centroid.hitable.get_lights_inner())
+            .flat_map(|hitable| hitable.get_lights_inner())
             .collect()
     }
 }

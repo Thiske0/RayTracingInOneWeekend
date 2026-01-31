@@ -387,22 +387,3 @@ impl<'a> HitRecord<'a> {
         }
     }
 }
-
-#[repr(C)]
-#[cfg_attr(not(target_os = "cuda"), derive(Clone))]
-#[derive_builder('a)]
-pub struct HitableWithCentroid<'a> {
-    hitable: HitKind<'a>,
-    centroid: Point3,
-}
-
-impl<'a> Into<HitableWithCentroid<'a>> for HitKind<'a> {
-    fn into(self) -> HitableWithCentroid<'a> {
-        let bounding_box = self.boundingbox();
-        let centroid = bounding_box.center();
-        HitableWithCentroid {
-            hitable: self,
-            centroid,
-        }
-    }
-}
