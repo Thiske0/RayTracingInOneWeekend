@@ -92,5 +92,8 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get -qq -y install git
 
 RUN git clone https://github.com/Rust-GPU/rust-cuda.git ./Rust-CUDA
 
-WORKDIR /Rust-CUDA
+WORKDIR /data/rust-cuda/Rust-CUDA
 RUN cargo build -p cuda_builder --features rustc_codegen_nvvm --release
+ENV LD_LIBRARY_PATH="/data/rust-cuda/Rust-CUDA/target/release:${LD_LIBRARY_PATH}"
+
+WORKDIR /data/rust-cuda/
