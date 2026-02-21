@@ -642,7 +642,7 @@ fn main() -> Result<()> {
 
     let earth_image = ImageTexture::from_file("data/earthmap.jpg")?;
 
-    let scene = 10;
+    let scene = 11;
     let world = match scene {
         1 => bouncing_spheres(&mut options.render),
         2 => earth(&mut options.render, &earth_image),
