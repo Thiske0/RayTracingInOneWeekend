@@ -66,13 +66,17 @@ pub unsafe fn render_image<'a>(
     options: &ImageRenderOptions,
     lights: &'a HitKind<'a>,
     rand_states: *mut DefaultRand,
+    ofset: &'a u32,
+    num_streams: &'a u32,
 ) {
     // Safety: 'grid' must point to a valid GridND<Color, 2> that is mutable.
     let grid = unsafe { &mut *grid };
 
-    let (idx_x, idx_y) = thread::index_2d().as_usize_tuple();
+    let (idx_x, idx_y_result) = thread::index_2d().as_usize_tuple();
+    let idx_y = idx_y_result * *num_streams as usize + *ofset as usize;
     let dims = grid.shape();
-    if idx_x >= dims[1] || idx_y >= dims[0] {
+    
+    if idx_x >= dims[1] || idx_y_result >= dims[0] {
         return;
     }
     let px_idx = idx_y * dims[0] + idx_x;
@@ -81,7 +85,7 @@ pub unsafe fn render_image<'a>(
     let mut rng = unsafe { &mut *rand_states.add(px_idx) };
 
     // Store the pixel color in the grid
-    *grid.at_mut(idx_y).at_mut(idx_x) =
+    *grid.at_mut(idx_y_result).at_mut(idx_x) =
         render_pixel_v3(idx_x, idx_y, options, world, lights, &mut rng);
 }
 use crate::ray::Ray;
