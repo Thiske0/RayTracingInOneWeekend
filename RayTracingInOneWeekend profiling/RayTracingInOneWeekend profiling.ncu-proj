@@ -2,39 +2,39 @@
     "extension": "ncu-proj",
     "files": [
         {
-            "is_open": true,
             "path": "report1.nsys-rep"
         },
         {
-            "is_open": true,
             "path": "profilings/profile_1.ncu-rep"
         },
         {
-            "is_open": true,
             "path": "profilings/profile_2.ncu-rep"
         },
         {
-            "is_open": true,
             "path": "profilings/profile_3.ncu-rep"
         },
         {
             "path": "profilings/profile_4.ncu-rep"
         },
         {
-            "is_open": true,
             "path": "profilings/profile_5.ncu-rep"
         },
         {
-            "is_open": true,
             "path": "profilings/profile_6.ncu-rep"
         },
         {
-            "is_open": true,
             "path": "profilings/profile_7.ncu-rep"
         },
         {
-            "is_open": true,
             "path": "profilings/profile_8.ncu-rep"
+        },
+        {
+            "is_open": true,
+            "path": "test.ncu-rep"
+        },
+        {
+            "is_open": true,
+            "path": "test-v2.ncu-rep"
         }
     ],
     "launcher": {
@@ -65,7 +65,7 @@
         "activity/profile/enablenvtxsupport": false,
         "activity/profile/enableprofilingfromstart": true,
         "activity/profile/filtermode": "Global",
-        "activity/profile/forceoverwrite": false,
+        "activity/profile/forceoverwrite": true,
         "activity/profile/graphprofiling": "Node",
         "activity/profile/importsass": true,
         "activity/profile/importsource": false,
@@ -79,7 +79,7 @@
         "activity/profile/nativestackincludeexcludeoptions": "",
         "activity/profile/nvtxincludeexcludeoptions": "",
         "activity/profile/nvtxpushpopscope": "Thread",
-        "activity/profile/outputfile": "C:/Users/mathi/programming/VS_code/rust/RayTracingInOneWeekend/RayTracingInOneWeekend profiling/profilings/profile_%i",
+        "activity/profile/outputfile": "C:/Users/mathi/programming/VS_code/rust/RayTracingInOneWeekend/RayTracingInOneWeekend profiling/test-v2.ncu-rep",
         "activity/profile/pmsamplingbuffersize": 0,
         "activity/profile/pmsamplinginterval": 0,
         "activity/profile/pmsamplingmaxpasses": 0,
