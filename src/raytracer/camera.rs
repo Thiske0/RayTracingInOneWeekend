@@ -1,5 +1,5 @@
 use cust::{
-    error::CudaResult, launch, memory::{AsyncCopyDestination, DeviceBox, DeviceBuffer}, module::Module, stream::{Stream, StreamFlags}
+    context::{legacy::CurrentContext, Context}, device::Device, error::CudaResult, launch, memory::{AsyncCopyDestination, DeviceBox, DeviceBuffer}, module::Module, stream::{Stream, StreamFlags}
 };
 use gpu_builder::NiceBuilder;
 use gpu_rand::DefaultRand;
@@ -25,7 +25,7 @@ impl Camera {
 
     unsafe fn initilize(
         &self,
-        streams: &[Stream],
+        contexts: &[(Context, Module, Stream)],
     ) -> Result<(ImageRenderOptions, Vec<DeviceBuffer<DefaultRand>>)> {
         let origin = self.render_options.lookfrom;
 
@@ -56,8 +56,9 @@ impl Camera {
         let seed = rand::rng().random();
         let total_elems = self.render_options.width * self.render_options.height;
         let rand_states = DefaultRand::initialize_states(seed, total_elems);
-        let rand_states = streams.into_iter().map(|stream| {
-             unsafe {
+        let rand_states = contexts.into_iter().map(|(ctx, _module, stream)| {
+            CurrentContext::set_current(ctx)?;
+            unsafe {
                 let mut device_buffer = DeviceBuffer::uninitialized_async(total_elems, stream)?;
                 device_buffer.async_copy_from(rand_states.as_slice(), stream)?;
                 Ok(device_buffer)
@@ -88,12 +89,18 @@ impl Camera {
 
         let image_grid = GridND::new([image_height, image_width], Color::black());
 
-        let _ctx = cust::quick_init()?;
-        let module = Module::from_ptx(PTX, &[])?;
-        let num_gpus = cust::device::Device::num_devices()?;
-        let streams = (0..num_gpus)
-            .map(|_| Stream::new(StreamFlags::NON_BLOCKING, None))
-            .collect::<CudaResult<Vec<_>>>()?;
+        cust::init(cust::CudaFlags::empty())?;
+        let num_gpus = cust::device::Device::num_devices()? as usize;
+
+        let mut contexts = Vec::with_capacity(num_gpus);
+        for i in 0..num_gpus {
+            let device = Device::get_device(i as u32)?;
+            let ctx = Context::new(device)?;
+            let module = Module::from_ptx(PTX, &[])?;
+            let stream = Stream::new(StreamFlags::NON_BLOCKING, None)?;
+            contexts.push((ctx, module, stream));
+        }
+
         //TODO: get rid of clone by changing lifetimes
         let binding = world.clone();
         let lights = binding.get_lights();
@@ -121,14 +128,20 @@ impl Camera {
                     image_grid.clone(),
                     world_copy,
                     lights_copy,
-                    &module,
-                    &streams,
+                    &contexts,
                     noise_callback,
                 )?;
             }
             self.save_image(image_grid)
         };
-        self.render_with_callback(image_grid, world, lights, &module, &streams, callback)?;
+        self.render_with_callback(image_grid, world, lights, &contexts, callback)?;
+
+        for (ctx, module, stream) in contexts.into_iter().rev() {
+            // Drop streams and modules explicitly first if needed
+            drop(stream);
+            drop(module);
+            drop(ctx); // drop context last
+        }
         Ok(())
     }
 
@@ -137,13 +150,12 @@ impl Camera {
         mut image_grid: GridND<Color, 2>,
         world: HitKind,
         lights: HitKind,
-        module: &Module,
-        streams: &[Stream],
+        contexts: &[(Context, Module, Stream)],
         callback: impl FnOnce(&GridND<Color, 2>) -> Result<()>,
     ) -> Result<()> {
         unsafe {
             // Initialize camera parameters
-            let (image_render_options, rand_states_device) = self.initilize(streams)?;
+            let (image_render_options, rand_states_device) = self.initilize(contexts)?;
 
             if self.render_options.gpu_render {
                 Self::render_gpu(
@@ -152,8 +164,7 @@ impl Camera {
                     lights,
                     &image_render_options,
                     rand_states_device,
-                    module,
-                    streams,
+                    contexts,
                     callback,
                 )?;
             } else {
@@ -189,25 +200,26 @@ impl Camera {
         lights: HitKind<'a>,
         image_render_options: &ImageRenderOptions,
         rand_states_device: Vec<DeviceBuffer<DefaultRand>>,
-        module: &Module,
-        streams: &[Stream],
+        contexts: &[(Context, Module, Stream)],
         callback: impl FnOnce(&GridND<Color, 2>) -> Result<()>,
     ) -> Result<()> {
         unsafe {
-            let render_image = module.get_function("render_image")?;
+            let num_gpus = contexts.len();
+
+
+            // move data to GPUs
+            let mut device_data = contexts.iter().zip(rand_states_device).enumerate().map(|(i, ((ctx, module, stream), rand_states))| {
+                CurrentContext::set_current(ctx)?;
+                let render_image = module.get_function("render_image")?;
 
             
-            let (_, recommended_block_size) =
-                render_image.suggested_launch_configuration(0, 0.into())?;
-
-            let num_streams = streams.len();
-
-            let mut image_grids_device = streams.iter().zip(rand_states_device).map(|(stream, rand_states)| {
+                let (_, recommended_block_size) =
+                    render_image.suggested_launch_configuration(0, 0.into())?;
                 let mut local_grid_shape = image_grid.shape();
-                local_grid_shape[0] = (local_grid_shape[0]+num_streams-1)/num_streams;
-                
+                local_grid_shape[0] = (local_grid_shape[0]+num_gpus-1)/num_gpus;
                 let (blocks, threads) =
                     GridND::<Color, 2>::grid_and_block_size(local_grid_shape, recommended_block_size);
+                
                 let world_device = world.clone().build_device(stream)?;
                 let lights_device = lights.clone().build_device(stream)?;
                 let image_render_options_device = DeviceBox::new_async(image_render_options, stream)?;
@@ -215,26 +227,57 @@ impl Camera {
                 let local_image_grid = GridND::new(local_grid_shape, Color::black());
                 let mut image_grid_device = local_image_grid.build_device(stream)?;
 
+                let ofset_device = DeviceBox::new_async(&(i as u32), stream)?;
+                let num_streams_device = DeviceBox::new_async(&(num_gpus as u32), stream)?;
+
+                Ok((render_image, blocks, threads, world_device, lights_device, image_render_options_device, image_grid_device, rand_states, ofset_device, num_streams_device))
+            }).collect::<CudaResult<Vec<_>>>()?;
+
+
+            contexts.iter().zip(&device_data).enumerate().map(|(i, ((ctx, module, stream), device_data))| {
+                CurrentContext::set_current(ctx)?;
+                let (render_image, blocks, threads, world_device, lights_device, image_render_options_device, image_grid_device, rand_states, ofset_device, num_streams_device) = device_data;
+
                 launch!(
                     render_image<<<blocks, threads, 0, stream>>>(
                         image_grid_device.as_device_ptr()?.as_mut_ptr(),
                         world_device.as_device_ptr()?,
                         image_render_options_device.as_device_ptr(),
                         lights_device.as_device_ptr()?,
-                        rand_states.as_device_ptr().as_mut_ptr()
+                        rand_states.as_device_ptr().as_mut_ptr(),
+                        ofset_device.as_device_ptr(),
+                        num_streams_device.as_device_ptr()
                     )
                 )?;
+                Ok(())
+            }).collect::<CudaResult<Vec<_>>>()?;
 
-                //world_device.drop_async(stream)?;
-                //lights_device.drop_async(stream)?;
+            // drop device data to free GPU memory, but keep image grids alive for copying back results
+            let mut image_grids_device = contexts.iter().zip(device_data).enumerate().map(|(i, ((ctx, module, stream), device_data))| {
+                CurrentContext::set_current(ctx)?;
+                let (_render_image, _blocks, _threads, world_device, lights_device, image_render_options_device, image_grid_device, rand_states, ofset_device, num_streams_device) = device_data;
+                // world_device.drop_async(stream)?;
+                // lights_device.drop_async(stream)?;
                 image_render_options_device.drop_async(stream)?;
                 rand_states.drop_async(stream)?;
+                ofset_device.drop_async(stream)?;
+                num_streams_device.drop_async(stream)?;
                 Ok(image_grid_device)
             }).collect::<CudaResult<Vec<_>>>()?;
 
-            streams.iter().map(|stream| stream.synchronize()).collect::<CudaResult<Vec<_>>>()?;
 
-            let result_grids = image_grids_device.iter_mut().map(|grid| grid.copy_back()).collect::<CudaResult<Vec<_>>>()?;
+            // synchronize
+            contexts.iter().map(|(ctx, _module, stream)| {
+                CurrentContext::set_current(ctx)?;
+                stream.synchronize()?;
+                Ok(())
+            }).collect::<CudaResult<Vec<_>>>()?;
+
+            // gather results
+            let result_grids = image_grids_device.iter_mut().zip(contexts).map(|(grid, (ctx, _module, _stream))| {
+                CurrentContext::set_current(ctx)?;
+                grid.copy_back()
+            }).collect::<CudaResult<Vec<_>>>()?;
 
             let mut result_grid = image_grid;
             let mut current_stream = 0;
@@ -245,7 +288,7 @@ impl Camera {
                     *result_pixel = *local_pixel;
                 }
                 current_stream += 1;
-                if(current_stream == num_streams) {
+                if(current_stream == num_gpus) {
                     current_stream = 0;
                     local_row_index += 1;
                 }
