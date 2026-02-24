@@ -226,11 +226,16 @@ impl<'b> Hitable for NormedTriangle<'b> {
                 .get_uv_coords(&hit.p, &self.origin, &self.u, &self.v);
             if u >= 0.0 && v >= 0.0 && u + v <= 1.0 {
                 let normal = (&self.norigin + &self.nu * u + &self.nv * v).normalize();
+                let (normal, is_front_face) = if ray.direction.dot(&normal) < 0.0 {
+                    (normal, true)
+                } else {
+                    (-normal, false)
+                };
                 return Some(HitRecord {
                     p: hit.p,
                     normal,
                     t: hit.t,
-                    is_front_face: hit.is_front_face,
+                    is_front_face,
                     u,
                     v,
                     mat: &self.mat,
