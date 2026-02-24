@@ -276,7 +276,7 @@ fn render_pixel_v3<'a>(
                         // This is to avoid precision issues with re-intersection.
                         scattered_ray.direction = scattered_ray.direction.normalize(); // Ensure direction is normalized
                         scattered_ray.origin =
-                            scattered_ray.origin + &scattered_ray.direction * 1e-4; // Offset to avoid re-intersection
+                            scattered_ray.origin + &scattered_ray.direction * 1e-3; // Offset to avoid re-intersection
 
                         current_ray = scattered_ray;
                         current_color = current_color * attenuation;
