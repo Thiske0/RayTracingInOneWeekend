@@ -55,6 +55,10 @@ pub struct RenderOptions {
 
     #[arg(short = 'b', long = "background", default_value = "0,0,0")]
     pub background: Color,
+
+    /// Dragon angle
+    #[arg(long = "dragon-angle", default_value_t = -90.0)]
+    pub dragon_angle: Real,
 }
 
 impl RenderOptions {

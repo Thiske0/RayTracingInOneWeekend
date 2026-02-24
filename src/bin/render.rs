@@ -620,7 +620,7 @@ fn perf_test<'a>(options: &mut RenderOptions) -> HitableListBuilder<'a> {
         Vec3::new(277.5, 100.0, 277.5),
         Rotate::new_owned(
             Axis::Y,
-            -90.0_f32.to_radians(),
+            options.dragon_angle.to_radians(),
             Scale::new_owned_same(400.0, dragon.into()),
         ),
     ));

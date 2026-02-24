@@ -7,6 +7,7 @@ use grid_nd::GridND;
 use image::{ImageBuffer, RgbImage};
 use rand::Rng;
 use simple_ray_tracer_kernels::{ImageRenderOptions, hitables::HitKind};
+use std::{fs, path::Path};
 
 use crate::{Result, raytracer::options::RenderOptions};
 
@@ -189,6 +190,12 @@ impl Camera {
                 color.into()
             },
         );
+
+        let path = Path::new(&self.render_options.file_name);
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+
         img.save(&self.render_options.file_name)?;
         Ok(())
     }

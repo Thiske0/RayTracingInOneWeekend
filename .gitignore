@@ -1,3 +1,5 @@
 **/target
 /.VSCodeCounter
 Cargo.lock
+/log
+/video
