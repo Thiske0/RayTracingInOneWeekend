@@ -597,13 +597,25 @@ fn dragon<'a>(options: &mut RenderOptions) -> HitableListBuilder<'a> {
     world
 }
 
-fn perf_test<'a>(options: &mut RenderOptions) -> HitableListBuilder<'a> {
+#[derive(PartialEq)]
+#[allow(dead_code)]
+enum DragonVersion {
+    Blue,
+    Glass,
+    Gold,
+}
+
+fn perf_test<'a>(options: &mut RenderOptions, version: DragonVersion) -> HitableListBuilder<'a> {
     let mut world = HitableListBuilder::new();
 
     // 87_130 faces
     let dragon = parse_obj(
         "data/Dragon_80K.obj",
-        Lambertian::new(SolidTexture::new(Color::new(0.0, 0.0, 0.8)).into()),
+        match version {
+            DragonVersion::Blue => Lambertian::new(SolidTexture::new(Color::new(0.0, 0.0, 0.8)).into()),
+            DragonVersion::Glass => Dielectric::new(1.5),
+            DragonVersion::Gold => Metal::new(SolidTexture::new(Color::new(1.0, 0.85, 0.0)).into(), 0.05),
+        },
     )
     .expect("Failed to parse Dragon_80K.obj");
 
@@ -629,7 +641,11 @@ fn perf_test<'a>(options: &mut RenderOptions) -> HitableListBuilder<'a> {
 
     options.width = 2160;
     options.height = 2160;
-    options.samples_per_pixel = 200;
+    if version == DragonVersion::Gold {
+        options.samples_per_pixel = 500;
+    } else {
+        options.samples_per_pixel = 200;
+    }
     options.max_depth = 50;
     options.calculate_noise = false;
 
@@ -654,7 +670,7 @@ fn main() -> Result<()> {
         8 => final_scene(&mut options.render, &earth_image),
         9 => bunny(&mut options.render),
         10 => dragon(&mut options.render),
-        11 => perf_test(&mut options.render),
+        11 => perf_test(&mut options.render, DragonVersion::Gold),
         _ => {
             panic!("Unknown scene {}", scene);
         }
