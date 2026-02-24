@@ -39,7 +39,7 @@ done
 echo "Combining frames into video..."
 
 /leonardo/pub/userexternal/mpoppe00/ffmpeg-git-20240629-amd64-static/ffmpeg -y -framerate 30 -i "$OUTPUT_DIR/frame%d.png" \
-       -c:v libx264 -pix_fmt yuv420p -crf 18 \
+       -c:v libx264 -pix_fmt yuv420p -crf 18 -frames:v $N \
        "$OUTPUT_DIR/output.mp4"
 
 echo "Video written to $OUTPUT_DIR/output.mp4"
