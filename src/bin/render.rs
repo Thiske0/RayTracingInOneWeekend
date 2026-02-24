@@ -641,11 +641,11 @@ fn perf_test<'a>(options: &mut RenderOptions, version: DragonVersion) -> Hitable
 
     options.width = 2160;
     options.height = 2160;
-    if version == DragonVersion::Gold {
-        options.samples_per_pixel = 500;
-    } else {
-        options.samples_per_pixel = 200;
-    }
+    match version {
+        DragonVersion::Blue => options.samples_per_pixel = 200,
+        DragonVersion::Gold => options.samples_per_pixel = 500,
+        DragonVersion::Glass => options.samples_per_pixel = 1000,
+    };
     options.max_depth = 50;
     options.calculate_noise = false;
 
@@ -670,7 +670,7 @@ fn main() -> Result<()> {
         8 => final_scene(&mut options.render, &earth_image),
         9 => bunny(&mut options.render),
         10 => dragon(&mut options.render),
-        11 => perf_test(&mut options.render, DragonVersion::Gold),
+        11 => perf_test(&mut options.render, DragonVersion::Glass),
         _ => {
             panic!("Unknown scene {}", scene);
         }
