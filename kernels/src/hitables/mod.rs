@@ -173,7 +173,7 @@ pub enum HitKind<'b> {
     NormedTriangle(NormedTriangle<'b>),
 }
 
-pub const STACK_SIZE: usize = 16;
+pub const STACK_SIZE: usize = 32;
 
 pub struct StackEntry<'a, 'b> {
     pub hitkind: &'a HitKind<'b>,

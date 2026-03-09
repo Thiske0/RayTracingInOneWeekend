@@ -652,13 +652,102 @@ fn perf_test<'a>(options: &mut RenderOptions, version: DragonVersion) -> Hitable
     world
 }
 
+fn unicorn<'a>(options: &mut RenderOptions) -> HitableListBuilder<'a> {
+    let mut world = HitableListBuilder::new();
+
+    // 158_396 faces
+    let unicorn = parse_obj(
+        "data/unicorn_winged.obj",
+        Metal::new(SolidTexture::new(Color::new(0.9, 0.9, 0.9)).into(), 0.05),
+    )
+    .expect("Failed to parse unicorn_winged.obj");
+
+    // Time duration
+    let start = std::time::Instant::now();
+
+    // Make BVH
+    let unicorn = unicorn.subdivide_by4(9);
+
+    let duration = start.elapsed();
+    println!("BVH build time: {:?}", duration);
+
+    world.add(Translate::new_owned(
+        Vec3::new(250.0, 0.0, 75.0),
+        Rotate::new_owned(
+            Axis::Y,
+            -135.0_f32.to_radians(),
+            Rotate::new_owned(
+                Axis::X,
+                -90.0_f32.to_radians(),
+                Scale::new_owned_same(8.0, unicorn.into()),
+            ),
+        ),
+    ));
+    
+
+    let light = DiffuseLight::new(SolidTexture::new(Color::new(15.0, 15.0, 15.0)));
+    let pink = Lambertian::new(SolidTexture::new(Color::new(1.0, 0.3, 0.65)));
+
+    world.add(Quad::new(
+        Point3::new(555.0, 0.0, 0.0),
+        Vec3::new(0.0, 555.0, 0.0),
+        Vec3::new(0.0, 0.0, 555.0),
+        pink.clone(),
+    ));
+    world.add(Quad::new(
+        Point3::new(0.0, 0.0, 0.0),
+        Vec3::new(0.0, 555.0, 0.0),
+        Vec3::new(0.0, 0.0, 555.0),
+        pink.clone(),
+    ));
+    world.add(Quad::new(
+        Point3::new(343.0, 554.0, 332.0),
+        Vec3::new(-130.0, 0.0, 0.0),
+        Vec3::new(0.0, 0.0, -105.0),
+        light,
+    ));
+    world.add(Quad::new(
+        Point3::new(0.0, 0.0, 0.0),
+        Vec3::new(555.0, 0.0, 0.0),
+        Vec3::new(0.0, 0.0, 555.0),
+        pink.clone(),
+    ));
+    world.add(Quad::new(
+        Point3::new(555.0, 555.0, 555.0),
+        Vec3::new(-555.0, 0.0, 0.0),
+        Vec3::new(0.0, 0.0, -555.0),
+        pink.clone(),
+    ));
+    world.add(Quad::new(
+        Point3::new(0.0, 0.0, 555.0),
+        Vec3::new(555.0, 0.0, 0.0),
+        Vec3::new(0.0, 555.0, 0.0),
+        pink.clone(),
+    ));
+
+    options.vertical_fov = 40.0;
+    options.lookfrom = Point3::new(278.0, 278.0, -800.0);
+    options.lookat = Point3::new(278.0, 278.0, 0.0);
+    options.vup = Vec3::new(0.0, 1.0, 0.0);
+    options.width = options.height;
+    options.defocus_angle = 0.0;
+
+    options.width = 2160;
+    options.height = 2160;
+    options.samples_per_pixel = 500;
+    options.max_depth = 50;
+    options.calculate_noise = false;
+
+    world
+}
+
 fn main() -> Result<()> {
     // Parse command line options
     let mut options = Options::parse();
 
     let earth_image = ImageTexture::from_file("data/earthmap.jpg")?;
 
-    let scene = 11;
+    let scene = 12;
     let world = match scene {
         1 => bouncing_spheres(&mut options.render),
         2 => earth(&mut options.render, &earth_image),
@@ -671,6 +760,7 @@ fn main() -> Result<()> {
         9 => bunny(&mut options.render),
         10 => dragon(&mut options.render),
         11 => perf_test(&mut options.render, DragonVersion::Glass),
+        12 => unicorn(&mut options.render),
         _ => {
             panic!("Unknown scene {}", scene);
         }
