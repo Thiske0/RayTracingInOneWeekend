@@ -47,9 +47,9 @@ impl<'a> ImageTexture<'a> {
 
                 let rgba = image.get_pixel(x as u32, image.height() - 1 - y as u32).0;
                 *pixel = Color::new(
-                    rgba[0] as f32 / 255.0,
-                    rgba[1] as f32 / 255.0,
-                    rgba[2] as f32 / 255.0,
+                    rgba[0] as Real / 255.0,
+                    rgba[1] as Real / 255.0,
+                    rgba[2] as Real / 255.0,
                 );
             }
         }

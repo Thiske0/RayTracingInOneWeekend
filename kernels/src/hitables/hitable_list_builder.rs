@@ -130,7 +130,7 @@ impl<'a> HitableListBuilder<'a> {
         }
 
         // Partition based on best split
-        let split_pos = axis_min + (best_split + 1) as f32 * bin_width;
+        let split_pos = axis_min + (best_split + 1) as Real * bin_width;
         let (left, right): (Vec<_>, Vec<_>) = self
             .hitables
             .into_iter()
@@ -237,16 +237,16 @@ impl<'a> HitableListBuilder<'a> {
         }
 
         // Partition based on best split
-        let split_pos = axis_min + (best_split.1 + 1) as f32 * bin_width;
+        let split_pos = axis_min + (best_split.1 + 1) as Real * bin_width;
         let (left, right): (Vec<_>, Vec<_>) = self
             .hitables
             .into_iter()
             .partition(|h| h.boundingbox().center().at_axis(&axis) < split_pos);
-        let split_pos = axis_min + (best_split.0 + 1) as f32 * bin_width;
+        let split_pos = axis_min + (best_split.0 + 1) as Real * bin_width;
         let (left_left, left_middle): (Vec<_>, Vec<_>) = left
             .into_iter()
             .partition(|h| h.boundingbox().center().at_axis(&axis) < split_pos);
-        let split_pos = axis_min + (best_split.2 + 1) as f32 * bin_width;
+        let split_pos = axis_min + (best_split.2 + 1) as Real * bin_width;
         let (right_middle, right_right): (Vec<_>, Vec<_>) = right
             .into_iter()
             .partition(|h| h.boundingbox().center().at_axis(&axis) < split_pos);
