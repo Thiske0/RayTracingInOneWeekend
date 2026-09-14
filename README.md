@@ -1,13 +1,17 @@
 # Rust + CUDA raytracer
 
 Photorealistic renderer written in Rust + CUDA.
+
 The Rust + CUDA ecosystem allows for easy degugging because the same code can run on both CPU and GPU.
 
 ## Implementations
 
 Each pixel corresponds to a single CUDA thread.
+
 For each pixel rays are send out that bounce around in the scene to determine what color the pixel should get.
+
 For opitmal performance when using multiple gpu's, the y-coorditates are interleaved.
+
 To avoid communication, a single frame is limited to a single node, but multiple frames can be rendered on multiple nodes as they are fully independent.
 
 
@@ -37,6 +41,7 @@ To avoid communication, a single frame is limited to a single node, but multiple
 ## Build
 
 The build happens during the job to ensure the program is compiled for the correct GPU.
+
 When getting getting network errors during compilation, please try to build on a login node to download the required crates.
 This can be done using the following commands:
 ```bash
