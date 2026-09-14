@@ -747,7 +747,7 @@ fn main() -> Result<()> {
 
     let earth_image = ImageTexture::from_file("data/earthmap.jpg")?;
 
-    let scene = 12;
+    let scene = 11;
     let world = match scene {
         1 => bouncing_spheres(&mut options.render),
         2 => earth(&mut options.render, &earth_image),
@@ -759,7 +759,7 @@ fn main() -> Result<()> {
         8 => final_scene(&mut options.render, &earth_image),
         9 => bunny(&mut options.render),
         10 => dragon(&mut options.render),
-        11 => perf_test(&mut options.render, DragonVersion::Glass),
+        11 => perf_test(&mut options.render, DragonVersion::Blue),
         12 => unicorn(&mut options.render),
         _ => {
             panic!("Unknown scene {}", scene);
