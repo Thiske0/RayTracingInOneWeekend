@@ -59,5 +59,5 @@ sbatch make-video.sh
 
 Feel free to make the following changes:
 - change the amount of nodes by updating `#SBATCH --nodes=60` in `make-video.sh`.
-- change the version of the drqgon rendered `perf_test(&mut options.render, DragonVersion::Blue)` line 762 in `src/bin/render.rs` (Options are `Blue`, `Glass`, `Gold`)
+- change the version of the dragon rendered `perf_test(&mut options.render, DragonVersion::Blue)` line 762 in `src/bin/render.rs` (Options are `Blue`, `Glass`, `Gold`)
 - change the time limit by updating `#SBATCH --time=00:15:00` in `make-video.sh`. (You can estimate the time needed using the existing results in `logs/`)
